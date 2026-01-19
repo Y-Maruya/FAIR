@@ -1,0 +1,4 @@
+[submodule "faser-common"]
+	path = faser-common
+	url = https://gitlab.cern.ch/faser/faser-common.git
+	branch = AHCALproto
