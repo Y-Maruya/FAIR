@@ -26,6 +26,7 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 
 option(FAIR_BUILD_TESTS "Build tests" OFF)
 option(FAIR_ENABLE_WARNINGS "Enable extra compiler warnings" ON)
+option(FAIR_WITH_SPDLOG "Use spdlog for logging" ON)
 
 if(FAIR_ENABLE_WARNINGS)
   if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
@@ -36,18 +37,28 @@ endif()
 # Helpful for shared libs / plugins
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
+
 # ---------------------------
 # Dependencies
 # ---------------------------
 # ROOT is optional at top-level (enable when needed in subdirs)
 option(FAIR_WITH_ROOT "Enable ROOT-dependent components" ON)
 if(FAIR_WITH_ROOT)
-  find_package(ROOT QUIET)
+  # Prefer ROOT from the current environment (e.g. LCG view) over /usr
+  if(DEFINED ENV{ROOTSYS} AND EXISTS "$ENV{ROOTSYS}")
+    list(PREPEND CMAKE_PREFIX_PATH "$ENV{ROOTSYS}")
+  endif()
+
+  # Use CONFIG mode so we get imported targets like ROOT::Core, ROOT::ROOTDataFrame, etc.
+  find_package(ROOT CONFIG QUIET COMPONENTS
+    Core RIO Tree Hist Graf Gpad Graf3d MathCore
+    ROOTDataFrame TreePlayer
+  )
+
   if(ROOT_FOUND)
-    message(STATUS "ROOT found: ${ROOT_VERSION}")
-    # ROOT::Core etc. will be available to subdirectories
+    message(STATUS "ROOT found: ${ROOT_VERSION} (ROOTSYS=$ENV{ROOTSYS})")
   else()
-    message(STATUS "ROOT not found (FAIR_WITH_ROOT=ON). ROOT-dependent targets may be skipped.")
+    message(FATAL_ERROR "ROOT not found or wrong ROOT selected. Please 'source' the desired ROOT (e.g. LCG view) and reconfigure.")
   endif()
 endif()
 
@@ -68,7 +79,31 @@ target_include_directories(fair_options INTERFACE
 
 # If ROOT exists, expose include dirs via interface as well (optional)
 if(FAIR_WITH_ROOT AND ROOT_FOUND)
-  target_link_libraries(fair_options INTERFACE ROOT::Core)
+  target_link_libraries(fair_options INTERFACE 
+  ROOT::Core
+  ROOT::Graf
+  ROOT::Graf3d
+  ROOT::Hist
+  ROOT::MathCore
+  ROOT::RIO
+  ROOT::Tree 
+  ROOT::ROOTDataFrame
+  )
+endif()
+
+# Use spdlog for logging (optional)
+if(FAIR_WITH_SPDLOG)
+  find_package(spdlog REQUIRED)
+
+  target_link_libraries(fair_options
+    INTERFACE
+      spdlog::spdlog
+  )
+
+  target_compile_definitions(fair_options
+    INTERFACE
+      FAIR_USE_SPDLOG
+  )
 endif()
 
 # ---------------------------
@@ -77,7 +112,7 @@ endif()
 
 # faser-common (has its own CMakeLists.txt)
 # This defines e.g. Logging, Exceptions, EventFormats targets (depending on its CMake)
-add_subdirectory(faser-common)
+# add_subdirectory(faser-common)
 
 # Your modules (add CMakeLists.txt in each as you implement)
 # You can comment out directories that don't have CMakeLists yet.

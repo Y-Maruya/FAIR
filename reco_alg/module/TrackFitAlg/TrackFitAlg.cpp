@@ -3,9 +3,13 @@
 #include "TF1.h"
 namespace AHCALRecoAlg {
     void TrackFitAlg::execute(EventStore& evt) {
-        auto recohits = evt.get<std::vector<AHCALRecoAndRawHit>>(m_in_recohit_key);
+        auto recohits = evt.get<std::vector<AHCALRecoHit>>(m_in_recohit_key);
         if (recohits.empty()) {
-            throw std::runtime_error("TrackFitAlg: No input reco hits found");
+            // throw std::runtime_error("TrackFitAlg: No input reco hits found");
+            LOG_WARN("TrackFitAlg: No input reco hits found.");
+            Track empty_track;
+            evt.put(m_out_track_key, std::move(empty_track));
+            return;
         }
         std::unique_ptr<TGraphErrors> graph_xz = std::make_unique<TGraphErrors>();
         std::unique_ptr<TGraphErrors> graph_yz = std::make_unique<TGraphErrors>();
@@ -22,6 +26,12 @@ namespace AHCALRecoAlg {
             graph_xz->SetPointError(index, AHCALGeometry::z_size/2, AHCALGeometry::xy_size/2);
             graph_yz->SetPointError(index, AHCALGeometry::z_size/2, AHCALGeometry::xy_size/2);
         }
+        if (track.nTotalHits < 2){
+            LOG_DEBUG("TrackFitAlg: Not enough hits to fit a track. Hits found: {}", track.nTotalHits);
+            evt.put(m_out_track_key, std::move(track));
+            return; // Not enough hits to fit
+        }
+        track.valid = true;
         // Fit lines
         graph_xz->Fit("pol1", "Q"); // "Q" for quiet mode
         graph_yz->Fit("pol1", "Q");

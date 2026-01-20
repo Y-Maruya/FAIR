@@ -15,34 +15,11 @@ target_include_directories(TrackFitAlg
     ${CMAKE_SOURCE_DIR}         # so "common/..." resolves
 )
 
-find_package(ROOT REQUIRED COMPONENTS Core Graf Graf3d Hist MathCore RIO Tree)
-target_link_libraries(TrackFitAlg PUBLIC
-  ROOT::Core
-  ROOT::Graf
-  ROOT::Graf3d
-  ROOT::Hist
-  ROOT::MathCore
-  ROOT::RIO
-  ROOT::Tree
-)
 
 # Use common compile options / include dirs from top-level interface lib (if present)
 if(TARGET fair_options)
   target_link_libraries(TrackFitAlg PUBLIC fair_options)
 endif()
-
-# If you use any faser-common targets inside TrackFitAlg.cpp, link them here.
-# (Uncomment once you know which are needed.)
-# Example possibilities:
-# if(TARGET Logging)
-#   target_link_libraries(TrackFitAlg PUBLIC Logging)
-# endif()
-# if(TARGET Exceptions)
-#   target_link_libraries(TrackFitAlg PUBLIC Exceptions)
-# endif()
-# if(TARGET EventFormats)
-#   target_link_libraries(TrackFitAlg PUBLIC EventFormats)
-# endif()
 
 # Optional: nice warnings locally
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")

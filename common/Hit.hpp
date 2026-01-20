@@ -47,25 +47,49 @@ namespace AHCALGeometry {
         return layer_ID*29.63 + 1.5; // start from first layer scintillator front face // TEMPORARY 
         // TODO : read the geometry file
     }
+    inline int HBUPositionOrder[40] = {
+                                39, 38, 37, 27, 14, 6, 7, 9, 12, 0,
+                        2, 3, 5, 8, 10, 11, 13, 15, 16, 1, 
+                        17, 18, 19, 20, 21, 22, 23, 24, 25, 4, 
+                        26, 28, 29, 30, 31, 32, 33, 35, 34, 36
+                        };
+    inline int PosToLayerID(int position_order){
+        for (int i = 0; i < 40; ++i){
+            if (HBUPositionOrder[i] == position_order){
+                return i;
+            }
+        }
+        return -1; // not found
+    }
 }
 class AHCALRecoHit {
 public:
-    int layer;      // 0..39
-    int asic;       // 0..8
-    int channel;    // 0..35
+    // int layer;      // 0..39
+    // int asic;       // 0..8
+    // int channel;    // 0..35
+    int cellID;    // layer*100000 + asic*10000 + channel
+    int layer() const {
+        return cellID / 100000;
+    }
+    int asic() const {
+        return (cellID / 10000) % 10;
+    }
+    int channel() const {
+        return cellID % 10000;
+    }
+    int chip() const {
+        return asic();
+    }
     int Edep;      // in MeV
     int Nmip;      // in MIP
     double Xpos() const {
-        return AHCALGeometry::Pos_X(channel,asic);
+        return AHCALGeometry::Pos_X(this->channel(),this->asic());
     }
     double Ypos() const {
-        return AHCALGeometry::Pos_Y(channel,asic);
+        return AHCALGeometry::Pos_Y(this->channel(),this->asic());
     }
     double Zpos() const {
-        return AHCALGeometry::Pos_Z(layer);
-    }
-    int CellID() const {
-        return layer*100000 + asic*10000 + channel;
+        return AHCALGeometry::Pos_Z(this->layer());
     }
     int Xindex() const {
         return static_cast<int>(Xpos() / 40.3 + 9.0);
@@ -75,17 +99,25 @@ public:
     }
 };
 
-class AHCALRecoAndRawHit: public AHCALRecoHit {
+
+class AHCALRawHit {
 public:
-    int hittag = 0;
-    int hg_adc = 0;        // 12-bit
-    int lg_adc = 0;        // 12-bit
-    AHCALRecoHit toRecoHit(){
-        AHCALRecoHit recoHit;
-        recoHit.layer = this->layer;
-        recoHit.asic = this->asic;
-        recoHit.channel = this->channel;
-        recoHit.Edep = this->Edep;
-        return recoHit;
+    int cellID;    // layer*100000 + asic*10000 + channel
+    int layer() const {
+        return cellID / 100000;
     }
+    int asic() const {
+        return (cellID / 10000) % 10;
+    }
+    int channel() const {
+        return cellID % 10000;
+    }
+    int chip() const {
+        return asic();
+    }
+
+    int hg_adc;        // 12-bit
+    int lg_adc;        // 12-bit
+    int hittag = 0;
+    int bcid = 0;
 };

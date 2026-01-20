@@ -10,7 +10,7 @@
 #include <utility>
 #include <memory>
 #include <vector>
-
+#include "common/Logger.hpp"
 // A tiny, type-safe-ish event store: per-event key-value container.
 // - EventStore definition never changes when you add new RecoAlg outputs.
 // - Stores objects by value (inside std::any). Use move to avoid copies.
