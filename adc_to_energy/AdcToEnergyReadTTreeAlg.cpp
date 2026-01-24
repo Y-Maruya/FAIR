@@ -1,7 +1,7 @@
 #include "AdcToEnergyReadTTreeAlg.hpp"
 
 #include "calibration/RefValues.hpp"
-#include "common/Hit.hpp"
+#include "common/edm/EDM.hpp"
 #include "common/Logger.hpp"
 
 #include <ROOT/RDataFrame.hxx>
@@ -240,7 +240,7 @@ int AdcToEnergyReadTTreeAlg::cellid_conversion(int input_cellid) {
   return input_cellid;
 }
 
-void AdcToEnergyReadTTreeAlg::execute(EventStore &evt) { // <-- was bool
+void AdcToEnergyReadTTreeAlg::execute(EventStore &evt) { 
   auto raw_hits = evt.get<std::vector<AHCALRawHit>>(m_in_rawhit_key);
 
   std::vector<AHCALRecoHit> reco_hits;
@@ -271,7 +271,7 @@ void AdcToEnergyReadTTreeAlg::execute(EventStore &evt) { // <-- was bool
 
     reco_hits.push_back(reco_hit);
   }
-
+  LOG_DEBUG("Converted {} raw hits to reco hits.", reco_hits.size());
   evt.put(m_out_recohit_key, std::move(reco_hits));
 }
 

@@ -1,6 +1,6 @@
 #ifndef RootRawHitReader_HPP
 #define RootRawHitReader_HPP
-#include "common/Hit.hpp"
+#include "common/edm/RawHit.hpp"
 
 #include <memory>
 #include <string>
@@ -31,7 +31,7 @@ private:
     int                     b_runNo;
     int                     b_triggerID;
     int                     b_cycleID;
-    int            b_Event_Time;
+    unsigned int            b_Event_Time;
     int b_timestamp;
     int b_bc_id_tlu;
     std::vector<int>* b_inputs = nullptr;

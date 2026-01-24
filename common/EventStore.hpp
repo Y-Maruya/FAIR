@@ -52,7 +52,36 @@ public:
   void erase(std::string_view key) {
     m_map.erase(std::string(key));
   }
+  // Return list of keys (copy). Cheap enough; typical keys count is small.
+  std::vector<std::string> keys() const {
+    std::vector<std::string> ks;
+    ks.reserve(m_map.size());
+    for (const auto& kv : m_map){
+      ks.push_back(kv.first);
+      LOG_DEBUG("EventStore key: '{}'", kv.first);
+    }
+    return ks;
+  }
 
+  // Access stored payload as std::any (const)
+  const std::any& any(std::string_view key) const {
+    auto it = m_map.find(std::string(key));
+    if (it == m_map.end()) {
+      LOG_ERROR("EventStore::any: missing key '{}'", key);
+      throw std::runtime_error("EventStore::any: missing key '" + std::string(key) + "'");
+    }
+    return it->second.payload;
+  }
+
+  // Optional: non-const any() (rarely needed, but symmetrical)
+  std::any& any(std::string_view key) {
+    auto it = m_map.find(std::string(key));
+    if (it == m_map.end()) {
+      LOG_ERROR("EventStore::any: missing key '{}'", key);
+      throw std::runtime_error("EventStore::any: missing key '" + std::string(key) + "'");
+    }
+    return it->second.payload;
+  }
   void clear() { m_map.clear(); }
 
   // Get mutable reference
@@ -60,9 +89,14 @@ public:
   T& get(std::string_view key) {
     auto it = m_map.find(std::string(key));
     if (it == m_map.end()) {
+      LOG_ERROR("EventStore::get: missing key '{}'", key);
       throw std::runtime_error("EventStore::get: missing key '" + std::string(key) + "'");
     }
     if (it->second.type != std::type_index(typeid(T))) {
+      LOG_ERROR(
+        "EventStore::get: type mismatch for key '{}' (stored={}, requested={})",
+        key, it->second.type.name(), typeid(T).name()
+      );
       throw std::runtime_error(
         "EventStore::get: type mismatch for key '" + std::string(key) +
         "' (stored=" + std::string(it->second.type.name()) +
@@ -77,9 +111,14 @@ public:
   const T& get(std::string_view key) const {
     auto it = m_map.find(std::string(key));
     if (it == m_map.end()) {
+      LOG_ERROR("EventStore::get: missing key '{}'", key);
       throw std::runtime_error("EventStore::get: missing key '" + std::string(key) + "'");
     }
     if (it->second.type != std::type_index(typeid(T))) {
+      LOG_ERROR(
+        "EventStore::get: type mismatch for key '{}' (stored={}, requested={})",
+        key, it->second.type.name(), typeid(T).name()
+      );
       throw std::runtime_error(
         "EventStore::get: type mismatch for key '" + std::string(key) +
         "' (stored=" + std::string(it->second.type.name()) +

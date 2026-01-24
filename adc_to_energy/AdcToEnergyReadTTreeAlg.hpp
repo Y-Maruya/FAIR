@@ -1,7 +1,6 @@
 #ifndef ADC_TO_ENERGY_READ_TTree_HPP
 #define ADC_TO_ENERGY_READ_TTree_HPP
 #include "common/EventStore.hpp"
-#include "common/Hit.hpp"
 #include <string>
 #include <vector>
 #include <memory>

@@ -1,7 +1,7 @@
 #ifndef AHCAL_RECO_ALG_TRACK_FIT_ALG_HPP
 #define AHCAL_RECO_ALG_TRACK_FIT_ALG_HPP
 #include "common/EventStore.hpp"
-#include "common/Hit.hpp"
+#include "common/edm/EDM.hpp"
 #include <string>
 #include <memory>
 #include <vector>
@@ -9,17 +9,6 @@
 #include <stdexcept>
 
 namespace AHCALRecoAlg {
-    struct Track {
-        std::pair <double, double> init_pos; // (x0, y0) at z=0
-        std::pair <double, double> direction; // (dx/dz, dy/dz)
-        std::pair <double, double> chi2; // (chi2_x, chi2_y)
-        int ndf = 0;
-        std::vector<AHCALRecoHit> inTrackHits;
-        std::vector<AHCALRecoHit> outTrackHits;
-        int nTotalHits = 0;
-        bool valid = false;
-    };
-
     class TrackFitAlg final : public IAlg { // final to prevent inheritance
     public:
         TrackFitAlg(std::string in_recohit_key,
@@ -36,5 +25,7 @@ namespace AHCALRecoAlg {
         std::string m_out_track_key;
         double threshold_xy = 40./2;
     };
+
 } // namespace AHCALRecoAlg
+
 #endif // AHCAL_RECO_ALG_TRACK_FIT_ALG_HPP

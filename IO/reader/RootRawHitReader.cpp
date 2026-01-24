@@ -1,4 +1,4 @@
-#include "IO/RootRawHitReader.hpp"
+#include "RootRawHitReader.hpp"
 
 #include <stdexcept>
 
