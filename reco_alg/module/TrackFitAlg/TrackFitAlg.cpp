@@ -1,10 +1,13 @@
 #include "TrackFitAlg.hpp"
 #include <TGraphErrors.h>
 #include <TF1.h>
-
+#include "common/config/YAMLUtil.hpp"
 #include "common/edm/EDM.hpp"
 namespace AHCALRecoAlg {
     void TrackFitAlg::execute(EventStore& evt) {
+        std::string m_in_recohit_key = m_cfg.in_recohit_key;
+        std::string m_out_track_key = m_cfg.out_track_key;
+        double threshold_xy = m_cfg.threshold_xy;
         auto recohits = evt.get<std::vector<AHCALRecoHit>>(m_in_recohit_key);
         if (recohits.empty()) {
             // throw std::runtime_error("TrackFitAlg: No input reco hits found");
@@ -81,6 +84,11 @@ namespace AHCALRecoAlg {
         }
         // Store track
         evt.put(m_out_track_key, std::move(track));
+    }
+    void TrackFitAlg::parse_cfg(const YAML::Node& n) {
+        m_cfg.in_recohit_key = get_or<std::string>(n, "in_recohit_key", m_cfg.in_recohit_key);
+        m_cfg.out_track_key = get_or<std::string>(n, "out_track_key", m_cfg.out_track_key);
+        m_cfg.threshold_xy = get_or<double>(n, "threshold_xy", m_cfg.threshold_xy);
     }
 }
 

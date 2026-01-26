@@ -36,6 +36,7 @@ public:
     int Yindex() const {
         return static_cast<int>(Ypos() / 40.3 + 9.0);
     }
+    int index = 0; // for internal use
 };
 inline std::vector<FieldDesc> describe(const AHCALRecoHit*) {
     return {

@@ -67,6 +67,7 @@ bool RootRawHitReader::next(std::vector<AHCALRawHit>& out_hits) {
 
   for (size_t i = 0; i < b_cellID->size(); ++i) {
     AHCALRawHit h;
+    h.index = static_cast<int>(i);
     h.cellID = (*b_cellID)[i];
     h.hg_adc = (*b_hg)[i];
     h.lg_adc = (*b_lg)[i];

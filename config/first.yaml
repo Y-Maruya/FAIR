@@ -1,0 +1,54 @@
+run:
+  input: /eos/project/f/faser-upgrade/AHCAL/UJ12_Test/Faser-Physics-021617-000000.root
+  MC: false
+  log_file: ahcal_test_debug.log
+  output: test_output.root
+  nEvents: -1
+  log_level: DEBUG
+  runNumber: 021617
+  poolIndex: 0
+reader: RootRawHitReader
+algs:
+  - type: AdcToEnergyReadTTreeAlg
+    cfg:
+      in_rawhit_key: RawHits
+      out_recohit_key: RecoHits
+      mip:
+        file: /afs/cern.ch/user/y/ymaruya/private/FASERlink/AHCAL/FAIR/calibration/reffiles/mip.root
+        cut: (gaus_sigma>20)
+        cellid_version: 0
+      pedestal:
+        file: /afs/cern.ch/user/y/ymaruya/private/FASERlink/AHCAL/FAIR/calibration/reffiles/ped.root
+        cut: (1)
+        cellid_version: 1 
+      dac:
+        file: /afs/cern.ch/user/y/ymaruya/private/FASERlink/AHCAL/FAIR/calibration/reffiles/dac.root
+        cut: (1)
+        cellid_version: 1
+  - type: TrackFitAlg
+    cfg:
+      in_recohit_key: RecoHits
+      out_track_key: FittedTrack
+      threshold_xy: 20.0
+  - type: MuonKFAlg
+    cfg:
+      in_recohit_key: RecoHits
+      out_track_key: MuonKFTrack
+      lastNLayers: 40
+      minUsedLayers: 10
+      maxConsecutiveSkips: 5
+      useNmipWindow: true
+      nmipMin: 0.5
+      nmipMax: 3.0
+      measSigmaXY_mm: 0.0
+      sigmaTheta: 0.003 
+      gateD2: 9.0
+      seedLayerGap: 2
+      maxSeedHitsPerLayer: 10
+      skipLayers: [0,2,14]
+  - type: RootWriterAlg
+    cfg: 
+      outputlist:
+        - vector<AHCALRecoHit>
+        - SimpleFittedTrack
+        - Track

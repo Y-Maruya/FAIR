@@ -27,6 +27,7 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 option(FAIR_BUILD_TESTS "Build tests" OFF)
 option(FAIR_ENABLE_WARNINGS "Enable extra compiler warnings" ON)
 option(FAIR_WITH_SPDLOG "Use spdlog for logging" ON)
+option(FAIR_WITH_YAML_CPP "Use yaml-cpp for configuration files" ON)
 
 if(FAIR_ENABLE_WARNINGS)
   if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
@@ -61,7 +62,6 @@ if(FAIR_WITH_ROOT)
     message(FATAL_ERROR "ROOT not found or wrong ROOT selected. Please 'source' the desired ROOT (e.g. LCG view) and reconfigure.")
   endif()
 endif()
-
 # ---------------------------
 # Common include / interface target
 # ---------------------------
@@ -103,6 +103,21 @@ if(FAIR_WITH_SPDLOG)
   target_compile_definitions(fair_options
     INTERFACE
       FAIR_USE_SPDLOG
+  )
+endif()
+
+# Use YAML-CPP for configuration files (optional)
+if(FAIR_WITH_YAML_CPP)
+  find_package(yaml-cpp REQUIRED)
+
+  target_link_libraries(fair_options
+    INTERFACE
+      yaml-cpp
+  )
+
+  target_compile_definitions(fair_options
+    INTERFACE
+      FAIR_USE_YAML_CPP
   )
 endif()
 

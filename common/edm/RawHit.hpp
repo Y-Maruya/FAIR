@@ -21,6 +21,7 @@ public:
     int lg_adc;        // 12-bit
     int hittag = 0;
     int bcid = 0;
+    int index = 0; // for internal use
 };
 
 inline std::vector<FieldDesc> describe(const AHCALRawHit*) {

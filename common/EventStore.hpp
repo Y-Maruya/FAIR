@@ -145,9 +145,3 @@ private:
 
   std::unordered_map<std::string, Item> m_map;
 };
-
-class IAlg {
-public:
-  virtual ~IAlg() = default;
-  virtual void execute(EventStore& evt) = 0;
-};

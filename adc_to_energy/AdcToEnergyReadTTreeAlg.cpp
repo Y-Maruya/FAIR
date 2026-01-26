@@ -3,7 +3,7 @@
 #include "calibration/RefValues.hpp"
 #include "common/edm/EDM.hpp"
 #include "common/Logger.hpp"
-
+#include "common/config/YAMLUtil.hpp"
 #include <ROOT/RDataFrame.hxx>
 #include <TFile.h>
 #include <TTree.h>
@@ -13,11 +13,10 @@
 
 namespace AHCALRecoAlg {
 
-bool AdcToEnergyReadTTreeAlg::initialize_mip(std::string mip_file_name,
-                                            std::string cut_strings,
-                                            int cellid_version) {
-  cut_string = std::move(cut_strings);
-  file_cellid_version = cellid_version;
+bool AdcToEnergyReadTTreeAlg::initialize_mip(){
+  std::string mip_file_name = m_cfg.mip_file;
+  std::string cut_strings = m_cfg.mip_cut_string;
+  file_cellid_version = m_cfg.mip_cellid_version;
 
   m_in_file = std::make_unique<TFile>(mip_file_name.c_str(), "READ");
   if (!m_in_file || m_in_file->IsZombie()) {
@@ -66,6 +65,9 @@ bool AdcToEnergyReadTTreeAlg::initialize_mip(std::string mip_file_name,
         const int cellid = layer * 100000 + chip * 1000 + channel;
         if (mip_map.find(cellid) == mip_map.end()) {
           mip_map[cellid] = AHCALRefValues::ref_MIP;
+        }else if (mip_map[cellid]<=100.0){
+          LOG_DEBUG("Low MIP value detected: cellID={} MPV={}", cellid, mip_map[cellid]);
+          mip_map[cellid] = AHCALRefValues::ref_MIP;
         }
       }
     }
@@ -77,11 +79,10 @@ bool AdcToEnergyReadTTreeAlg::initialize_mip(std::string mip_file_name,
   return true;
 }
 
-bool AdcToEnergyReadTTreeAlg::initialize_ped(std::string ped_file_name,
-                                            std::string cut_strings,
-                                            int cellid_version) {
-  cut_string = std::move(cut_strings);
-  file_cellid_version = cellid_version;
+bool AdcToEnergyReadTTreeAlg::initialize_ped( ){
+  std::string ped_file_name = m_cfg.ped_file;
+  std::string cut_strings = m_cfg.ped_cut_string;
+  file_cellid_version = m_cfg.ped_cellid_version;
 
   m_in_file = std::make_unique<TFile>(ped_file_name.c_str(), "READ");
   if (!m_in_file || m_in_file->IsZombie()) {
@@ -148,11 +149,10 @@ bool AdcToEnergyReadTTreeAlg::initialize_ped(std::string ped_file_name,
   return true;
 }
 
-bool AdcToEnergyReadTTreeAlg::initialize_dac(std::string dac_file_name,
-                                            std::string cut_strings,
-                                            int cellid_version) {
-  cut_string = std::move(cut_strings);
-  file_cellid_version = cellid_version;
+bool AdcToEnergyReadTTreeAlg::initialize_dac( ){
+  std::string dac_file_name = m_cfg.dac_file;
+  std::string cut_strings = m_cfg.dac_cut_string;
+  file_cellid_version = m_cfg.dac_cellid_version;
 
   m_in_file = std::make_unique<TFile>(dac_file_name.c_str(), "READ");
   if (!m_in_file || m_in_file->IsZombie()) {
@@ -251,7 +251,7 @@ void AdcToEnergyReadTTreeAlg::execute(EventStore &evt) {
   for (const auto &raw_hit : raw_hits) {
     AHCALRecoHit reco_hit;
     reco_hit.cellID = raw_hit.cellID;
-
+    reco_hit.index = raw_hit.index;
     const double mpv        = mip_map[raw_hit.cellID];
     const double hg_ped     = hg_ped_map[raw_hit.cellID];
     const double lg_ped     = lg_ped_map[raw_hit.cellID];
@@ -268,11 +268,42 @@ void AdcToEnergyReadTTreeAlg::execute(EventStore &evt) {
       reco_hit.Nmip = (lg - lg_ped) * gain_ratio / mpv;
       reco_hit.Edep = (lg - lg_ped) * gain_ratio * AHCALRefValues::MIP_E / mpv;
     }
-
+    if (reco_hit.Edep < 0) {
+      reco_hit.Edep = 0;
+      reco_hit.Nmip = 0;
+    }
+    if (reco_hit.Nmip >1e6){
+      LOG_DEBUG("Large Nmip detected: cellID={} Nmip={}", reco_hit.cellID, reco_hit.Nmip);
+      LOG_DEBUG("  raw HG={} LG={} HG_ped={} LG_ped={} gain_ratio={} gain_plat={} mpv={}",
+                hg, lg, hg_ped, lg_ped, gain_ratio, gain_plat, mpv);
+    }
     reco_hits.push_back(reco_hit);
   }
   LOG_DEBUG("Converted {} raw hits to reco hits.", reco_hits.size());
   evt.put(m_out_recohit_key, std::move(reco_hits));
 }
-
+void AdcToEnergyReadTTreeAlg::parse_cfg(const YAML::Node& n) {
+    m_cfg.in_rawhit_key = get_or<std::string>(n, "in_rawhit_key", m_cfg.in_rawhit_key);
+    m_cfg.out_recohit_key = get_or<std::string>(n, "out_recohit_key", m_cfg.out_recohit_key);
+    const YAML::Node mip_node = n["mip"];
+    if (mip_node) {
+        m_cfg.mip_file = get_or<std::string>(mip_node, "file", m_cfg.mip_file);
+        m_cfg.mip_cut_string = get_or<std::string>(mip_node, "cut", m_cfg.mip_cut_string);
+        m_cfg.mip_cellid_version = get_or<int>(mip_node, "cellid_version", m_cfg.mip_cellid_version);
+    }
+    const YAML::Node ped_node = n["pedestal"];
+    if (ped_node) {
+        m_cfg.ped_file = get_or<std::string>(ped_node, "file", m_cfg.ped_file);
+        m_cfg.ped_cut_string = get_or<std::string>(ped_node, "cut", m_cfg.ped_cut_string);
+        m_cfg.ped_cellid_version = get_or<int>(ped_node, "cellid_version", m_cfg.ped_cellid_version);
+    }
+    const YAML::Node dac_node = n["dac"];
+    if (dac_node) {
+        m_cfg.dac_file = get_or<std::string>(dac_node, "file", m_cfg.dac_file);
+        m_cfg.dac_cut_string = get_or<std::string>(dac_node, "cut", m_cfg.dac_cut_string);
+        m_cfg.dac_cellid_version = get_or<int>(dac_node, "cellid_version", m_cfg.dac_cellid_version);
+    }
+    m_in_rawhit_key = m_cfg.in_rawhit_key;
+    m_out_recohit_key = m_cfg.out_recohit_key;
+  }
 } // namespace AHCALRecoAlg

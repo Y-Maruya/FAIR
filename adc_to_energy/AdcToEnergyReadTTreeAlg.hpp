@@ -1,6 +1,7 @@
 #ifndef ADC_TO_ENERGY_READ_TTree_HPP
 #define ADC_TO_ENERGY_READ_TTree_HPP
 #include "common/EventStore.hpp"
+#include "common/IAlg.hpp"
 #include <string>
 #include <vector>
 #include <memory>
@@ -10,17 +11,29 @@
 #include <tuple>
 
 namespace AHCALRecoAlg {
+    struct AdcToEnergyReadTTreeAlgCfg{
+        std::string in_rawhit_key = "RawHits";
+        std::string out_recohit_key = "RecoHits";
+        int mip_cellid_version = 1;
+        int ped_cellid_version = 1;
+        int dac_cellid_version = 1;
+        std::string mip_file = "";
+        std::string ped_file = "";
+        std::string dac_file = "";
+        std::string mip_cut_string = "";
+        std::string ped_cut_string = "";
+        std::string dac_cut_string = "";
+    };
     class AdcToEnergyReadTTreeAlg final : public IAlg {
     public:
-        AdcToEnergyReadTTreeAlg(std::string in_rawhit_key, 
-                                    std::string out_recohit_key)
-            : m_in_rawhit_key(std::move(in_rawhit_key)),
-              m_out_recohit_key(std::move(out_recohit_key)) {}
+        AdcToEnergyReadTTreeAlg(RunContext& ctx, std::string name)
+            : IAlg(ctx, name){ }
         ~AdcToEnergyReadTTreeAlg();
-        bool initialize_mip(std::string mip_file_name, std::string cut_strings, int cellid_version = 1);
-        bool initialize_ped(std::string ped_file_name, std::string cut_strings, int cellid_version = 1);
-        bool initialize_dac(std::string dac_file_name, std::string cut_strings, int cellid_version = 1);
+        bool initialize_mip();
+        bool initialize_ped();
+        bool initialize_dac();
         void execute(EventStore& evt) override;
+        void parse_cfg(const YAML::Node& n);
 
     private:
         std::string m_in_rawhit_key;
@@ -35,6 +48,7 @@ namespace AHCALRecoAlg {
         std::map<int, double> gainratio_map; // cellID to gain ratio
         std::map<int, int> gainplat_map; // cellID to gain plat
         int cellid_conversion(int input_cellid);
+        AdcToEnergyReadTTreeAlgCfg m_cfg;
     };
 }
 #endif // ADC_TO_ENERGY_READ_MIP_TTree_HPP

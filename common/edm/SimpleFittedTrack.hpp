@@ -32,6 +32,6 @@ inline std::vector<FieldDesc> describe(const SimpleFittedTrack*) {
         field("inTrackHitsIndices", &SimpleFittedTrack::inTrackHitsIndices),
         field("outTrackHitsIndices", &SimpleFittedTrack::outTrackHitsIndices),
         field("nTotalHits", &SimpleFittedTrack::nTotalHits),
-        field("valid", &SimpleFittedTrack::valid),
+        field("valid", &SimpleFittedTrack::valid)
     };
 }
