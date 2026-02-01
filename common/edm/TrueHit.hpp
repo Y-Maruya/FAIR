@@ -3,12 +3,13 @@
 #include "IO/Descriptor.hpp"
 #include "IO/IOTypeRegistry.hpp"
 #include <vector> 
-class AHCALRecoHit {
+
+class AHCALTrueHit {
 public:
-    // int layer;      // 0..39
-    // int asic;       // 0..8
-    // int channel;    // 0..35
-    int cellID;    // layer*100000 + asic*10000 + channel
+    int cellID;
+    int MCcellID;
+    float energy;
+    float time;
     int layer() const {
         return cellID / 100000;
     }
@@ -21,8 +22,6 @@ public:
     int chip() const {
         return asic();
     }
-    double Edep = 0.0;      // in MeV
-    double Nmip = 0.0;      // in MIP
     double Xpos() const {
         return AHCALGeometry::Pos_X(this->channel(),this->asic());
     }
@@ -40,19 +39,23 @@ public:
     }
     int index = 0; // for internal use
 };
-inline std::vector<FieldDesc> describe(const AHCALRecoHit*) {
+
+inline std::vector<FieldDesc> describe(const AHCALTrueHit*) {
     return {
-        field("cellID", &AHCALRecoHit::cellID),
-        field("Edep", &AHCALRecoHit::Edep),
-        field("Nmip", &AHCALRecoHit::Nmip),
+        field("cellID", &AHCALTrueHit::cellID),
+        field("MCcellID", &AHCALTrueHit::MCcellID),
+        field("energy", &AHCALTrueHit::energy),
+        field("time", &AHCALTrueHit::time),
     };
 }
-inline std::vector<FieldDescVector> describe_vector(const AHCALRecoHit*) {
+
+inline std::vector<FieldDescVector> describe_vector(const AHCALTrueHit*) {
     return {
-        field_vector("v.cellID", &AHCALRecoHit::cellID),
-        field_vector("v.Edep", &AHCALRecoHit::Edep),
-        field_vector("v.Nmip", &AHCALRecoHit::Nmip),
+        field_vector("v.cellID", &AHCALTrueHit::cellID),
+        field_vector("v.MCcellID", &AHCALTrueHit::MCcellID),
+        field_vector("v.energy", &AHCALTrueHit::energy),
+        field_vector("v.time", &AHCALTrueHit::time),
     };
 }
-AHCAL_REGISTER_IO_STRUCT(AHCALRecoHit, "AHCALRecoHit");
-AHCAL_REGISTER_IO_STRUCT_VECTOR(AHCALRecoHit, "vector<AHCALRecoHit>");
+AHCAL_REGISTER_IO_STRUCT(AHCALTrueHit, "AHCALTrueHit");
+AHCAL_REGISTER_IO_STRUCT_VECTOR(AHCALTrueHit, "vector<AHCALTrueHit>");

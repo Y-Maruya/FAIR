@@ -34,14 +34,17 @@ namespace AHCALRecoAlg {
         bool initialize_dac();
         void execute(EventStore& evt) override;
         void parse_cfg(const YAML::Node& n);
-
+        void initialize() override {
+            initialize_mip();
+            initialize_ped();
+            initialize_dac();
+        }
     private:
         std::string m_in_rawhit_key;
         std::string m_out_recohit_key;
         std::unique_ptr<TFile> m_in_file;
         int file_cellid_version = 1; 
         TTree* m_in_tree = nullptr;
-        std::string cut_string;
         std::map<int, double> mip_map; // cellID to MPV
         std::map<int, double> hg_ped_map; // cellID to pedestal
         std::map<int, double> lg_ped_map; // cellID to pedestal

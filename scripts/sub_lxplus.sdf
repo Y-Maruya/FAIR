@@ -1,0 +1,10 @@
+executable     = /eos/user/y/ymaruya/FASER/AHCAL/FAIR/bin/trackfit_test
+arguments     = /eos/user/y/ymaruya/FASER/AHCAL/FAIR/config/first.yaml
+log            = logs/$(ClusterId).log
+error          = err/$(ClusterId).stderr
+output         = out/$(ClusterId).stdout
++JobFlavour      = "workday"
+getenv = True
+# transfer_input_files = ../AHCAL-data-EHN1/AHCAL_Run32_20251017_183138.dat
+queue
+#module load lxbatch/eossubmit

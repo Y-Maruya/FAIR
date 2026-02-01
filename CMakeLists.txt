@@ -75,6 +75,9 @@ target_include_directories(fair_options INTERFACE
   ${CMAKE_CURRENT_SOURCE_DIR}/calibration
   ${CMAKE_CURRENT_SOURCE_DIR}/adc_to_energy
   ${CMAKE_CURRENT_SOURCE_DIR}/reco_alg
+  ${CMAKE_CURRENT_SOURCE_DIR}/faser-common/EventFormats
+  ${CMAKE_CURRENT_SOURCE_DIR}/faser-common/Exceptions
+  ${CMAKE_CURRENT_SOURCE_DIR}/faser-common/Logging/include
 )
 
 # If ROOT exists, expose include dirs via interface as well (optional)
@@ -128,13 +131,14 @@ endif()
 # faser-common (has its own CMakeLists.txt)
 # This defines e.g. Logging, Exceptions, EventFormats targets (depending on its CMake)
 # add_subdirectory(faser-common)
-
 # Your modules (add CMakeLists.txt in each as you implement)
 # You can comment out directories that don't have CMakeLists yet.
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/common/CMakeLists.txt")
   add_subdirectory(common)
 endif()
-
+# --- add: zlib (needed by BinaryRawHitReader) ---
+find_package(ZLIB REQUIRED)
+target_link_libraries(fair_options INTERFACE ZLIB::ZLIB)
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/reco_alg/CMakeLists.txt")
   add_subdirectory(reco_alg)
 endif()

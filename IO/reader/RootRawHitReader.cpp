@@ -23,8 +23,39 @@ RootRawHitReader::RootRawHitReader(std::string filename,
   // Read first branch to initialize the enviromental variables
   m_tree->GetEntry(0);
 }
+RootRawHitReader::~RootRawHitReader() {
+    cleanup_buffers_();
+}
+void RootRawHitReader::cleanup_buffers_() {
+    delete b_inputs; b_inputs = nullptr;
+    delete b_fine_timestamps; b_fine_timestamps = nullptr;
 
+    delete b_cellID; b_cellID = nullptr;
+    delete b_hg; b_hg = nullptr;
+    delete b_lg; b_lg = nullptr;
+    delete b_bcid; b_bcid = nullptr;
+    delete b_hitTag; b_hitTag = nullptr;
+}
+void RootRawHitReader::clear_vectors_() {
+    if (b_inputs) b_inputs->clear();
+    if (b_fine_timestamps) b_fine_timestamps->clear();
+
+    if (b_cellID) b_cellID->clear();
+    if (b_hg) b_hg->clear();
+    if (b_lg) b_lg->clear();
+    if (b_bcid) b_bcid->clear();
+    if (b_hitTag) b_hitTag->clear();
+}
 void RootRawHitReader::bind_branches_() {
+    if (!b_inputs) b_inputs = new std::vector<int>();
+    if (!b_fine_timestamps) b_fine_timestamps = new std::vector<int>();
+
+    if (!b_cellID) b_cellID = new std::vector<int>();
+    if (!b_hg) b_hg = new std::vector<unsigned short>();
+    if (!b_lg) b_lg = new std::vector<unsigned short>();
+    if (!b_bcid) b_bcid = new std::vector<unsigned short>();
+    if (!b_hitTag) b_hitTag = new std::vector<unsigned short>();
+
     //TLU branches
     m_tree->SetBranchAddress("Timestamp", &b_timestamp);
     m_tree->SetBranchAddress("BCID_TLU", &b_bc_id_tlu);
@@ -49,10 +80,10 @@ void RootRawHitReader::bind_branches_() {
     m_tree->SetBranchAddress("LG_Charge", &b_lg);
 }
 
-bool RootRawHitReader::next(std::vector<AHCALRawHit>& out_hits) {
+bool RootRawHitReader::next(std::vector<AHCALRawHit>& out_hits, AHCALTLURawData& out_tlu_data) {
   ++m_entry;
   if (m_entry >= m_entries) return false;
-
+  clear_vectors_();
   m_tree->GetEntry(m_entry);
 
   if (!b_cellID || !b_hg || !b_lg) {
@@ -64,15 +95,24 @@ bool RootRawHitReader::next(std::vector<AHCALRawHit>& out_hits) {
 
   out_hits.clear();
   out_hits.reserve(b_cellID->size());
-
+  out_tlu_data.Timestamp = b_timestamp;
+  out_tlu_data.BCID_TLU = b_bc_id_tlu;
+  for (int i = 0; i < 6; ++i) {
+      out_tlu_data.Inputs[i] = (b_inputs && b_inputs->size() > static_cast<size_t>(i)) ? (*b_inputs)[i] : 0;
+      out_tlu_data.FineTimestamps[i] = (b_fine_timestamps && b_fine_timestamps->size() > static_cast<size_t>(i)) ? (*b_fine_timestamps)[i] : 0;
+  }
+  out_tlu_data.RunNo = b_runNo;
+  out_tlu_data.CycleID = b_cycleID;
+  out_tlu_data.TriggerID = b_triggerID;
+  out_tlu_data.Event_Time = b_Event_Time;
   for (size_t i = 0; i < b_cellID->size(); ++i) {
     AHCALRawHit h;
     h.index = static_cast<int>(i);
     h.cellID = (*b_cellID)[i];
     h.hg_adc = (*b_hg)[i];
     h.lg_adc = (*b_lg)[i];
-    h.bcid   = (b_bcid ? (*b_bcid)[i] : 0);
-    h.hittag = (b_hitTag ? (*b_hitTag)[i] : 0);
+    h.bcid   = (*b_bcid)[i];
+    h.hittag = (*b_hitTag)[i];
     out_hits.push_back(h);
   }
   return true;

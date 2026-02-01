@@ -1,6 +1,7 @@
 //
 #pragma once
 #include "IO/Descriptor.hpp"
+#include "IO/IOTypeRegistry.hpp"
 class AHCALRawHit {
 public:
     int cellID;    // layer*100000 + asic*10000 + channel
@@ -42,3 +43,5 @@ inline std::vector<FieldDescVector> describe_vector(const AHCALRawHit*) {
         field_vector("v.bcid", &AHCALRawHit::bcid),
     };
 }
+AHCAL_REGISTER_IO_STRUCT(AHCALRawHit, "AHCALRawHit");
+AHCAL_REGISTER_IO_STRUCT_VECTOR(AHCALRawHit, "vector<AHCALRawHit>");

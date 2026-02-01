@@ -1,6 +1,8 @@
 #pragma once
 #include <vector>
 #include "common/edm/RecoHit.hpp"
+#include "IO/Descriptor.hpp"
+#include "IO/IOTypeRegistry.hpp"
 struct Track {
     // state at the last updated z in the fit loop: (x,y,tx,ty)
     double x = 0.0;
@@ -54,3 +56,5 @@ inline std::vector<FieldDescVector> describe_vector(const Track*) {
         field_vector("v.valid", &Track::valid)
     };
 }
+AHCAL_REGISTER_IO_STRUCT(Track, "Track");
+AHCAL_REGISTER_IO_STRUCT_VECTOR(Track, "vector<Track>");

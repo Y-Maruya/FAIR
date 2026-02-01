@@ -3,6 +3,8 @@
 #include <TF1.h>
 #include "common/config/YAMLUtil.hpp"
 #include "common/edm/EDM.hpp"
+#include "common/AlgRegistry.hpp"
+AHCAL_REGISTER_ALG(AHCALRecoAlg::TrackFitAlg, "TrackFitAlg")
 namespace AHCALRecoAlg {
     void TrackFitAlg::execute(EventStore& evt) {
         std::string m_in_recohit_key = m_cfg.in_recohit_key;

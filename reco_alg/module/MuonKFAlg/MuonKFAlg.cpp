@@ -1,12 +1,15 @@
 #include "MuonKFAlg.hpp"
 #include "common/Logger.hpp"
 #include "common/config/YAMLUtil.hpp"
+#include "common/AlgRegistry.hpp"
+
 #include <array>
 #include <algorithm>
 #include <cctype>
 #include <cmath>
 #include <limits>
 
+AHCAL_REGISTER_ALG(AHCALRecoAlg::MuonKFAlg, "MuonKFAlg")
 // using namespace AHCALRecoAlg;
 namespace AHCALRecoAlg{
 

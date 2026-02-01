@@ -2,7 +2,7 @@
 #include "common/edm/RecoHit.hpp"
 #include <vector>
 #include "IO/Descriptor.hpp"
-
+#include "IO/IOTypeRegistry.hpp"
 
 struct SimpleFittedTrack {
     double init_pos_x; // (x0, y0) at z=0
@@ -35,3 +35,4 @@ inline std::vector<FieldDesc> describe(const SimpleFittedTrack*) {
         field("valid", &SimpleFittedTrack::valid)
     };
 }
+AHCAL_REGISTER_IO_STRUCT(SimpleFittedTrack, "SimpleFittedTrack");

@@ -1,14 +1,39 @@
 run:
-  input: /eos/project/f/faser-upgrade/AHCAL/UJ12_Test/Faser-Physics-021617-000000.root
+  input: /eos/project/f/faser-upgrade/AHCAL/UJ12_Test/Faser-Physics-021659-000000.root
   MC: false
-  log_file: ahcal_test_debug.log
-  output: test_output.root
+  log_file: out/run21691^5/log2
+  output: out/run21691^5/out.root
   nEvents: -1
-  log_level: DEBUG
-  runNumber: 021617
+  log_level: INFO
+  runNumber: 21659
   poolIndex: 0
-reader: RootRawHitReader
-algs:
+reader: 
+  type: BinaryRawHitReader
+  cfg:
+    out_rawhits_key: RawHits
+    out_tlu_key: TLURawData
+  # type: RootRawHitReader
+  # cfg:
+  #   out_rawhits_key: RawHits
+  #   out_tlu_key: TLURawData
+  # type: RootInput
+  # cfg:
+  #   inputlist: 
+  #     - [vector<AHCALRawHit>, RawHits]
+  #     - [AHCALTLURawData, TLURawData]
+  #     - [vector<AHCALRecoHit>, RecoHits]
+  #     - [SimpleFittedTrack, FittedTrack]
+  #     - [Track, MuonKFTrack]
+
+algs: # Define the sequence of algorithms to be executed. The order matters.
+  - type: PedestalAlg
+    cfg:
+      in_rawhit_key: RawHits
+      pedestal_to_file: true
+      pedestal_to_DB: false
+      out_pedestal_filename: out/run21659/ped.root
+      use_hittag: true
+      select_hittag: 0
   - type: AdcToEnergyReadTTreeAlg
     cfg:
       in_rawhit_key: RawHits
@@ -20,11 +45,11 @@ algs:
       pedestal:
         file: /afs/cern.ch/user/y/ymaruya/private/FASERlink/AHCAL/FAIR/calibration/reffiles/ped.root
         cut: (1)
-        cellid_version: 1 
+        cellid_version: 0
       dac:
         file: /afs/cern.ch/user/y/ymaruya/private/FASERlink/AHCAL/FAIR/calibration/reffiles/dac.root
         cut: (1)
-        cellid_version: 1
+        cellid_version: 0
   - type: TrackFitAlg
     cfg:
       in_recohit_key: RecoHits
@@ -49,6 +74,6 @@ algs:
   - type: RootWriterAlg
     cfg: 
       outputlist:
-        - vector<AHCALRecoHit>
+        # - vector<AHCALRecoHit>
         - SimpleFittedTrack
         - Track

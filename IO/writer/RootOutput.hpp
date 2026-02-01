@@ -20,14 +20,22 @@ public:
             LOG_ERROR("Failed to open ROOT file: {}", filename);
             throw std::runtime_error("Failed to open ROOT file: " + filename);
         }
-        // Detach tree from file to avoid issues on write/close
-        m_tree->SetDirectory(nullptr);
+        // Attach tree to file so baskets can be flushed to disk during Fill()
+        m_tree->SetDirectory(m_file.get());
+
+        // Optional: reduce in-memory growth for long jobs (tune)
+        m_tree->SetAutoFlush(1000);          // flush baskets every ~1000 entries
+        m_tree->SetAutoSave(-50'000'000);    // autosave every ~50MB
     }
 
     ~RootOutput() {
         if (m_file) {
             m_file->cd();
             m_tree->Write();
+
+            // Detach before closing so the file doesn't try to own/delete it.
+            m_tree->SetDirectory(nullptr);
+
             m_file->Close();
         }
     }

@@ -1,7 +1,7 @@
 #ifndef RootRawHitReader_HPP
 #define RootRawHitReader_HPP
 #include "common/edm/RawHit.hpp"
-
+#include "common/edm/RawData.hpp"
 #include <memory>
 #include <string>
 #include <vector>
@@ -13,9 +13,9 @@ class RootRawHitReader {
 public:
     RootRawHitReader(std::string filename,
                     std::string treename = "Raw_Hit");
-
+    ~RootRawHitReader();
     // returns false when no more events
-    bool next(std::vector<AHCALRawHit>& out_hits);
+    bool next(std::vector<AHCALRawHit>& out_hits, AHCALTLURawData& out_tlu_data);
 
     // optional
     long long entry() const { return m_entry; }
@@ -41,9 +41,12 @@ private:
     std::vector<unsigned short>* b_hg = nullptr;
     std::vector<unsigned short>* b_lg = nullptr;
     std::vector<unsigned short>* b_bcid = nullptr; 
-    std::vector<unsigned short>* b_hitTag = nullptr; // erase no meaning data
+    std::vector<unsigned short>* b_hitTag = nullptr; 
+    // erase no meaning data
 
   void bind_branches_();
+  void cleanup_buffers_();
+  void clear_vectors_();
 };
 
 #endif // RootRawHitReader_HPP

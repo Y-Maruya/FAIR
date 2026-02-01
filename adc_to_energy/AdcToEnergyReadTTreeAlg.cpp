@@ -4,18 +4,19 @@
 #include "common/edm/EDM.hpp"
 #include "common/Logger.hpp"
 #include "common/config/YAMLUtil.hpp"
+#include "common/AlgRegistry.hpp"
 #include <ROOT/RDataFrame.hxx>
 #include <TFile.h>
 #include <TTree.h>
 
 #include <utility>
 #include <vector>
-
+AHCAL_REGISTER_ALG(AHCALRecoAlg::AdcToEnergyReadTTreeAlg, "AdcToEnergyReadTTreeAlg")
 namespace AHCALRecoAlg {
 
 bool AdcToEnergyReadTTreeAlg::initialize_mip(){
   std::string mip_file_name = m_cfg.mip_file;
-  std::string cut_strings = m_cfg.mip_cut_string;
+  std::string cut_string = m_cfg.mip_cut_string;
   file_cellid_version = m_cfg.mip_cellid_version;
 
   m_in_file = std::make_unique<TFile>(mip_file_name.c_str(), "READ");
@@ -62,7 +63,7 @@ bool AdcToEnergyReadTTreeAlg::initialize_mip(){
   for (int layer = 0; layer < AHCALGeometry::Layer_No; ++layer) {
     for (int chip = 0; chip < AHCALGeometry::chip_No; ++chip) {
       for (int channel = 0; channel < AHCALGeometry::channel_No; ++channel) {
-        const int cellid = layer * 100000 + chip * 1000 + channel;
+        const int cellid = layer * 100000 + chip * 10000 + channel;
         if (mip_map.find(cellid) == mip_map.end()) {
           mip_map[cellid] = AHCALRefValues::ref_MIP;
         }else if (mip_map[cellid]<=100.0){
@@ -81,7 +82,7 @@ bool AdcToEnergyReadTTreeAlg::initialize_mip(){
 
 bool AdcToEnergyReadTTreeAlg::initialize_ped( ){
   std::string ped_file_name = m_cfg.ped_file;
-  std::string cut_strings = m_cfg.ped_cut_string;
+  std::string cut_string = m_cfg.ped_cut_string;
   file_cellid_version = m_cfg.ped_cellid_version;
 
   m_in_file = std::make_unique<TFile>(ped_file_name.c_str(), "READ");
@@ -131,7 +132,7 @@ bool AdcToEnergyReadTTreeAlg::initialize_ped( ){
   for (int layer = 0; layer < AHCALGeometry::Layer_No; ++layer) {
     for (int chip = 0; chip < AHCALGeometry::chip_No; ++chip) {
       for (int channel = 0; channel < AHCALGeometry::channel_No; ++channel) {
-        const int cellid = layer * 100000 + chip * 1000 + channel;
+        const int cellid = layer * 100000 + chip * 10000 + channel;
         if (hg_ped_map.find(cellid) == hg_ped_map.end()) {
           hg_ped_map[cellid] = AHCALRefValues::ref_ped_highgain;
         }
@@ -151,7 +152,7 @@ bool AdcToEnergyReadTTreeAlg::initialize_ped( ){
 
 bool AdcToEnergyReadTTreeAlg::initialize_dac( ){
   std::string dac_file_name = m_cfg.dac_file;
-  std::string cut_strings = m_cfg.dac_cut_string;
+  std::string cut_string = m_cfg.dac_cut_string;
   file_cellid_version = m_cfg.dac_cellid_version;
 
   m_in_file = std::make_unique<TFile>(dac_file_name.c_str(), "READ");
@@ -201,7 +202,7 @@ bool AdcToEnergyReadTTreeAlg::initialize_dac( ){
   for (int layer = 0; layer < AHCALGeometry::Layer_No; ++layer) {
     for (int chip = 0; chip < AHCALGeometry::chip_No; ++chip) {
       for (int channel = 0; channel < AHCALGeometry::channel_No; ++channel) {
-        const int cellid = layer * 100000 + chip * 1000 + channel;
+        const int cellid = layer * 100000 + chip * 10000 + channel;
         if (gainratio_map.find(cellid) == gainratio_map.end()) {
           gainratio_map[cellid] = AHCALRefValues::ref_gain_ratio;
         }
