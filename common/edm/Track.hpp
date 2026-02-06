@@ -3,6 +3,7 @@
 #include "common/edm/RecoHit.hpp"
 #include "IO/Descriptor.hpp"
 #include "IO/IOTypeRegistry.hpp"
+#include <muParser.h> // for track selection string parsing
 struct Track {
     // state at the last updated z in the fit loop: (x,y,tx,ty)
     double x = 0.0;
@@ -58,3 +59,55 @@ inline std::vector<FieldDescVector> describe_vector(const Track*) {
 }
 AHCAL_REGISTER_IO_STRUCT(Track, "Track");
 AHCAL_REGISTER_IO_STRUCT_VECTOR(Track, "vector<Track>");
+
+class TrackCut {
+public:
+    explicit TrackCut(const std::string& expr) {
+        std::string e = expr;
+        replace_all(e, "&&", " and ");
+        replace_all(e, "||", " or ");
+        replace_all(e, "!=",  " not "); 
+
+        parser_.SetExpr(e);
+        parser_.DefineVar("x", &x_);
+        parser_.DefineVar("y", &y_);
+        parser_.DefineVar("tx", &tx_);
+        parser_.DefineVar("ty", &ty_);
+        parser_.DefineVar("z", &z_);
+        parser_.DefineVar("chi2", &chi2_);
+        parser_.DefineVar("ndof", &ndof_);
+        parser_.DefineVar("consecutive_skips", &consecutive_skips_);
+        parser_.DefineVar("nInTrackHits", &nInTrackHits_);
+        parser_.DefineVar("nOutTrackHits", &nOutTrackHits_);
+        parser_.DefineVar("valid", &valid_);
+    }
+
+    bool eval(const Track& t) {
+        x_ = t.x;
+        y_ = t.y;
+        tx_ = t.tx;
+        ty_ = t.ty;
+        z_ = t.z;
+        chi2_ = t.chi2;
+        ndof_ = static_cast<double>(t.ndof);
+        consecutive_skips_ = static_cast<double>(t.consecutive_skips);
+        nInTrackHits_ = static_cast<double>(t.nInTrackHits);
+        nOutTrackHits_ = static_cast<double>(t.nOutTrackHits);
+        valid_ = t.valid ? 1.0 : 0.0;
+        return parser_.Eval() != 0.0;
+    }
+
+private:
+    mu::Parser parser_;
+    double x_{0}, y_{0}, tx_{0}, ty_{0};
+    double z_{0}, chi2_{0}, ndof_{0}, consecutive_skips_{0}, nInTrackHits_{0}, nOutTrackHits_{0}, valid_{0};
+
+    static void replace_all(std::string& s, const std::string& from, const std::string& to) {
+        if (from.empty()) return;
+        size_t pos = 0;
+        while ((pos = s.find(from, pos)) != std::string::npos) {
+            s.replace(pos, from.size(), to);
+            pos += to.size();
+        }
+    }
+};

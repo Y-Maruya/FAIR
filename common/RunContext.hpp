@@ -16,7 +16,7 @@ struct RunConfig {
 
 struct ConditionStore {
   // Placeholder for condition data
-  std::vector<int> skipLayers = {0,2,14};
+  std::vector<int> skipLayers = {0,2,14,24};
 };
 
 struct RunContext {

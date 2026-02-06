@@ -1,0 +1,38 @@
+[2026-02-06 07:28:35.682] [info] [MultiInOneOut.cpp:85 main] AHCAL Application started.
+[2026-02-06 07:28:35.682] [info] [MultiInOneOut.cpp:86 main] RunConfig parsed successfully.
+[2026-02-06 07:28:35.683] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'nbin', using default
+[2026-02-06 07:28:35.683] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'xmin', using default
+[2026-02-06 07:28:35.683] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'xmax', using default
+[2026-02-06 07:28:35.683] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'min_entries', using default
+[2026-02-06 07:28:35.683] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'nsigma_win1', using default
+[2026-02-06 07:28:35.684] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'nsigma_win2', using default
+[2026-02-06 07:28:35.684] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'sigma_min', using default
+[2026-02-06 07:28:35.684] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'sigma_max', using default
+[2026-02-06 07:28:35.684] [info] [AlgFactory.hpp:113 make_alg] PedestalAlg: initialized
+[2026-02-06 07:28:35.684] [info] [MultiInOneOut.cpp:144 main] Processing input file: /eos/experiment/faser/raw/2026/021722/FaserAHCAL-Physics-021722-00000.raw (RunNumber: 21722, PoolIndex: 0)
+[2026-02-06 07:28:35.685] [info] [MultiInOneOut.cpp:145 main] Inputs = 1 / 1
+[2026-02-06 07:28:35.715] [info] [BinaryRawHitReader.cpp:98 BinaryRawHitReader] Opened binary raw hit file: /eos/experiment/faser/raw/2026/021722/FaserAHCAL-Physics-021722-00000.raw
+[2026-02-06 07:28:35.715] [info] [MultiInOneOut.cpp:147 main] BinaryRawHitReader created successfully.
+[2026-02-06 07:28:56.133] [info] [MultiInOneOut.cpp:85 main] AHCAL Application started.
+[2026-02-06 07:28:56.133] [info] [MultiInOneOut.cpp:86 main] RunConfig parsed successfully.
+[2026-02-06 07:28:56.134] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'nbin', using default
+[2026-02-06 07:28:56.134] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'xmin', using default
+[2026-02-06 07:28:56.134] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'xmax', using default
+[2026-02-06 07:28:56.134] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'min_entries', using default
+[2026-02-06 07:28:56.134] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'nsigma_win1', using default
+[2026-02-06 07:28:56.134] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'nsigma_win2', using default
+[2026-02-06 07:28:56.134] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'sigma_min', using default
+[2026-02-06 07:28:56.135] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'sigma_max', using default
+[2026-02-06 07:28:56.135] [info] [AlgFactory.hpp:113 make_alg] PedestalAlg: initialized
+[2026-02-06 07:28:56.135] [info] [MultiInOneOut.cpp:144 main] Processing input file: /eos/experiment/faser/raw/2026/021722/FaserAHCAL-Physics-021722-00000.raw (RunNumber: 21722, PoolIndex: 0)
+[2026-02-06 07:28:56.135] [info] [MultiInOneOut.cpp:145 main] Inputs = 1 / 1
+[2026-02-06 07:28:56.137] [info] [BinaryRawHitReader.cpp:98 BinaryRawHitReader] Opened binary raw hit file: /eos/experiment/faser/raw/2026/021722/FaserAHCAL-Physics-021722-00000.raw
+[2026-02-06 07:28:56.137] [info] [MultiInOneOut.cpp:147 main] BinaryRawHitReader created successfully.
+[2026-02-06 07:29:10.578] [info] [MultiInOneOut.cpp:166 main] Processed 10000
+[2026-02-06 07:29:13.194] [info] [MultiInOneOut.cpp:170 main] Finished processing input file: /eos/experiment/faser/raw/2026/021722/FaserAHCAL-Physics-021722-00000.raw (RunNumber: 21722, PoolIndex: 0)
+[2026-02-06 07:29:13.194] [info] [MultiInOneOut.cpp:171 main] Total events processed so far: 11935
+[2026-02-06 07:29:13.194] [info] [BinaryRawHitReader.cpp:105 ~BinaryRawHitReader] Closed binary raw hit file.
+[2026-02-06 07:29:31.040] [info] [PedestalAlg.cpp:344 write] PedestalAlg: wrote calibration/pedestal_calib/run21722/pedestal.root
+[2026-02-06 07:29:31.041] [info] [PedestalAlg.cpp:345 write] PedestalAlg: HG fit OK/all = 11663/11664
+[2026-02-06 07:29:31.041] [info] [PedestalAlg.cpp:346 write] PedestalAlg: LG fit OK/all = 7731/11664
+[2026-02-06 07:29:31.267] [info] [MultiInOneOut.cpp:217 main] AHCAL Application finished.

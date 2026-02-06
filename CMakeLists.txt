@@ -124,10 +124,35 @@ if(FAIR_WITH_YAML_CPP)
   )
 endif()
 
+# Use muparser for track selection string parsing
+option(FAIR_WITH_MUPARSER "Use muParser for cut/expression evaluation" ON)
+option(FAIR_INSTALL_MUPARSER "Install muparser when running 'cmake --install'" OFF)
+
+
 # ---------------------------
 # Subprojects
 # ---------------------------
+# muparser (needed for TrackCut in reco_alg)
+if(FAIR_WITH_MUPARSER)
+  if(FAIR_INSTALL_MUPARSER)
+    add_subdirectory(muparser)
+  else()
+    # Suppress muparser install rules without touching muparser sources
+    set(_fair_prev_skip_install_rules "${CMAKE_SKIP_INSTALL_RULES}")
+    set(CMAKE_SKIP_INSTALL_RULES ON)
+    add_subdirectory(muparser)
+    set(CMAKE_SKIP_INSTALL_RULES "${_fair_prev_skip_install_rules}")
+    unset(_fair_prev_skip_install_rules)
 
+    # Some CMake versions still generate a top-level include to this file.
+    # Ensure it exists (empty) so "make install" doesn't fail.
+    if(NOT EXISTS "${CMAKE_BINARY_DIR}/muparser/cmake_install.cmake")
+      file(WRITE "${CMAKE_BINARY_DIR}/muparser/cmake_install.cmake"
+"## Dummy install script (muparser install suppressed)\n")
+    endif()
+  endif()
+  target_link_libraries(fair_options INTERFACE muparser)
+endif()
 # faser-common (has its own CMakeLists.txt)
 # This defines e.g. Logging, Exceptions, EventFormats targets (depending on its CMake)
 # add_subdirectory(faser-common)

@@ -2,3 +2,6 @@
 	path = faser-common
 	url = https://gitlab.cern.ch/faser/faser-common.git
 	branch = AHCALproto
+[submodule "muparser"]
+	path = muparser
+	url = https://github.com/beltoforion/muparser.git

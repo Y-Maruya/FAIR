@@ -16,6 +16,7 @@
 #include "adc_to_energy/AdcToEnergyReadTTreeAlg.hpp"
 #include "reco_alg/module/TrackFitAlg/TrackFitAlg.hpp"
 #include "reco_alg/module/MuonKFAlg/MuonKFAlg.hpp"
+#include "reco_alg/module/RmIsolatedHitAlg/RmIsolatedHitAlg.hpp"
 // -------------------------------------
 // reader algs
 #include "IO/reader/ReaderRegistry.hpp"

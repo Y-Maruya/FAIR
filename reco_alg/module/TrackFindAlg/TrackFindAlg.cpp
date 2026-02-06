@@ -12,8 +12,6 @@ inline bool isSkippedLayer(int layer, const std::vector<int>& skip) {
 } // namespace
 
 void TrackFindAlg::execute(EventStore& evt) {
-    // NOTE: EventStore API はプロジェクト側の実装に合わせて調整してください。
-    // 想定: evt.get<T>(key) -> T& , evt.put<T>(key, value)
 
     auto& hits = evt.get<std::vector<AHCALRecoHit>>(m_in_recohit_key);
 
@@ -83,11 +81,13 @@ void TrackFindAlg::computeIsolatedFlags(const std::vector<AHCALRecoHit>& hits,
         for (int j = 0; j < n; ++j) {
             if (i == j) continue;
             if (hits[j].Nmip <= m_thr_mip_frac) continue;
-            if (hits[j].layer() != li) continue;
+            // if (hits[j].layer() != li) continue;
 
             const double dx = hits[j].Xpos() - xi;
             const double dy = hits[j].Ypos() - yi;
             if (std::fabs(dx) < cone && std::fabs(dy) < cone) { hasNeighbor = true; break; }
+
+            const int lj = hits[j].layer() - li;
         }
 
         isoFlag[i] = hasNeighbor ? 0 : 1;

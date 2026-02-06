@@ -26,14 +26,14 @@ reader:
   #     - [Track, MuonKFTrack]
 
 algs: # Define the sequence of algorithms to be executed. The order matters.
-  - type: PedestalAlg
-    cfg:
-      in_rawhit_key: RawHits
-      pedestal_to_file: true
-      pedestal_to_DB: false
-      out_pedestal_filename: out/run21659/ped.root
-      use_hittag: true
-      select_hittag: 0
+  # - type: PedestalAlg
+  #   cfg:
+  #     in_rawhit_key: RawHits
+  #     pedestal_to_file: true
+  #     pedestal_to_DB: false
+  #     out_pedestal_filename: out/run21659/ped.root
+  #     use_hittag: false
+  #     select_hittag: 0
   - type: AdcToEnergyReadTTreeAlg
     cfg:
       in_rawhit_key: RawHits
@@ -43,37 +43,44 @@ algs: # Define the sequence of algorithms to be executed. The order matters.
         cut: (gaus_sigma>20)
         cellid_version: 0
       pedestal:
-        file: /afs/cern.ch/user/y/ymaruya/private/FASERlink/AHCAL/FAIR/calibration/reffiles/ped.root
+        file: /afs/cern.ch/user/y/ymaruya/private/FASERlink/AHCAL/FAIR/calibration/pedestal_calib/run21722/pedestal.root
         cut: (1)
-        cellid_version: 0
+        cellid_version: 1
       dac:
         file: /afs/cern.ch/user/y/ymaruya/private/FASERlink/AHCAL/FAIR/calibration/reffiles/dac.root
         cut: (1)
         cellid_version: 0
-  - type: TrackFitAlg
+  - type: RmIsolatedHitAlg
     cfg:
       in_recohit_key: RecoHits
+      out_recohit_key: RmIsolatedHits
+      useNmipWindow: false
+      xy_cone: 42.0
+      maxMissingLayers: 0
+  - type: TrackFitAlg
+    cfg:
+      in_recohit_key: RmIsolatedHits
       out_track_key: FittedTrack
       threshold_xy: 20.0
   - type: MuonKFAlg
     cfg:
-      in_recohit_key: RecoHits
+      in_recohit_key: RmIsolatedHits
       out_track_key: MuonKFTrack
       lastNLayers: 40
       minUsedLayers: 10
       maxConsecutiveSkips: 5
       useNmipWindow: true
-      nmipMin: 0.5
+      nmipMin: 0.2
       nmipMax: 3.0
       measSigmaXY_mm: 0.0
       sigmaTheta: 0.003 
       gateD2: 9.0
       seedLayerGap: 2
       maxSeedHitsPerLayer: 10
-      skipLayers: [0,2,14]
+      skipLayers: [0,2,14,24]
   - type: RootWriterAlg
     cfg: 
       outputlist:
-        # - vector<AHCALRecoHit>
+        - vector<AHCALRecoHit>
         - SimpleFittedTrack
         - Track

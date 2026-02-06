@@ -2,6 +2,7 @@ add_executable(trackfit_test
   Test.cpp
 )
 add_executable(eventdisplay2D EventDisplay2D.cpp)
+add_executable(EventDisplay2D_iso EventDisplay2D_iso.cpp)
 add_executable(fair_multi MultiInOut.cpp)
 add_executable(fair_single MultiInOneOut.cpp)
 if(TARGET fair_options)
@@ -15,6 +16,7 @@ if(TARGET fair_options)
       RootRawHitReader
       BinaryRawHitReader
       PedestalAlg
+      RmIsolatedHitAlg
       -Wl,--no-whole-archive
   )
   target_link_libraries(fair_multi 
@@ -27,6 +29,7 @@ if(TARGET fair_options)
       RootRawHitReader
       BinaryRawHitReader
       PedestalAlg
+      RmIsolatedHitAlg
       -Wl,--no-whole-archive
   )
   target_link_libraries(fair_single 
@@ -39,6 +42,7 @@ if(TARGET fair_options)
       RootRawHitReader
       BinaryRawHitReader
       PedestalAlg
+      RmIsolatedHitAlg
       -Wl,--no-whole-archive
   )
   target_link_libraries(eventdisplay2D 
@@ -46,6 +50,14 @@ if(TARGET fair_options)
       fair_options
       AdcToEnergyReadTTreeAlg
       MuonKFAlg
+      RmIsolatedHitAlg
+  )
+  target_link_libraries(EventDisplay2D_iso 
+    PRIVATE
+      fair_options
+      AdcToEnergyReadTTreeAlg
+      MuonKFAlg
+      RmIsolatedHitAlg
   )
 endif()
 
@@ -55,6 +67,10 @@ target_include_directories(trackfit_test
 )
 
 target_include_directories(eventdisplay2D
+  PRIVATE
+    ${CMAKE_SOURCE_DIR}
+)
+target_include_directories(EventDisplay2D_iso
   PRIVATE
     ${CMAKE_SOURCE_DIR}
 )

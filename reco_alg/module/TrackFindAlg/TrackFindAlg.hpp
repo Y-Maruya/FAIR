@@ -9,6 +9,18 @@
 #include <stdexcept>
 
 namespace AHCALRecoAlg {
+    struct TrackFindAlgCfg{
+        std::string in_recohit_key = "RecoHits";
+        std::string out_track_key = "InTrackHits";
+        bool   useNmipWindow = true;
+        double nmipMin = 0.2;
+        double nmipMax = 3.0;
+        double xy_cone = 42.0; // mm
+        int maxMissingLayers = 0;
+
+
+    };
+
     class TrackFindAlg final : public IAlg { // final to prevent inheritance
     public:
         TrackFindAlg(std::string in_recohit_key,

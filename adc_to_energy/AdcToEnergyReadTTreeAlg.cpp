@@ -245,11 +245,12 @@ void AdcToEnergyReadTTreeAlg::execute(EventStore &evt) {
   auto raw_hits = evt.get<std::vector<AHCALRawHit>>(m_in_rawhit_key);
 
   std::vector<AHCALRecoHit> reco_hits;
-  reco_hits.reserve(raw_hits.size());
+  // reco_hits.reserve(raw_hits.size());
 
   const int SwitchPoint = AHCALRefValues::SwitchPoint;
 
   for (const auto &raw_hit : raw_hits) {
+    if (raw_hit.hittag == 0) continue; // skip hittag==0
     AHCALRecoHit reco_hit;
     reco_hit.cellID = raw_hit.cellID;
     reco_hit.index = raw_hit.index;

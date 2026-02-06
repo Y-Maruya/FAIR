@@ -1,0 +1,36 @@
+run:
+  input: /eos/experiment/faser/raw/2026/021722/FaserAHCAL-Physics-021722-00000.raw
+  MC: false
+  log_file: calibration/pedestal_calib/run21722/log
+  output: calibration/pedestal_calib/run21722/out.root
+  nEvents: -1
+  log_level: INFO
+  runNumber: 21722
+  poolIndex: 0
+reader: 
+  type: BinaryRawHitReader
+  cfg:
+    out_rawhits_key: RawHits
+    out_tlu_key: TLURawData
+  # type: RootRawHitReader
+  # cfg:
+  #   out_rawhits_key: RawHits
+  #   out_tlu_key: TLURawData
+  # type: RootInput
+  # cfg:
+  #   inputlist: 
+  #     - [vector<AHCALRawHit>, RawHits]
+  #     - [AHCALTLURawData, TLURawData]
+  #     - [vector<AHCALRecoHit>, RecoHits]
+  #     - [SimpleFittedTrack, FittedTrack]
+  #     - [Track, MuonKFTrack]
+
+algs: # Define the sequence of algorithms to be executed. The order matters.
+  - type: PedestalAlg
+    cfg:
+      in_rawhit_key: RawHits
+      pedestal_to_file: true
+      pedestal_to_DB: false
+      out_pedestal_filename: calibration/pedestal_calib/run21722/pedestal.root
+      use_hittag: false
+      select_hittag: 0

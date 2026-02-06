@@ -24,7 +24,7 @@ namespace AHCALRecoAlg {
         std::unique_ptr<TGraphErrors> graph_yz = std::make_unique<TGraphErrors>();
         SimpleFittedTrack track;
         for (const auto& hit : recohits) {
-            if (hit.Nmip <0.5) continue; // MIP cut
+            // if (hit.Nmip <0.5) continue; // MIP cut
             track.nTotalHits++;
             double x = hit.Xpos();
             double y = hit.Ypos();

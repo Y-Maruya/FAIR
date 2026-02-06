@@ -5,7 +5,7 @@
 #include <TString.h>
 #include <TPad.h>
 #include <TLine.h>
-
+#include <TBox.h>
 #include <iostream>
 #include <vector>
 #include <string>
@@ -17,7 +17,48 @@
 #include "IO/reader/ReaderRegistry.hpp"
 #include "common/edm/EDM.hpp"
 #include "common/AHCALGeometry.hpp"
+    const double xMin = -AHCALGeometry::x_max ;
+    const double xMax = +AHCALGeometry::x_max ;
+    const double yMin = -AHCALGeometry::y_max ;
+    const double yMax = +AHCALGeometry::y_max ;
 
+    const double zMin = -9.0;
+    const double zMax = 1191 + 15.0;
+    // --- histograms: weight = Edep(MeV) ---
+    TH2D hxy_tmp("hxy", "RecoHits XY;X [mm];Y [mm]", 18, xMin, xMax, 18, yMin, yMax);
+    TH2D hxz_tmp("hxz", "RecoHits XZ;Z [mm];X [mm]", 135, zMin, zMax, 18, xMin, xMax);
+    TH2D hyz_tmp("hyz", "RecoHits YZ;Z [mm];Y [mm]", 135, zMin, zMax, 18, yMin, yMax);
+
+void draw_box(std::vector<AHCALRecoHit>& RmIsolatedHits,std::string option = "xy") {
+    double xysize = AHCALGeometry::x_max*2/18; // cell size approx.
+    double zsize = (1191+24)/135; // cell size approx.
+    for (const auto& hit : RmIsolatedHits) {
+        const double x = hxy_tmp.GetXaxis()->GetBinCenter(hxy_tmp.GetXaxis()->FindBin(hit.Xpos()));
+        const double y = hxy_tmp.GetYaxis()->GetBinCenter(hxy_tmp.GetYaxis()->FindBin(hit.Ypos()));
+        const double z = hxz_tmp.GetXaxis()->GetBinCenter(hxz_tmp.GetXaxis()->FindBin(hit.Zpos()));
+        if (option == "xy") {
+            TBox *box_xy = new TBox(x - xysize/2, y - xysize/2, x + xysize/2, y + xysize/2);
+            box_xy->SetLineColor(kBlack);
+            box_xy->SetLineWidth(1);
+            box_xy->SetFillStyle(0); // transparent
+            box_xy->Draw("SAME");
+        }else if (option == "xz") {
+            TBox *box_xz = new TBox(z - zsize/2, x - xysize/2, z + zsize/2, x + xysize/2);
+            box_xz->SetLineColor(kBlack);
+            box_xz->SetLineWidth(1);
+            box_xz->SetFillStyle(0); // transparent
+            box_xz->Draw("SAME");
+        }else if (option == "yz") {
+            TBox *box_yz = new TBox(z - zsize/2, y - xysize/2, z + zsize/2, y + xysize/2);
+            box_yz->SetLineColor(kBlack);
+            box_yz->SetLineWidth(1);
+            box_yz->SetFillStyle(0); // transparent
+            box_yz->Draw("SAME");
+        }else{
+            std::cerr << "Invalid option for draw_box: " << option << "\n";
+        }
+    }
+}
 int main(int argc, char** argv) {
     if (argc < 2) {
         std::cerr << "Usage: " << argv[0] << " <config.yaml> [ievt]\n";
@@ -46,11 +87,12 @@ int main(int argc, char** argv) {
 
     // prefix は Writer の key（例: RecoHits）
     auto reco  = rr.read<std::vector<AHCALRecoHit>>("vector<AHCALRecoHit>", "RecoHits", in);
+    auto isolated = rr.read<std::vector<AHCALRecoHit>>("vector<AHCALRecoHit>", "RmIsolatedHits", in);
     auto track = rr.read<Track>("Track", "MuonKFTrack", in);
     auto fitted_track = rr.read<SimpleFittedTrack>("SimpleFittedTrack", "FittedTrack", in);
 
     std::cout << "Event " << ievt << ": " << reco.size()
-              << " RecoHits, Track valid=" << track.valid << "\n";
+              << " RecoHits, " << isolated.size() << " IsolatedHits, Track valid=" << track.valid << "\n";
     std::cout << "  Track: chi2=" << track.chi2 << ", ndof=" << track.ndof
               << ", nInTrackHits=" << track.nInTrackHits
               << ", nOutTrackHits=" << track.nOutTrackHits << "\n";
@@ -69,23 +111,12 @@ int main(int argc, char** argv) {
     gStyle->SetNumberContours(100);
     gStyle->SetPalette(kViridis);
 
-    // --- ranges (from geometry) ---
-    const double xMin = -AHCALGeometry::x_max ;
-    const double xMax = +AHCALGeometry::x_max ;
-    const double yMin = -AHCALGeometry::y_max ;
-    const double yMax = +AHCALGeometry::y_max ;
-
-    const double zMin = 0.0;
-    const double zMax = AHCALGeometry::Pos_Z(AHCALGeometry::Layer_No - 1) + 30.0;
-
-    // --- histograms: weight = Edep(MeV) ---
     TH2D hxy("hxy", Form("RecoHits XY (evt %lld);X [mm];Y [mm]", ievt),
              18, xMin, xMax, 18, yMin, yMax);
     TH2D hxz("hxz", Form("RecoHits XZ (evt %lld);Z [mm];X [mm]", ievt),
-             120, zMin, zMax, 18, xMin, xMax);
+             135, zMin, zMax, 18, xMin, xMax);
     TH2D hyz("hyz", Form("RecoHits YZ (evt %lld);Z [mm];Y [mm]", ievt),
-             120, zMin, zMax, 18, yMin, yMax);
-
+             135, zMin, zMax, 18, yMin, yMax);
     for (const auto& hit : reco) {
         const double x = hit.Xpos();
         const double y = hit.Ypos();
@@ -132,16 +163,19 @@ int main(int argc, char** argv) {
     c.cd(1);
     gPad->SetRightMargin(0.14);
     hxy.Draw("COLZ");
+    draw_box(isolated, "xy");
     drawLabel((TPad*)gPad, "XY projection");
 
     c.cd(2);
     gPad->SetRightMargin(0.14);
     hxz.Draw("COLZ");
+    draw_box(isolated, "xz");
     drawLabel((TPad*)gPad, "XZ projection");
 
     c.cd(3);
     gPad->SetRightMargin(0.14);
     hyz.Draw("COLZ");
+    draw_box(isolated, "yz");
     drawLabel((TPad*)gPad, "YZ projection");
 
     // ---- overlay MuonKFTrack (red line) ----
@@ -227,8 +261,9 @@ int main(int argc, char** argv) {
     info.SetTextSize(0.03);
     info.DrawLatex(0.10, 0.84, "Xpos/Ypos/Zpos use AHCALGeometry");
     info.DrawLatex(0.10, 0.79, "cellID = layer*100000 + asic*10000 + channel");
-    info.DrawLatex(0.10, 0.74, "MuonKFTrack: red line = (x,y) + (tx,ty)*(z-track.z)");
-    info.DrawLatex(0.10, 0.69, "SimpleFittedTrack: blue line = init_pos + direction*z");
+    info.DrawLatex(0.10, 0.74, "MuonKFTrack: red line");
+    info.DrawLatex(0.10, 0.69, "SimpleFittedTrack: blue line");
+    info.DrawLatex(0.10, 0.64, "Black boxes: RmIsolatedHits");
 
     c.Update();
 
