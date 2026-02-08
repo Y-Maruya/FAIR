@@ -1,10 +1,10 @@
 run:
   input: /eos/project/f/faser-upgrade/AHCAL/UJ12_Test/Faser-Physics-021659-000000.root
   MC: false
-  log_file: out/run21691^5/log2
-  output: out/run21691^5/out.root
+  log_file: /afs/cern.ch/user/y/ymaruya/private/FASERlink/AHCAL/FAIR/out/run21691^5/log
+  output: /afs/cern.ch/user/y/ymaruya/private/FASERlink/AHCAL/FAIR/out/run21691^5/out.root
   nEvents: -1
-  log_level: INFO
+  log_level: DEBUG
   runNumber: 21659
   poolIndex: 0
 reader: 
@@ -61,26 +61,49 @@ algs: # Define the sequence of algorithms to be executed. The order matters.
     cfg:
       in_recohit_key: RmIsolatedHits
       out_track_key: FittedTrack
-      threshold_xy: 20.0
-  - type: MuonKFAlg
-    cfg:
-      in_recohit_key: RmIsolatedHits
-      out_track_key: MuonKFTrack
-      lastNLayers: 40
-      minUsedLayers: 10
-      maxConsecutiveSkips: 5
-      useNmipWindow: true
-      nmipMin: 0.2
+      use_mip_window: true
+      nmipMin: 0.5
       nmipMax: 3.0
-      measSigmaXY_mm: 0.0
-      sigmaTheta: 0.003 
-      gateD2: 9.0
-      seedLayerGap: 2
-      maxSeedHitsPerLayer: 10
-      skipLayers: [0,2,14,24]
+      threshold_xy: 20.0
+  # - type: MuonKFAlg
+  #   cfg:
+  #     in_recohit_key: RmIsolatedHits
+  #     out_track_key: MuonKFTrack
+  #     lastNLayers: 40
+  #     minUsedLayers: 10
+  #     maxConsecutiveSkips: 5
+  #     useNmipWindow: true
+  #     nmipMin: 0.2
+  #     nmipMax: 3.0
+  #     measSigmaXY_mm: 0.0
+  #     sigmaTheta: 0.003 
+  #     gateD2: 9.0
+  #     seedLayerGap: 2
+  #     maxSeedHitsPerLayer: 10
+  #     skipLayers: [0,2,14,24]
+  # - type: MIPAlg
+  #   cfg:
+  #     in_rawhit_key: RawHits
+  #     in_track_key: FittedTrack
+  #     string_track_struct: SimpleFittedTrack
+  #     track_selection_string: (valid>0)
+  #     mip_to_file: true
+  #     mip_to_DB: false
+  #     out_mip_filename: /afs/cern.ch/user/y/ymaruya/private/FASERlink/AHCAL/FAIR/out/run21691^5/mip.root
+  - type: MuonEffAlg
+    cfg:
+      in_hit_key: RawHits
+      in_track_key: FittedTrack
+      string_track_struct: SimpleFittedTrack
+      track_selection_string: (valid>0)*(chi2xperndf<5)*(chi2xperndf>0)*(chi2yperndf<5)*(chi2yperndf>0)*(nInTrackHits>8)
+      out_filename: /afs/cern.ch/user/y/ymaruya/private/FASERlink/AHCAL/FAIR/out/run21691^5/eff.root
+      write_to_png: true
+      out_png_dir: /afs/cern.ch/user/y/ymaruya/private/FASERlink/AHCAL/FAIR/out/run21691^5/png/
+      hittag_or_MIP_cut: true
+      xy_size_threshold: 17.0
   - type: RootWriterAlg
     cfg: 
       outputlist:
         - vector<AHCALRecoHit>
         - SimpleFittedTrack
-        - Track
+        # - Track

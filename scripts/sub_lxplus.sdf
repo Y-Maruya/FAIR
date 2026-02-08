@@ -1,5 +1,5 @@
-executable     = /eos/user/y/ymaruya/FASER/AHCAL/FAIR/bin/trackfit_test
-arguments     = /eos/user/y/ymaruya/FASER/AHCAL/FAIR/config/first.yaml
+executable     = /eos/user/y/ymaruya/FASER/AHCAL/FAIR/bin/fair_single
+arguments     = /eos/user/y/ymaruya/FASER/AHCAL/FAIR/config/first.yaml -i /eos/user/y/ymaruya/FASER/AHCAL/FAIR/config/Input/Input_test.txt
 log            = logs/$(ClusterId).log
 error          = err/$(ClusterId).stderr
 output         = out/$(ClusterId).stdout

@@ -14,6 +14,9 @@ namespace AHCALRecoAlg {
     struct TrackFitAlgCfg{
         std::string in_recohit_key = "RecoHits";
         std::string out_track_key = "FittedTrack";
+        bool use_mip_window = true;
+        double nmipMin = 0.5;
+        double nmipMax = 4.0;
         double threshold_xy = 40./2;
     };
 

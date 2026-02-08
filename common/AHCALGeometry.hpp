@@ -61,5 +61,17 @@ namespace AHCALGeometry {
         }
         return -1; // not found
     }
+    inline void inverse(double x,double y,int &chip,int &channel){
+        int i=x/40.3+9;
+        int j=-y/40.3+9;
+        chip=_Chip[j/6][i/6];
+        channel=_Channel[j%6][i%6];
+        if(chip%3!=0){
+            if(channel==2)channel=0;
+            else if(channel==0)channel=2;
+            if(channel==33)channel=35;
+            else if(channel==35)channel=33;
+        }
+    }
 }
 

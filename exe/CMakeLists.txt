@@ -30,6 +30,8 @@ if(TARGET fair_options)
       BinaryRawHitReader
       PedestalAlg
       RmIsolatedHitAlg
+      MIPAlg
+      MuonEffAlg
       -Wl,--no-whole-archive
   )
   target_link_libraries(fair_single 
@@ -43,6 +45,8 @@ if(TARGET fair_options)
       BinaryRawHitReader
       PedestalAlg
       RmIsolatedHitAlg
+      MIPAlg
+      MuonEffAlg
       -Wl,--no-whole-archive
   )
   target_link_libraries(eventdisplay2D 

@@ -12,9 +12,12 @@ struct SimpleFittedTrack {
     double chi2_x; // (chi2_x, chi2_y)
     double chi2_y;
     int ndf = 0;
+    double chi2xperndf = -1.0;
+    double chi2yperndf = -1.0;
+    int nInTrackHits = 0;
+    int nOutTrackHits = 0;
     std::vector<int> inTrackHitsIndices;
     std::vector<int> outTrackHitsIndices;
-    int nTotalHits = 0;
     bool valid = false;
     std::vector<AHCALRecoHit> inTrackHits; // for FAIR internal use
     std::vector<AHCALRecoHit> outTrackHits; // for FAIR internal use
@@ -29,9 +32,12 @@ inline std::vector<FieldDesc> describe(const SimpleFittedTrack*) {
         field("chi2_x", &SimpleFittedTrack::chi2_x),
         field("chi2_y", &SimpleFittedTrack::chi2_y),
         field("ndf", &SimpleFittedTrack::ndf),
+        field("chi2xperndf", &SimpleFittedTrack::chi2xperndf),
+        field("chi2yperndf", &SimpleFittedTrack::chi2yperndf),
         field("inTrackHitsIndices", &SimpleFittedTrack::inTrackHitsIndices),
         field("outTrackHitsIndices", &SimpleFittedTrack::outTrackHitsIndices),
-        field("nTotalHits", &SimpleFittedTrack::nTotalHits),
+        field("nInTrackHits", &SimpleFittedTrack::nInTrackHits),
+        field("nOutTrackHits", &SimpleFittedTrack::nOutTrackHits),
         field("valid", &SimpleFittedTrack::valid)
     };
 }
@@ -54,7 +60,10 @@ public:
         parser_.DefineVar("chi2_x", &chi2_x_);
         parser_.DefineVar("chi2_y", &chi2_y_);
         parser_.DefineVar("ndf", &ndf_);
-        parser_.DefineVar("nTotalHits", &nTotalHits_);
+        parser_.DefineVar("chi2xperndf", &chi2xperndf_);
+        parser_.DefineVar("chi2yperndf", &chi2yperndf_);
+        parser_.DefineVar("nInTrackHits", &nInTrackHits_);
+        parser_.DefineVar("nOutTrackHits", &nOutTrackHits_);
         parser_.DefineVar("valid", &valid_);
     }
 
@@ -66,7 +75,10 @@ public:
         chi2_x_      = t.chi2_x;
         chi2_y_      = t.chi2_y;
         ndf_         = static_cast<double>(t.ndf);
-        nTotalHits_  = static_cast<double>(t.nTotalHits);
+        chi2xperndf_ = t.chi2xperndf;
+        chi2yperndf_ = t.chi2yperndf;
+        nInTrackHits_ = static_cast<double>(t.nInTrackHits);
+        nOutTrackHits_ = static_cast<double>(t.nOutTrackHits);
         valid_       = t.valid ? 1.0 : 0.0;
         return parser_.Eval() != 0.0;
     }
@@ -74,7 +86,7 @@ public:
 private:
     mu::Parser parser_;
     double init_pos_x_{0}, init_pos_y_{0}, direction_x_{0}, direction_y_{0};
-    double chi2_x_{0}, chi2_y_{0}, ndf_{0}, nTotalHits_{0}, valid_{0};
+    double chi2_x_{0}, chi2_y_{0}, ndf_{0}, chi2xperndf_{0}, chi2yperndf_{0}, nInTrackHits_{0}, nOutTrackHits_{0}, valid_{0};
 
     static void replace_all(std::string& s, const std::string& from, const std::string& to) {
         if (from.empty()) return;

@@ -12,11 +12,14 @@
 #include "common/AlgRegistry.hpp"
 // ---- calibration structs ----
 #include "calibration/module/pedestal/PedestalAlg.hpp"
+#include "calibration/module/MIP/MIPAlg.hpp"
 // ---- your alg headers ----
 #include "adc_to_energy/AdcToEnergyReadTTreeAlg.hpp"
 #include "reco_alg/module/TrackFitAlg/TrackFitAlg.hpp"
 #include "reco_alg/module/MuonKFAlg/MuonKFAlg.hpp"
 #include "reco_alg/module/RmIsolatedHitAlg/RmIsolatedHitAlg.hpp"
+// analysis algs
+#include "analysis/MuonEffAlg/MuonEffAlg.hpp"
 // -------------------------------------
 // reader algs
 #include "IO/reader/ReaderRegistry.hpp"

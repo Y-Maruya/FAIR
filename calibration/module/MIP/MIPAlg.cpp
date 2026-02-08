@@ -134,7 +134,11 @@ namespace AHCALRecoAlg{
 
             // directories
             TDirectory* dHist = ensureDir(fout.get(), "MIP");
-            
+            for (int L = 0; L < AHCALGeometry::Layer_No; ++L) {
+                for (int C = 0; C < 10; ++C) {
+                    if (dHist) dHist->mkdir(Form("MIP/Layer%02d/Chip%d", L, C));
+                }
+            }
             TDirectory* dMap = ensureDir(fout.get(), "Map");
             TDirectory* dCan = ensureDir(fout.get(), "Canvases");
 
@@ -193,9 +197,14 @@ namespace AHCALRecoAlg{
             tp.Branch("y_mm", &y_mm);
 
             int nFitAll = 0, nFitOK = 0;
+            LOG_INFO("MIPAlg: start fitting {} histograms", keys.size());
+            int i = 0;
             for (int cid : keys) {
                 cellid = cid;
-
+                i++;
+                if (i % 1000 == 0) {
+                    LOG_INFO("MIPAlg: fitting histogram {}/{}", i, keys.size());
+                }
                 AHCALRawHit tmp;
                 tmp.cellID = cellid;
                 const int L  = tmp.layer();
@@ -254,7 +263,6 @@ namespace AHCALRecoAlg{
             }
             if (dHist){
                 for (auto& [cellid, h] : hg_hist_) {
-                    fout->mkdir(Form("MIP/Layer%02d/Chip%d", cellid/100000, (cellid/10000)%10));
                     fout->cd(Form("MIP/Layer%02d/Chip%d", cellid/100000, (cellid/10000)%10));
                     if (h) h->Write();
                 }
@@ -304,16 +312,16 @@ namespace AHCALRecoAlg{
         auto rawhits = evt.get<std::vector<AHCALRawHit>>(cfg_.in_rawhit_key);
         if (cfg_.string_track_struct == "SimpleFittedTrack") {
             auto track = evt.get<SimpleFittedTrack>(cfg_.in_track_key);
-            if (!track.inTrackHitsIndices.size()) {
-                LOG_WARN("MIPAlg: track has no associated hits.");
-                return;
-            }
             if (!cfg_.track_selection_string.empty()) {
                 SimpleFittedTrackCut cut(cfg_.track_selection_string);
                 if (!cut.eval(track)) {
                     LOG_DEBUG("MIPAlg: track did not pass selection cut '{}'", cfg_.track_selection_string);
                     return;
                 }
+            }
+            if (!track.inTrackHitsIndices.size()) {
+                LOG_WARN("MIPAlg: track has no associated hits.");
+                return;
             }
             for (const int index : track.inTrackHitsIndices) {
                 if (index < 0 || index >= static_cast<int>(rawhits.size())) {
@@ -329,16 +337,16 @@ namespace AHCALRecoAlg{
             }    
         } else if (cfg_.string_track_struct == "Track") {
             auto track = evt.get<Track>(cfg_.in_track_key);
-            if (!track.inTrackHitsIndices.size()) {
-                LOG_WARN("MIPAlg: no tracks found in the event.");
-                return;
-            }
             if (!cfg_.track_selection_string.empty()) {
                 TrackCut cut(cfg_.track_selection_string);
                 if (!cut.eval(track)) {
                     LOG_DEBUG("MIPAlg: track did not pass selection cut '{}'", cfg_.track_selection_string);
                     return;
                 }
+            }
+            if (!track.inTrackHitsIndices.size()) {
+                LOG_WARN("MIPAlg: no tracks found in the event.");
+                return;
             }
             for (const int index : track.inTrackHitsIndices) {
                 if (index < 0 || index >= static_cast<int>(rawhits.size())) {
