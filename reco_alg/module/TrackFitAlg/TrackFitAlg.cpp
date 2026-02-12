@@ -83,6 +83,7 @@ namespace AHCALRecoAlg {
             double y_pred = p0_y + p1_y * hit.Zpos();
             double dx = hit.Xpos() - x_pred;
             double dy = hit.Ypos() - y_pred;
+            index = hit.index;
             if (abs(dx) < threshold_xy && abs(dy) < threshold_xy) {
                 track.inTrackHits.push_back(hit);
                 track.inTrackHitsIndices.push_back(index);
@@ -92,7 +93,6 @@ namespace AHCALRecoAlg {
                 track.outTrackHitsIndices.push_back(index);
                 nOutTrackHits++;
             }
-            index++;
         }
         track.nInTrackHits = nInTrackHits;
         track.nOutTrackHits = nOutTrackHits;

@@ -32,6 +32,7 @@ if(TARGET fair_options)
       RmIsolatedHitAlg
       MIPAlg
       MuonEffAlg
+      VetoEffAlg
       -Wl,--no-whole-archive
   )
   target_link_libraries(fair_single 
@@ -47,6 +48,7 @@ if(TARGET fair_options)
       RmIsolatedHitAlg
       MIPAlg
       MuonEffAlg
+      VetoEffAlg
       -Wl,--no-whole-archive
   )
   target_link_libraries(eventdisplay2D 

@@ -135,18 +135,31 @@ namespace AHCALRecoAlg{
             // directories
             TDirectory* dHist = ensureDir(fout.get(), "MIP");
             for (int L = 0; L < AHCALGeometry::Layer_No; ++L) {
-                for (int C = 0; C < 10; ++C) {
-                    if (dHist) dHist->mkdir(Form("MIP/Layer%02d/Chip%d", L, C));
+                if (dHist) fout->mkdir(Form("MIP/Layer%02d", L));
+                for (int C = 0; C < AHCALGeometry::chip_No; ++C) {
+                    if (dHist) fout->mkdir(Form("MIP/Layer%02d/Chip%d", L, C));
                 }
             }
             TDirectory* dMap = ensureDir(fout.get(), "Map");
             TDirectory* dCan = ensureDir(fout.get(), "Canvases");
 
-            // union of keys 
-            std::unordered_set<int> keys;
-            keys.reserve(hg_hist_.size());
-            for (const auto& [k, _] : hg_hist_) keys.insert(k);
-
+            std::vector<std::pair<int, TH1D*>> items;
+            items.reserve(hg_hist_.size());
+            for (auto& [cid, up] : hg_hist_) {
+                if (up) items.emplace_back(cid, up.get());
+            }
+            if (dHist){
+                for (auto& [cellid, h] : hg_hist_) {
+                    fout->cd(Form("MIP/Layer%02d/Chip%d", cellid/100000, (cellid/10000)%10));
+                    if (h) h->Write();
+                }
+            }
+            fout->cd();
+            if (!cfg_.fit) {
+                LOG_INFO("MIPAlg: wrote {} histograms without fitting", items.size());
+                fout->Close();
+                return;
+            }
             std::vector<std::unique_ptr<TH2D>> hMPV(AHCALGeometry::Layer_No), hEntries(AHCALGeometry::Layer_No), hWidth(AHCALGeometry::Layer_No), hTotal(AHCALGeometry::Layer_No), hGausSigma(AHCALGeometry::Layer_No);
             
             auto makeMap = [&](const char* base, int L, const char* title) {
@@ -197,24 +210,19 @@ namespace AHCALRecoAlg{
             tp.Branch("y_mm", &y_mm);
 
             int nFitAll = 0, nFitOK = 0;
-            LOG_INFO("MIPAlg: start fitting {} histograms", keys.size());
+            LOG_INFO("MIPAlg: start fitting {} histograms", items.size());
             int i = 0;
-            for (int cid : keys) {
+            for (auto& [cid, hhg] : items) {
                 cellid = cid;
                 i++;
                 if (i % 1000 == 0) {
-                    LOG_INFO("MIPAlg: fitting histogram {}/{}", i, keys.size());
+                    LOG_INFO("MIPAlg: fitting histogram {}/{}", i, items.size());
                 }
-                AHCALRawHit tmp;
-                tmp.cellID = cellid;
-                const int L  = tmp.layer();
-                const int C  = tmp.chip();
-                const int ch = tmp.channel();
+                const int L  = cellid / 100000;
+                const int C  = (cellid / 10000) % 10;
+                const int ch = cellid % 10000;
 
                 cellid_to_xy(C, ch, x_mm, y_mm);
-
-                TH1D* hhg = nullptr;
-                if (auto it = hg_hist_.find(cellid); it != hg_hist_.end()) hhg = it->second.get();
 
                 FitOut fr;
                 entries = hhg ? static_cast<int>(hhg->GetEntries()) : 0;
@@ -261,12 +269,17 @@ namespace AHCALRecoAlg{
                 hMPV[L]->Draw("COLZ");
                 drawLayerLabel(L);
             }
-            if (dHist){
-                for (auto& [cellid, h] : hg_hist_) {
-                    fout->cd(Form("MIP/Layer%02d/Chip%d", cellid/100000, (cellid/10000)%10));
-                    if (h) h->Write();
+            if (cfg_.output_to_png) {
+                cAllMPV->SaveAs((cfg_.out_png_dir + "/MIP_MPV_AllLayers.png").c_str());
+                for (int L = 0; L < AHCALGeometry::Layer_No; ++L) {
+                    auto c = std::make_unique<TCanvas>(Form("cMPV_L%02d", L), Form("MIP MPV Layer %d", L), 800, 700);
+                    gPad->SetMargin(0.12, 0.14, 0.12, 0.10);
+                    hMPV[L]->Draw("COLZ");
+                    drawLayerLabel(L);
+                    c->SaveAs((cfg_.out_png_dir + Form("/MIP_MPV_Layer%02d.png", L)).c_str());
                 }
             }
+
             if (dMap) dMap->cd();
             for (int L = 0; L < AHCALGeometry::Layer_No; ++L) {
                 hMPV[L]->Write();
@@ -373,5 +386,12 @@ namespace AHCALRecoAlg{
         cfg_.mip_to_file = get_or<bool>(cfg, "mip_to_file", cfg_.mip_to_file);
         cfg_.mip_to_DB = get_or<bool>(cfg, "mip_to_DB", cfg_.mip_to_DB);
         cfg_.out_mip_filename = get_or<std::string>(cfg, "out_mip_filename", cfg_.out_mip_filename);
+        cfg_.output_to_png = get_or<bool>(cfg, "output_to_png", cfg_.output_to_png);
+        cfg_.out_png_dir = get_or<std::string>(cfg, "out_png_dir", cfg_.out_png_dir);
+        cfg_.fit = get_or<bool>(cfg, "fit", cfg_.fit);
+        cfg_.nbin = get_or<int>(cfg, "nbin", cfg_.nbin);
+        cfg_.xmin = get_or<double>(cfg, "xmin", cfg_.xmin);
+        cfg_.xmax = get_or<double>(cfg, "xmax", cfg_.xmax);
+        cfg_.min_entries = get_or<int>(cfg, "min_entries", cfg_.min_entries);
     }
 } // namespace AHCALRecoAlg

@@ -110,7 +110,7 @@ TF1 *langaufit(TH1D *his, Double_t *fitrange, Double_t *startvalues, Double_t *p
    for (i=0; i<4; i++) {
       ffit->SetParLimits(i, parlimitslo[i], parlimitshi[i]);
    }
-   his->Fit(FunName,"LqRB");   // fit within specified range, use ParLimits, do not plot
+   his->Fit(FunName,"LqRBN0");   // fit within specified range, use ParLimits, do not plot
    ffit->GetParameters(fitparams);    // obtain fit parameters
    for (i=0; i<4; i++) {
       fiterrors[i] = ffit->GetParError(i);     // obtain fit parameter errors

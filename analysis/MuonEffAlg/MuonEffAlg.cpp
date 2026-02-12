@@ -203,6 +203,7 @@ namespace AHCALRecoAlg{
                 }
                 std::unique_ptr<TH2D> h2_chip_channel_xy = std::make_unique<TH2D>(Form("h2_chip_channel_xy_layer%02d", L), Form("Muon Efficiency for Layer %02d;x [mm];y [mm]", L), NBIN_XY, XYMIN, XYMAX, NBIN_XY, XYMIN, XYMAX);
                 h2_chip_channel_xy->SetDirectory(nullptr);
+                h2_chip_channel_xy->GetZaxis()->SetRangeUser(0, 1);
                 for (int i_chip = 0; i_chip < AHCALGeometry::chip_No; ++i_chip) {
                     for (int i_channel = 0; i_channel < AHCALGeometry::channel_No; ++i_channel) {
                         int channel_id = L*AHCALGeometry::chip_No*AHCALGeometry::channel_No + i_chip*AHCALGeometry::channel_No + i_channel;

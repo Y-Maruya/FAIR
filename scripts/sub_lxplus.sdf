@@ -1,10 +1,9 @@
 executable     = /eos/user/y/ymaruya/FASER/AHCAL/FAIR/bin/fair_single
-arguments     = /eos/user/y/ymaruya/FASER/AHCAL/FAIR/config/first.yaml -i /eos/user/y/ymaruya/FASER/AHCAL/FAIR/config/Input/Input_test.txt
+arguments     = /eos/user/y/ymaruya/FASER/AHCAL/FAIR/config/muon.yaml -i /eos/user/y/ymaruya/FASER/AHCAL/FAIR/config/Input/full_muon_runs.txt
 log            = logs/$(ClusterId).log
 error          = err/$(ClusterId).stderr
 output         = out/$(ClusterId).stdout
 +JobFlavour      = "workday"
 getenv = True
-# transfer_input_files = ../AHCAL-data-EHN1/AHCAL_Run32_20251017_183138.dat
 queue
 #module load lxbatch/eossubmit

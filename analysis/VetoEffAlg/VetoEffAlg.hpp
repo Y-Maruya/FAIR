@@ -11,37 +11,33 @@
 #include <stdexcept>
 
 namespace AHCALRecoAlg{
-    struct MIPAlgCfg{
-        std::string in_rawhit_key = "RawHits";
+    struct VetoEffAlgCfg{
+        std::string in_data_key = "TLUData";
         std::string in_track_key = "Tracks";
 
         std::string string_track_struct = "SimpleFittedTrack"; // or "Track"
         std::string track_selection_string = "";
-        bool mip_to_file = true;
-        bool mip_to_DB = false;  // Not implemented yet
-        std::string out_mip_filename = "mip.root";
-        bool output_to_png = false;
-        std::string out_png_dir = "png/";
-        bool fit = true;
-        int nbin = 4096;
-        double xmin = 0.0;
-        double xmax = 4096.0;
-
-        int min_entries = 200;
-
+        std::string out_filename = "veto_eff.root";
+        bool write_to_png = false;
+        std::string out_png_dir = "veto_eff_png";
+        double xy_size_threshold = 300;
+        double x_center = 0; //mm, for track extrapolation
+        double y_center = 0; //mm, for track extrapolation
+        double z_pos_input4 = -100; //mm, for track extrapolation
+        double z_pos_input5 = -100; //mm, for track extrapolation
+        double threshold_input4 = 75.0; // for plotting
+        double threshold_input5 = 75.0;
     };
-
-    class MIPAlg final : public IAlg{
+    class VetoEffAlg final : public IAlg{
     public:
-        MIPAlg(RunContext& rc, std::string name)
+        VetoEffAlg(RunContext& rc, std::string name)
         : IAlg(rc, std::move(name)){}
-        ~MIPAlg() override;
-
+        ~VetoEffAlg() override;
         void execute(EventStore& evt) override;
         void parse_cfg(const YAML::Node& cfg) override;
     
     private:
-        MIPAlgCfg cfg_;
+        VetoEffAlgCfg cfg_;
         struct Impl;
         struct ImplDeleter {
             void operator()(Impl* p) const;
