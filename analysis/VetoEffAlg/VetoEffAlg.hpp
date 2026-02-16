@@ -19,6 +19,8 @@ namespace AHCALRecoAlg{
         std::string track_selection_string = "";
         std::string out_filename = "veto_eff.root";
         bool write_to_png = false;
+        bool write_to_txt = false;
+        std::string out_txt_name = "veto_eff.txt";
         std::string out_png_dir = "veto_eff_png";
         double xy_size_threshold = 300;
         double x_center = 0; //mm, for track extrapolation
@@ -35,13 +37,14 @@ namespace AHCALRecoAlg{
         ~VetoEffAlg() override;
         void execute(EventStore& evt) override;
         void parse_cfg(const YAML::Node& cfg) override;
-    
+        void initialize() override;
     private:
         VetoEffAlgCfg cfg_;
         struct Impl;
         struct ImplDeleter {
             void operator()(Impl* p) const;
         };
+        std::unique_ptr<std::ofstream> out_file_;
         std::unique_ptr<Impl, ImplDeleter> impl_;
     };    
 }

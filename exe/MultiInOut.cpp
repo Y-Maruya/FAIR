@@ -131,6 +131,7 @@ int main(int argc, char* argv[]) {
                     break; // Reached the maximum number of events to process
                 }
                 EventStore eventStore;
+                eventStore.set_event_counter(nEvent);
                 eventStore.put(input_key_hits, std::move(rawHits));
                 eventStore.put(input_key_tlu, std::move(tluData));
                 for (auto& alg : algs) {
@@ -161,6 +162,7 @@ int main(int argc, char* argv[]) {
                     break; // Reached the maximum number of events to process
                 }
                 EventStore eventStore;
+                eventStore.set_event_counter(nEvent);
                 eventStore.put(input_key_hits, std::move(rawHits));
                 eventStore.put(input_key_tlu, std::move(tluData));
                 for (auto& alg : algs) {
@@ -188,6 +190,7 @@ int main(int argc, char* argv[]) {
                     break; // Reached the maximum number of events to process
                 }
                 EventStore eventStore;
+                eventStore.set_event_counter(nEvent);
                 readandput(cfg, eventStore, rr, in);
                 for (auto& alg : algs) {
                     alg->execute(eventStore);

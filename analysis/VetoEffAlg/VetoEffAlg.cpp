@@ -29,6 +29,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
+#include <fstream>
 
 AHCAL_REGISTER_ALG(AHCALRecoAlg::VetoEffAlg, "VetoEffAlg")
 const double XYMIN = -500;
@@ -39,7 +40,7 @@ namespace AHCALRecoAlg{
     struct VetoEffAlg::Impl {
         explicit Impl(VetoEffAlgCfg cfg) : cfg_(std::move(cfg)) {}
     
-        void fill(double x, double y, int veto, bool is_in_track = true) {
+        void fill(double x, double y, int veto, int evtNum, RunContext& ctx, bool is_in_track, std::ofstream* out_file) {
             if (veto != 0 && veto != 1) {
                 LOG_ERROR("VetoEffAlg::Impl::fill: invalid veto value {}, expected 0 or 1", veto);
                 return;
@@ -48,6 +49,9 @@ namespace AHCALRecoAlg{
             if (abs(x-cfg_.x_center) <= cfg_.xy_size_threshold && abs(y-cfg_.y_center) <= cfg_.xy_size_threshold) {
                 h_full->Fill(veto);
                 if (is_in_track) h_passed->Fill(veto);
+                else if (cfg_.write_to_txt && out_file) {
+                    (*out_file) << ctx.config.runNumber << " " << ctx.config.poolIndex << " " << evtNum << " " << x << " " << y << " " << veto << "\n";
+                }
             }
             if (is_in_track) h2_passeds[veto]->Fill(x, y);
         }
@@ -173,6 +177,13 @@ namespace AHCALRecoAlg{
                 if (!cut.eval(track)) {
                     LOG_DEBUG("VetoEffAlg: track did not pass selection cut '{}'", cfg_.track_selection_string);
                     return;
+                }else {
+                    LOG_DEBUG("VetoEffAlg: no track selection cut applied");
+                    if (track.valid!=1) {
+                        LOG_DEBUG("VetoEffAlg: track is not valid, skipping");
+                        std::cerr << "VetoEffAlg: track is not valid, skipping" << std::endl;
+                        return;
+                    }
                 }
             }
             auto rawdata = evt.get<AHCALTLURawData>(cfg_.in_data_key);
@@ -180,7 +191,7 @@ namespace AHCALRecoAlg{
                 double x = track.init_pos_x + track.direction_x * (cfg_.z_pos_input4 + i*(cfg_.z_pos_input5-cfg_.z_pos_input4));
                 double y = track.init_pos_y + track.direction_y * (cfg_.z_pos_input4 + i*(cfg_.z_pos_input5-cfg_.z_pos_input4));
                 bool Input = (rawdata.Inputs[i+4] == 1);
-                impl_->fill(x, y, i, Input);
+                impl_->fill(x, y, i, evt.event_counter(), this->ctx(), Input, out_file_.get());
             }
         } else if (cfg_.string_track_struct == "Track") {
             auto track = evt.get<Track>(cfg_.in_track_key);
@@ -196,7 +207,7 @@ namespace AHCALRecoAlg{
                 double x = track.x + track.tx * (cfg_.z_pos_input4 + i*(cfg_.z_pos_input5-cfg_.z_pos_input4)-track.z);
                 double y = track.y + track.ty * (cfg_.z_pos_input4 + i*(cfg_.z_pos_input5-cfg_.z_pos_input4)-track.z);
                 bool Input = (rawdata.Inputs[i+4] == 1);
-                impl_->fill(x, y, i, Input);
+                impl_->fill(x, y, i, evt.event_counter(), this->ctx(), Input, out_file_.get());
             }
         } else {
             LOG_ERROR("VetoEffAlg: unknown track struct string '{}'", cfg_.string_track_struct);
@@ -211,6 +222,8 @@ namespace AHCALRecoAlg{
         cfg_.out_filename = get_or<std::string>(cfg, "out_filename", cfg_.out_filename);
         cfg_.write_to_png = get_or<bool>(cfg, "write_to_png", cfg_.write_to_png);
         cfg_.out_png_dir = get_or<std::string>(cfg, "out_png_dir", cfg_.out_png_dir);
+        cfg_.write_to_txt = get_or<bool>(cfg, "write_to_txt", cfg_.write_to_txt);
+        cfg_.out_txt_name = get_or<std::string>(cfg, "out_txt_name", cfg_.out_txt_name);
         cfg_.xy_size_threshold = get_or<double>(cfg, "xy_size_threshold", cfg_.xy_size_threshold);
         cfg_.x_center = get_or<double>(cfg, "x_center", cfg_.x_center);
         cfg_.y_center = get_or<double>(cfg, "y_center", cfg_.y_center);
@@ -218,5 +231,17 @@ namespace AHCALRecoAlg{
         cfg_.z_pos_input5 = get_or<double>(cfg, "z_pos_input5", cfg_.z_pos_input5);
         cfg_.threshold_input4 = get_or<double>(cfg, "threshold_input4", cfg_.threshold_input4);
         cfg_.threshold_input5 = get_or<double>(cfg, "threshold_input5", cfg_.threshold_input5);
+    }
+    void VetoEffAlg::initialize() {
+        if (cfg_.write_to_txt) {
+            out_file_ = std::make_unique<std::ofstream>();
+            out_file_->open(cfg_.out_txt_name, std::ios::out);
+            if (!out_file_->is_open()) {
+                LOG_ERROR("VetoEffAlg: cannot open output text file: {}", cfg_.out_txt_name);
+                out_file_.reset();
+            } else {
+                LOG_INFO("VetoEffAlg: writing detailed event info to {}", cfg_.out_txt_name);
+            }
+        }
     }
 } // namespace AHCALRecoAlg

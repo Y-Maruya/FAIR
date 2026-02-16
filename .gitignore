@@ -6,4 +6,4 @@ out/
 scripts/logs/
 scripts/err/
 scripts/out/
-eventdisplay/*
+eventdisplay*/*

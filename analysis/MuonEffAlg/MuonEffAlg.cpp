@@ -207,7 +207,7 @@ namespace AHCALRecoAlg{
                 for (int i_chip = 0; i_chip < AHCALGeometry::chip_No; ++i_chip) {
                     for (int i_channel = 0; i_channel < AHCALGeometry::channel_No; ++i_channel) {
                         int channel_id = L*AHCALGeometry::chip_No*AHCALGeometry::channel_No + i_chip*AHCALGeometry::channel_No + i_channel;
-                        double eff = eff_channel->GetEfficiency(channel_id);
+                        double eff = eff_channel->GetEfficiency(channel_id+1);
                         h2_chip_channel_xy->Fill(AHCALGeometry::Pos_X(i_channel, i_chip), AHCALGeometry::Pos_Y(i_channel, i_chip), eff);
                     }
                 }

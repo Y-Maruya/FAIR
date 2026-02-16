@@ -95,6 +95,7 @@ int main(int argc, char* argv[]) {
         // Initialize RootRawHitReader
         std::string input_key_hits = require_string(cfg, "out_rawhits_key");
         std::string input_key_tlu = require_string(cfg, "out_tlu_key");
+        int nEvent = 0;
         for (int iinput = 0; iinput < ninputs; ++iinput) {
             ctx.config.input = input_files[iinput];
             ctx.config.runNumber = runNumbers[iinput];
@@ -104,7 +105,7 @@ int main(int argc, char* argv[]) {
             LOG_INFO("Inputs = {} / {}", iinput + 1, ninputs);
             RootRawHitReader rawHitReader(ctx.config.input, "Raw_Hit");
             LOG_INFO("RootRawHitReader created successfully.");
-            int nEvent = 0;
+            int nEvent_current = 0;
             Long64_t total_entries = rawHitReader.entries();
             LOG_INFO("Total entries in input file {}: {}", ctx.config.input, total_entries);
             while (true) {
@@ -117,13 +118,15 @@ int main(int argc, char* argv[]) {
                     break; // Reached the maximum number of events to process
                 }
                 EventStore eventStore;
+                eventStore.set_event_counter(nEvent);
                 eventStore.put(input_key_hits, std::move(rawHits));
                 eventStore.put(input_key_tlu, std::move(tluData));
                 for (auto& alg : algs) {
                     alg->execute(eventStore);
                 }
                 nEvent++;
-                if (nEvent % 10000 == 0) {
+                nEvent_current++;
+                if (nEvent_current % 10000 == 0) {
                     LOG_INFO("Processed {}/{} events.", nEvent, total_entries);
                 }
                 eventStore.clear();
@@ -145,7 +148,7 @@ int main(int argc, char* argv[]) {
             LOG_INFO("Inputs = {} / {}", iinput + 1, ninputs);
             BinaryRawHitReader rawHitReader(ctx.config.input);
             LOG_INFO("BinaryRawHitReader created successfully.");
-
+            int nEvent_current = 0;
             while (true) {
                 std::vector<AHCALRawHit> rawHits;
                 AHCALTLURawData tluData;
@@ -156,12 +159,14 @@ int main(int argc, char* argv[]) {
                     break; // Reached the maximum number of events to process
                 }
                 EventStore eventStore;
+                eventStore.set_event_counter(nEvent);
                 eventStore.put(input_key_hits, std::move(rawHits));
                 eventStore.put(input_key_tlu, std::move(tluData));
                 for (auto& alg : algs) {
                     alg->execute(eventStore);
                 }
                 nEvent++;
+                nEvent_current++;
                 if (nEvent % 10000 == 0) {
                     LOG_INFO("Processed {}", nEvent);
                 }
@@ -171,6 +176,7 @@ int main(int argc, char* argv[]) {
             LOG_INFO("Total events processed so far: {}", nEvent);
         }
     }else if (type == "RootInput") {
+        int nEvent = 0;
         for (int iinput = 0; iinput < ninputs; ++iinput) {
             ctx.config.input = input_files[iinput];
             ctx.config.runNumber = runNumbers[iinput];
@@ -184,7 +190,7 @@ int main(int argc, char* argv[]) {
             ReaderRegistry rr = parse_reader_registry(cfg);
             Long64_t total_entries = in.entries();
             LOG_INFO("Total entries in input file: {}", total_entries);
-            int nEvent = 0;
+            int nEvent_current = 0;
             while (true) {
                 if (!in.next()) {
                     break; // No more events
@@ -193,13 +199,15 @@ int main(int argc, char* argv[]) {
                     break; // Reached the maximum number of events to process
                 }
                 EventStore eventStore;
+                eventStore.set_event_counter(nEvent);
                 readandput(cfg, eventStore, rr, in);
                 for (auto& alg : algs) {
                     alg->execute(eventStore);
                 }
                 nEvent++;
-                if (nEvent % 10000 == 0) {
-                    LOG_INFO("Processed {}/{} events.", nEvent, total_entries);
+                nEvent_current++;
+                if (nEvent_current % 10000 == 0) {
+                    LOG_INFO("Processed {}/{} events.", nEvent_current, total_entries);
                 }
                 eventStore.clear();
             }

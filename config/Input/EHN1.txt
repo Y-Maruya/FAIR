@@ -1,0 +1,1 @@
+/eos/project/f/faser-upgrade/AHCAL/AHCAL-data-EHN1/FaserAHCAL-Physics-020910-00000.raw 20910 0

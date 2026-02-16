@@ -1,2 +1,3 @@
 add_subdirectory(MuonEffAlg)
 add_subdirectory(VetoEffAlg)
+add_subdirectory(InputEffAlg)

@@ -136,12 +136,15 @@ public:
     if (it->second.type != std::type_index(typeid(T))) return nullptr;
     return &std::any_cast<T&>(it->second.payload);
   }
+  void set_event_counter(long long counter) { m_eventCounter = counter; }
+  long long event_counter() const { return m_eventCounter; }
 
 private:
   struct Item {
     std::type_index type{typeid(void)};
     std::any payload;
   };
+  long long m_eventCounter = 0;
 
   std::unordered_map<std::string, Item> m_map;
 };

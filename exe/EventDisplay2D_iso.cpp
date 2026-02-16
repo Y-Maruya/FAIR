@@ -85,7 +85,6 @@ int main(int argc, char** argv) {
         return 1;
     }
 
-    // prefix は Writer の key（例: RecoHits）
     auto reco  = rr.read<std::vector<AHCALRecoHit>>("vector<AHCALRecoHit>", "RecoHits", in);
     auto isolated = rr.read<std::vector<AHCALRecoHit>>("vector<AHCALRecoHit>", "RmIsolatedHits", in);
     auto track = rr.read<Track>("Track", "MuonKFTrack", in);
@@ -123,7 +122,6 @@ int main(int argc, char** argv) {
         const double z = hit.Zpos();
         // if (hit.Nmip <0.5) continue; // skip low-energy hits
         const double w = hit.Edep; // color = deposited energy [MeV]
-        // Nmip を使いたいなら: const double w = hit.Nmip;
 
         hxy.Fill(x, y, w);
         hxz.Fill(z, x, w);
@@ -266,9 +264,13 @@ int main(int argc, char** argv) {
     info.DrawLatex(0.10, 0.64, "Black boxes: RmIsolatedHits");
 
     c.Update();
-
+    int runNumber = ctx.config.runNumber;
+    TLatex RunNum;
+    RunNum.SetNDC();
+    RunNum.SetTextSize(0.04);
+    RunNum.DrawLatex(0.12, 0.96, Form("Run %d", runNumber));
     // const std::string outPdf = Form("eventdisplay/evt%lld.pdf", ievt);
-    const std::string outPng = Form("eventdisplay/evt%lld.png", ievt);
+    const std::string outPng = Form("eventdisplay/Run%d_evt%lld.png", runNumber, ievt);
     // c.SaveAs(outPdf.c_str());
     c.SaveAs(outPng.c_str());
 
