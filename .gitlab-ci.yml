@@ -28,6 +28,7 @@ build-job:       # This job runs in the build stage, which runs first.
     - source /cvmfs/sft.cern.ch/lcg/views/LCG_105/x86_64-el9-gcc11-opt/setup.sh
   script:
     - echo "Compiling the code..."
+    - git submodule update
     - mkdir build
     - cd build
     - cmake ../
