@@ -21,7 +21,7 @@ stages:          # List of stages for jobs, and their order of execution
 
 build-job:       # This job runs in the build stage, which runs first.
   stage: build
-  image: gitlab-registry.cern.ch/linuxsupport/alma9-base:latest
+  image: gitlab-registry.cern.ch/linuxsupport/alma9-core:latest
   tags:
     - cvmfs
   before_script:
