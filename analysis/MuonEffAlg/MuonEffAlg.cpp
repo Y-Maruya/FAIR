@@ -92,8 +92,11 @@ namespace AHCALRecoAlg{
             h_passed_channel->Write();
             h_full_chip->Write();
             h_passed_chip->Write();
-            LOG_DEBUG("MuonEffAlg: h_full_channel entries = {}, h_passed_channel entries = {}, h_full_chip entries = {}, h_passed_chip entries = {}", 
-                h_full_channel->GetEntries(), h_passed_channel->GetEntries(), h_full_chip->GetEntries(), h_passed_chip->GetEntries());
+            h_full_trigger_layer->Write();
+            h_passed_Input_trigger_layer->Write();
+            h_passed_Input_and_Hittag_trigger_layer->Write();
+            LOG_DEBUG("MuonEffAlg: h_full_channel entries = {}, h_passed_channel entries = {}, h_full_chip entries = {}, h_passed_chip entries = {}, h_full_trigger_layer entries = {}, h_passed_Input_trigger_layer entries = {}, h_passed_Input_and_Hittag_trigger_layer entries = {}", 
+                h_full_channel->GetEntries(), h_passed_channel->GetEntries(), h_full_chip->GetEntries(), h_passed_chip->GetEntries(), h_full_trigger_layer->GetEntries(), h_passed_Input_trigger_layer->GetEntries(), h_passed_Input_and_Hittag_trigger_layer->GetEntries());
 
 
             TEfficiency* eff_channel = new TEfficiency(*h_passed_channel, *h_full_channel);
@@ -240,6 +243,37 @@ namespace AHCALRecoAlg{
                 cAllchannel->SaveAs(Form("%s/eff_channel_all_layers.png", cfg_.out_png_dir.c_str()));
             }
             fout->cd();
+            TEfficiency* eff_trigger_layer = new TEfficiency(*h_passed_Input_trigger_layer, *h_full_trigger_layer);
+            TEfficiency* eff_trigger_layer_with_hittag = new TEfficiency(*h_passed_Input_and_Hittag_trigger_layer, *h_full_trigger_layer);
+            TEfficiency* eff_trigger_layer_hittag_input1 = new TEfficiency(*h_passed_Input_and_Hittag_trigger_layer, *h_passed_Input_trigger_layer);
+            eff_trigger_layer->SetName("eff_trigger_layer");
+            eff_trigger_layer_with_hittag->SetName("eff_trigger_layer_with_hittag");
+            eff_trigger_layer_hittag_input1->SetName("eff_trigger_layer_hittag_input1");
+            eff_trigger_layer->SetTitle("Muon Efficiency by Trigger Layer;Input;Efficiency");
+            eff_trigger_layer_with_hittag->SetTitle("Muon Efficiency by Trigger Layer with HitTag Cut;Input;Efficiency");
+            eff_trigger_layer_hittag_input1->SetTitle("Muon Efficiency of HitTag == 1 among Input=1 events;Input;Efficiency");
+            eff_trigger_layer->Write();
+            eff_trigger_layer_with_hittag->Write();
+            eff_trigger_layer_hittag_input1->Write();
+            if (cfg_.write_to_png) {
+                TCanvas c_trigger_layer("c_trigger_layer", "Muon Efficiency by Trigger Layer", 800, 600);
+                eff_trigger_layer->Draw();
+                c_trigger_layer.Update();
+                c_trigger_layer.Modified();
+                c_trigger_layer.SaveAs(Form("%s/eff_trigger_layer.png", cfg_.out_png_dir.c_str()));
+
+                TCanvas c_trigger_layer_hittag("c_trigger_layer_hittag", "Muon Efficiency by Trigger Layer with HitTag Cut", 800, 600);
+                eff_trigger_layer_with_hittag->Draw();
+                c_trigger_layer_hittag.Update();
+                c_trigger_layer_hittag.Modified();
+                c_trigger_layer_hittag.SaveAs(Form("%s/eff_trigger_layer_with_hittag.png", cfg_.out_png_dir.c_str()));
+
+                TCanvas c_trigger_layer_hittag_input1("c_trigger_layer_hittag_input1", "Muon Efficiency of HitTag == 1 among Input=1 events", 800, 600);
+                eff_trigger_layer_hittag_input1->Draw();
+                c_trigger_layer_hittag_input1.Update();
+                c_trigger_layer_hittag_input1.Modified();
+                c_trigger_layer_hittag_input1.SaveAs(Form("%s/eff_trigger_layer_hittag_input1.png", cfg_.out_png_dir.c_str()));
+            }
             fout->Close();
             LOG_INFO("MuonEffAlg: wrote {}", cfg_.out_filename);
             LOG_INFO("MuonEffAlg: total entries in channel histograms: {}", h_full_channel->GetEntries());
@@ -256,13 +290,30 @@ namespace AHCALRecoAlg{
             h_passed_channel->SetDirectory(nullptr);
             h_full_chip->SetDirectory(nullptr);
             h_passed_chip->SetDirectory(nullptr);
+            //
+            h_full_trigger_layer = std::make_unique<TH1D>("h_full_trigger_layer", "Track Passed;Input;Entries", cfg_.ntrigger_layer, 0-0.5, cfg_.ntrigger_layer-0.5);
+            h_passed_Input_trigger_layer = std::make_unique<TH1D>("h_passed_Input_trigger_layer", "Track Passed and Input=1;Input;Entries", cfg_.ntrigger_layer, 0-0.5, cfg_.ntrigger_layer-0.5);
+            h_passed_Input_and_Hittag_trigger_layer = std::make_unique<TH1D>("h_passed_Input_and_Hittag_trigger_layer", "Track Passed and Input=1 and Hittag=1;Input;Entries", cfg_.ntrigger_layer, 0-0.5, cfg_.ntrigger_layer-0.5);
+            h_full_trigger_layer->SetDirectory(nullptr);
+            h_passed_Input_trigger_layer->SetDirectory(nullptr);
+            h_passed_Input_and_Hittag_trigger_layer->SetDirectory(nullptr);
         }
         std::unique_ptr<TH1D> h_full_channel;
         std::unique_ptr<TH1D> h_passed_channel;
         std::unique_ptr<TH1D> h_full_chip;
         std::unique_ptr<TH1D> h_passed_chip;
+        std::unique_ptr<TH1D> h_full_trigger_layer;
+        std::unique_ptr<TH1D> h_passed_Input_trigger_layer;
+        std::unique_ptr<TH1D> h_passed_Input_and_Hittag_trigger_layer;
     };
-
+    bool MuonEffAlg::is_hittag1_exist(std::vector<AHCALRawHit>& rawHits, int layer) {
+        for (const auto& hit : rawHits) {
+            if (hit.layer() == layer && hit.hittag == 1) {
+                return true;
+            }
+        }
+        return false;
+    } 
     void MuonEffAlg::ImplDeleter::operator()(Impl* p) const {
         delete p;
     }
@@ -275,6 +326,7 @@ namespace AHCALRecoAlg{
             impl_.reset(new Impl(cfg_));
             impl_->initialize_histograms();
         }
+        auto rawData = evt.get<AHCALTLURawData>(cfg_.in_rawdata_key);
         if (cfg_.string_track_struct == "SimpleFittedTrack") {
             auto track = evt.get<SimpleFittedTrack>(cfg_.in_track_key);
             if (!cfg_.track_selection_string.empty()) {
@@ -321,6 +373,16 @@ namespace AHCALRecoAlg{
                     int cellid = i_layer*100000 + chip*10000 + channel;
                     impl_->fill_channel(cellid, is_in_track);
                     impl_->fill_chip(cellid, is_in_chip);
+                    if (std::find(cfg_.trigger_layer.begin(), cfg_.trigger_layer.end(), i_layer) != cfg_.trigger_layer.end()) {
+                        int i_input = std::distance(cfg_.trigger_layer.begin(), std::find(cfg_.trigger_layer.begin(), cfg_.trigger_layer.end(), i_layer));
+                        impl_->h_full_trigger_layer->Fill(i_input);
+                        if ( rawData.Inputs[i_input] == 1) {
+                            impl_->h_passed_Input_trigger_layer->Fill(i_input);
+                            if (is_hittag1_exist(rawhits, i_layer)) {
+                                impl_->h_passed_Input_and_Hittag_trigger_layer->Fill(i_input);
+                            }
+                        }
+                    }
                 }
             } else {
                 // use MIP cut
@@ -405,6 +467,16 @@ namespace AHCALRecoAlg{
                     int cellid = i_layer*100000 + chip*10000 + channel;
                     impl_->fill_channel(cellid, is_in_track);
                     impl_->fill_chip(cellid, is_in_chip);
+                    if (std::find(cfg_.trigger_layer.begin(), cfg_.trigger_layer.end(), i_layer) != cfg_.trigger_layer.end()) {
+                        int i_input = std::distance(cfg_.trigger_layer.begin(), std::find(cfg_.trigger_layer.begin(), cfg_.trigger_layer.end(), i_layer));
+                        impl_->h_full_trigger_layer->Fill(i_input);
+                        if ( rawData.Inputs[i_input] == 1) {
+                            impl_->h_passed_Input_trigger_layer->Fill(i_input);
+                            if (is_hittag1_exist(rawhits, i_layer)) {
+                                impl_->h_passed_Input_and_Hittag_trigger_layer->Fill(i_input);
+                            }
+                        }
+                    }
                 }
             } else {
                 // use MIP cut
@@ -451,6 +523,7 @@ namespace AHCALRecoAlg{
     void MuonEffAlg::parse_cfg(const YAML::Node& cfg){
         cfg_.in_hit_key = get_or<std::string>(cfg, "in_hit_key", cfg_.in_hit_key);
         cfg_.in_track_key = get_or<std::string>(cfg, "in_track_key", cfg_.in_track_key);
+        cfg_.in_rawdata_key = get_or<std::string>(cfg, "in_rawdata_key", cfg_.in_rawdata_key);
         cfg_.string_track_struct = get_or<std::string>(cfg, "string_track_struct", cfg_.string_track_struct);
         cfg_.track_selection_string = get_or<std::string>(cfg, "track_selection_string", cfg_.track_selection_string);
         cfg_.out_filename = get_or<std::string>(cfg, "out_filename", cfg_.out_filename);
@@ -459,5 +532,16 @@ namespace AHCALRecoAlg{
         cfg_.hittag_or_MIP_cut = get_or<bool>(cfg, "hittag_or_MIP_cut", cfg_.hittag_or_MIP_cut);
         cfg_.MIP_cut = get_or<double>(cfg, "MIP_cut", cfg_.MIP_cut);
         cfg_.xy_size_threshold = get_or<double>(cfg, "xy_size_threshold", cfg_.xy_size_threshold);
+        cfg_.ntrigger_layer = get_or<int>(cfg, "ntrigger_layer", cfg_.ntrigger_layer);
+        cfg_.trigger_layer.clear(); //{1:9, 2:19, 3:29, 4:38}
+        std::map<int, int> default_trigger_layer = {{0,9}, {1,19}, {2,29}, {3,38}};
+        default_trigger_layer = get_or<std::map<int,int>>(cfg, "trigger_layer", default_trigger_layer);
+        for (int i = 0; i < cfg_.ntrigger_layer; ++i) {
+            if (default_trigger_layer.find(i) != default_trigger_layer.end()) {
+                cfg_.trigger_layer.push_back(default_trigger_layer[i]);
+            } else {
+                LOG_ERROR("InputEffAlg: trigger_layer config is missing entry for input index {}, skipping this input", i);
+            }
+        }
     }
 } // namespace AHCALRecoAlg

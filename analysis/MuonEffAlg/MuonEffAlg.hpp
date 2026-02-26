@@ -13,6 +13,7 @@
 namespace AHCALRecoAlg{
     struct MuonEffAlgCfg{
         std::string in_hit_key = "RawHits";
+        std::string in_rawdata_key = "TLUData";
         std::string in_track_key = "Tracks";
 
         std::string string_track_struct = "SimpleFittedTrack"; // or "Track"
@@ -23,6 +24,8 @@ namespace AHCALRecoAlg{
         bool hittag_or_MIP_cut = false; // if true, use hit tag, otherwise use MIP cut
         double MIP_cut = 0.5;
         double xy_size_threshold = 17.0; 
+        int ntrigger_layer = 4;
+        std::vector<int> trigger_layer = {9, 19, 29, 38}; 
     };
     class MuonEffAlg final : public IAlg{
     public:
@@ -34,6 +37,7 @@ namespace AHCALRecoAlg{
     
     private:
         MuonEffAlgCfg cfg_;
+        bool is_hittag1_exist(std::vector<AHCALRawHit>& rawHits, int layer);
         struct Impl;
         struct ImplDeleter {
             void operator()(Impl* p) const;

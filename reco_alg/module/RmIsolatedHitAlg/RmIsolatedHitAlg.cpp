@@ -86,15 +86,25 @@ void RmIsolatedHitAlg::execute(EventStore& evt) {
     auto& hits = evt.get<std::vector<AHCALRecoHit>>(m_cfg.in_recohit_key);
     std::vector<AHCALRecoHit> output_hits;
     output_hits.reserve(hits.size());
-
+    std::vector<AHCALRecoHit> isolated_hits; // for output if m_cfg.output_isolated_hits is true
+    if (m_cfg.output_isolated_hits) {
+        isolated_hits.reserve(hits.size());
+    }
     std::vector<int> isoFlag(hits.size(), 0);
     computeIsolatedFlags(hits, isoFlag);
     for (size_t i = 0; i < hits.size(); ++i) {
         if (isoFlag[i] == 0) { // Not isolated
             output_hits.push_back(hits[i]);
+        } else {
+            if (m_cfg.output_isolated_hits) {
+                isolated_hits.push_back(hits[i]);
+            }
         }
     }
     evt.put(m_cfg.out_recohit_key, std::move(output_hits));
+    if (m_cfg.output_isolated_hits) {
+        evt.put(m_cfg.out_isolatedhit_key, std::move(isolated_hits));
+    }
 }
 
 

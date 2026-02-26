@@ -11,41 +11,38 @@
 #include <stdexcept>
 
 namespace AHCALRecoAlg{
-    struct InputEffAlgCfg{
-        std::string in_data_key = "TLUData";
+    struct NoiseHitAlgCfg{
         std::string in_raw_hit_key = "RawHits";
+        std::string in_track_hit_key = "FittedTracks";
 
-        // std::string string_track_struct = "SimpleFittedTrack"; // or "Track"
-        // std::string track_selection_string = "";
-        std::string out_filename = "Input_eff.root";
+        std::string string_track_struct = "SimpleFittedTrack"; // or "Track" //
+        std::string track_selection_string = "";  // "" means not use outtrack hit.
+        int nHits_threshold = 0; // if > 0, only consider events with more than this number of hits
+        std::string out_filename = "NoiseHit_out.root";
         bool write_to_png = false;
         bool write_to_txt = false;
-        std::string out_txt_name = "Input_eff.txt";
-        std::string out_png_dir = "Input_eff_png";
-        std::vector<int> trigger_layer = {9,19,29,38};
-        int ntrigger_layer = 4;
+        std::string out_txt_name = "NoiseHit_out.txt";
+        std::string out_png_dir = "NoiseHit_png";
+        double xmin = 0;
+        double xmax = 1000;
+        int nbin = 100;
     };
-    class InputEffAlg final : public IAlg{
+    class NoiseHitAlg final : public IAlg{
     public:
-        InputEffAlg(RunContext& rc, std::string name)
+        NoiseHitAlg(RunContext& rc, std::string name)
         : IAlg(rc, std::move(name)){}
-        ~InputEffAlg() override;
+        ~NoiseHitAlg() override;
         void execute(EventStore& evt) override;
         void parse_cfg(const YAML::Node& cfg) override;
         void initialize() override;
 
     private:
-        InputEffAlgCfg cfg_;
+        NoiseHitAlgCfg cfg_;
         struct Impl;
         struct ImplDeleter {
             void operator()(Impl* p) const;
         };
         std::unique_ptr<std::ofstream> out_file_;
         std::unique_ptr<Impl, ImplDeleter> impl_;
-        bool is_hittag1_exist(std::vector<AHCALRawHit>& rawHits, int layer);
-        int last_cycle_id = -1;
-        int last_AHCAL_bcid = -1;
-        int last_TLU_timestamp = -1;
-        int last_trigger_id = -1;
     };    
 }

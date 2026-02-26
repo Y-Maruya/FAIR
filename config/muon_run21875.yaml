@@ -1,11 +1,11 @@
 run:
-  input: /eos/experiment/faser/raw/2026/021723/FaserAHCAL-Physics-021723-00000.raw
+  input: /eos/experiment/faser/raw/2026/021875/FaserAHCAL-Physics-021875-00000.raw
   MC: false
-  log_file: /afs/cern.ch/user/y/ymaruya/private/FASERlink/AHCAL/FAIR/out/muonrun_Feb09/log
-  output: /afs/cern.ch/user/y/ymaruya/private/FASERlink/AHCAL/FAIR/out/muonrun_Feb09/out.root
+  log_file: /afs/cern.ch/user/y/ymaruya/private/FASERlink/AHCAL/FAIR/out/run21875/log
+  output: /afs/cern.ch/user/y/ymaruya/private/FASERlink/AHCAL/FAIR/out/run21875/out.root
   nEvents: -1
   log_level: INFO
-  runNumber: 21723
+  runNumber: 21875
   poolIndex: 0
 reader: 
   type: BinaryRawHitReader
@@ -93,20 +93,17 @@ algs: # Define the sequence of algorithms to be executed. The order matters.
   #     output_to_png: true
   #     out_png_dir: /afs/cern.ch/user/y/ymaruya/private/FASERlink/AHCAL/FAIR/out/muonrun_Feb09/mip_png/
   #     fit: false
-  - type: MuonEffAlg
-    cfg:
-      in_hit_key: RawHits
-      in_track_key: FittedTrack
-      in_rawdata_key: TLURawData
-      string_track_struct: SimpleFittedTrack
-      track_selection_string: (valid>0)*(chi2xperndf<5)*(chi2xperndf>0)*(chi2yperndf<5)*(chi2yperndf>0)*(nInTrackHits>8)
-      out_filename: /afs/cern.ch/user/y/ymaruya/private/FASERlink/AHCAL/FAIR/out/muonrun_Feb09/eff.root
-      write_to_png: true
-      out_png_dir: /afs/cern.ch/user/y/ymaruya/private/FASERlink/AHCAL/FAIR/out/muonrun_Feb09/png/
-      hittag_or_MIP_cut: true
-      xy_size_threshold: 17.0
-      ntrigger_layer: 4
-      trigger_layer: {0: 9, 1: 19, 2: 29, 3: 38}
+  # - type: MuonEffAlg
+  #   cfg:
+  #     in_hit_key: RawHits
+  #     in_track_key: FittedTrack
+  #     string_track_struct: SimpleFittedTrack
+  #     track_selection_string: (valid>0)*(chi2xperndf<5)*(chi2xperndf>0)*(chi2yperndf<5)*(chi2yperndf>0)*(nInTrackHits>8)
+  #     out_filename: /afs/cern.ch/user/y/ymaruya/private/FASERlink/AHCAL/FAIR/out/muonrun_Feb09/eff.root
+  #     write_to_png: true
+  #     out_png_dir: /afs/cern.ch/user/y/ymaruya/private/FASERlink/AHCAL/FAIR/out/muonrun_Feb09/png/
+  #     hittag_or_MIP_cut: true
+  #     xy_size_threshold: 17.0
   # - type: VetoEffAlg
   #   cfg:
   #     in_data_key: TLURawData
@@ -131,11 +128,11 @@ algs: # Define the sequence of algorithms to be executed. The order matters.
       in_reco_hit_key: RecoHits
       ntrigger_layer: 4
       trigger_layer: {0: 9, 1: 19, 2: 29, 3: 38}
-      out_filename: /afs/cern.ch/user/y/ymaruya/private/FASERlink/AHCAL/FAIR/out/muonrun_Feb09/input_eff.root
+      out_filename: /afs/cern.ch/user/y/ymaruya/private/FASERlink/AHCAL/FAIR/out/run21875/input_eff.root
       write_to_png: true
-      out_png_dir: /afs/cern.ch/user/y/ymaruya/private/FASERlink/AHCAL/FAIR/out/muonrun_Feb09/input_eff_png/
+      out_png_dir: /afs/cern.ch/user/y/ymaruya/private/FASERlink/AHCAL/FAIR/out/run21875/input_eff_png/
       write_to_txt: true
-      out_txt_name: /afs/cern.ch/user/y/ymaruya/private/FASERlink/AHCAL/FAIR/out/muonrun_Feb09/input_eff.txt
+      out_txt_name: /afs/cern.ch/user/y/ymaruya/private/FASERlink/AHCAL/FAIR/out/run21875/input_eff.txt
   # - type: NoiseHitAlg
   #   cfg:
   #     in_rawhit_key: RawHits

@@ -15,7 +15,6 @@
 /eos/experiment/faser/raw/2026/021683/Faser-Physics-021683-00000.raw 21683 0
 /eos/experiment/faser/raw/2026/021671/Faser-Physics-021671-00000.raw 21671 0
 /eos/experiment/faser/raw/2026/021669/Faser-Physics-021669-00000.raw 21669 0
-/eos/experiment/faser/raw/2026/021663/Faser-Physics-021663-00000.raw 21663 0
 /eos/experiment/faser/raw/2026/021662/Faser-Physics-021662-00000.raw 21662 0
 /eos/experiment/faser/raw/2026/021659/Faser-Physics-021659-00000.raw 21659 0
 /eos/experiment/faser/raw/2026/021657/Faser-Physics-021657-00000.raw 21657 0

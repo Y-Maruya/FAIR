@@ -19,6 +19,8 @@ namespace AHCALRecoAlg {
         double nmipMax = 3.0;
         double xy_cone = 42.0; // mm
         int maxMissingLayers = 0;
+        bool output_isolated_hits = false; // if true, output the isolated hits as well.
+        std::string out_isolatedhit_key = "IsolatedHits";
     };
 
     class RmIsolatedHitAlg final : public IAlg { // final to prevent inheritance

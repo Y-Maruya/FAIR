@@ -35,6 +35,7 @@ if(TARGET fair_options)
       MuonEffAlg
       VetoEffAlg
       InputEffAlg
+      NoiseHitAlg
       -Wl,--no-whole-archive
   )
   target_link_libraries(fair_single 
@@ -52,6 +53,7 @@ if(TARGET fair_options)
       MuonEffAlg
       VetoEffAlg
       InputEffAlg
+      NoiseHitAlg
       -Wl,--no-whole-archive
   )
   target_link_libraries(EventDisplay2D

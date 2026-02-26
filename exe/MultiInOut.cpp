@@ -56,7 +56,10 @@ int main(int argc, char* argv[]) {
             break;
         }
     }
+    std::cout << "AHCAL Application started." << std::endl;
+    std::cout << "Logger initialized with level: " << ctx.config.log_level << " and log file: " << ctx.config.log_file << std::endl;
     std::string outputfile = ctx.config.output;
+    std::cout << "Output file: " << outputfile << std::endl;
     int ninputs = 1;
     std::vector<std::string> input_files;
     std::vector<int> runNumbers;

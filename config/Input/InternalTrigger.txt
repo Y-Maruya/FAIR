@@ -1,0 +1,13 @@
+/eos/experiment/faser/raw/2026/021774/FaserAHCAL-Physics-021774-00000.raw 21774 0
+/eos/experiment/faser/raw/2026/021773/FaserAHCAL-Physics-021773-00000.raw 21773 0
+/eos/experiment/faser/raw/2026/021739/FaserAHCAL-Physics-021739-00000.raw 21739 0
+/eos/experiment/faser/raw/2026/021729/FaserAHCAL-Physics-021729-00000.raw 21729 0
+/eos/experiment/faser/raw/2026/021729/FaserAHCAL-Physics-021729-00001.raw 21729 1
+/eos/experiment/faser/raw/2026/021729/FaserAHCAL-Physics-021729-00002.raw 21729 2
+/eos/experiment/faser/raw/2026/021729/FaserAHCAL-Physics-021729-00003.raw 21729 3
+/eos/experiment/faser/raw/2026/021729/FaserAHCAL-Physics-021729-00004.raw 21729 4
+/eos/experiment/faser/raw/2026/021729/FaserAHCAL-Physics-021729-00005.raw 21729 5
+/eos/experiment/faser/raw/2026/021729/FaserAHCAL-Physics-021729-00006.raw 21729 6
+/eos/experiment/faser/raw/2026/021729/FaserAHCAL-Physics-021729-00007.raw 21729 7
+/eos/experiment/faser/raw/2026/021729/FaserAHCAL-Physics-021729-00008.raw 21729 8
+/eos/experiment/faser/raw/2026/021729/FaserAHCAL-Physics-021729-00009.raw 21729 9
