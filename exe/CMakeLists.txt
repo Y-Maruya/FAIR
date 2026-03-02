@@ -54,6 +54,7 @@ if(TARGET fair_options)
       VetoEffAlg
       InputEffAlg
       NoiseHitAlg
+      SimHitReader
       -Wl,--no-whole-archive
   )
   target_link_libraries(EventDisplay2D

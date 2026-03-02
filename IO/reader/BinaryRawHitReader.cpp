@@ -107,7 +107,6 @@ BinaryRawHitReader::~BinaryRawHitReader()
 }
 
 bool BinaryRawHitReader::next(std::vector<AHCALRawHit>& out_hits, AHCALTLURawData& out_tlu) {
-    ++m_entry;
     m_eof_good = m_ifs->good() and m_ifs->peek()!=EOF;
     if (!m_eof_good) return false;
     out_hits.clear();
@@ -187,5 +186,6 @@ bool BinaryRawHitReader::next(std::vector<AHCALRawHit>& out_hits, AHCALTLURawDat
         LOG_ERROR("Error reading event at entry {}: {}", m_entry, e.what());
         return false;
     }
+    ++m_entry;
     return has_tlu || has_ahcal;
 }

@@ -113,7 +113,7 @@ namespace AHCALRecoAlg{
                 auto h2 = makeMap("h2NoiseMap", L, "Noise Map: Enties");
                 if (dMaps) {
                     dMaps->cd();
-                    h2->Write();
+                    // h2->Write();
                 }
             }
             h2NoiseRatio_->Write("h2NoiseRatio");
@@ -136,15 +136,21 @@ namespace AHCALRecoAlg{
                             );
                         }
                     }
-                    c.cd();
-                    h2->Draw("COLZ");
-                    if(gSystem->AccessPathName(cfg_.out_png_dir.c_str())) {
-                        gSystem->mkdir(cfg_.out_png_dir.c_str(), true);
+                    dMaps->cd();
+                    h2->Write(Form("h2NoiseMap_L%02d", L));
+                    if (cfg_.write_to_png) {
+                        c.cd();
+                        h2->Draw("COLZ");
+                        if(gSystem->AccessPathName(cfg_.out_png_dir.c_str())) {
+                            gSystem->mkdir(cfg_.out_png_dir.c_str(), true);
+                        }
+                        c.SaveAs(Form("%s/NoiseMap_L%02d.png", cfg_.out_png_dir.c_str(), L));
                     }
-                    c.SaveAs(Form("%s/NoiseMap_L%02d.png", cfg_.out_png_dir.c_str(), L));
                 }
-                h2NoiseRatio_Layer->Draw();
-                c.SaveAs(Form("%s/NoiseRatio_Layer.png", cfg_.out_png_dir.c_str()));
+                if (cfg_.write_to_png) {
+                    h2NoiseRatio_Layer->Draw();
+                    c.SaveAs(Form("%s/NoiseRatio_Layer.png", cfg_.out_png_dir.c_str()));
+                }
             }
 
              

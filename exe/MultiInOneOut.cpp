@@ -10,6 +10,7 @@
 #include "common/config/ParseRunConfig.hpp"
 #include "IO/reader/RootRawHitReader.hpp"
 #include "IO/reader/BinaryRawHitReader.hpp"
+#include "IO/reader/SimHitReader.hpp"
 #include "IO/writer/RootWriterAlg.hpp"
 #include "IO/writer/WriterRegistry.hpp"
 #include <iostream>
@@ -165,6 +166,47 @@ int main(int argc, char* argv[]) {
                 eventStore.set_event_counter(nEvent);
                 eventStore.put(input_key_hits, std::move(rawHits));
                 eventStore.put(input_key_tlu, std::move(tluData));
+                for (auto& alg : algs) {
+                    alg->execute(eventStore);
+                }
+                nEvent++;
+                nEvent_current++;
+                if (nEvent % 10000 == 0) {
+                    LOG_INFO("Processed {}", nEvent);
+                }
+                eventStore.clear();
+            }
+            LOG_INFO("Finished processing input file: {} (RunNumber: {}, PoolIndex: {})", ctx.config.input, ctx.config.runNumber, ctx.config.poolIndex);
+            LOG_INFO("Total events processed so far: {}", nEvent);
+        }
+    }else if (type == "SimHitReader") {
+        // Initialize SimHitReader
+        int nEvent = 0;
+        std::string input_key_simhits = require_string(cfg, "out_simhits_key");
+        std::string input_key_simdata = require_string(cfg, "out_simdata_key");
+        for (int iinput = 0; iinput < ninputs; ++iinput) {
+            ctx.config.input = input_files[iinput];
+            ctx.config.runNumber = runNumbers[iinput];
+            ctx.config.poolIndex = poolIndexes[iinput];
+            ctx.config.output = outputfile;
+            LOG_INFO("Processing input file: {} (RunNumber: {}, PoolIndex: {})", ctx.config.input, ctx.config.runNumber, ctx.config.poolIndex);
+            LOG_INFO("Inputs = {} / {}", iinput + 1, ninputs);
+            SimHitReader simHitReader(ctx.config.input);
+            LOG_INFO("SimHitReader created successfully.");
+            int nEvent_current = 0;
+            while (true) {
+                std::vector<AHCALSimHit> simHits;
+                SimData simData;
+                if (!simHitReader.next(simHits, simData)) {
+                    break; // No more events or error
+                }
+                if (ctx.config.nEvents > 0 && nEvent >= ctx.config.nEvents) {
+                    break; // Reached the maximum number of events to process
+                }
+                EventStore eventStore;
+                eventStore.set_event_counter(nEvent);
+                eventStore.put(input_key_simhits, std::move(simHits));
+                eventStore.put(input_key_simdata, std::move(simData));
                 for (auto& alg : algs) {
                     alg->execute(eventStore);
                 }

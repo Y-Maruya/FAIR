@@ -13,7 +13,7 @@ public:
 
 private:
     std::unique_ptr<std::ifstream> m_ifs;
-    long long m_entry;
+    long long m_entry =0;
     bool m_eof_good = true;
     bool has_tlu = false;
     bool has_ahcal = false;

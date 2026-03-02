@@ -81,7 +81,6 @@ void RootRawHitReader::bind_branches_() {
 }
 
 bool RootRawHitReader::next(std::vector<AHCALRawHit>& out_hits, AHCALTLURawData& out_tlu_data) {
-  ++m_entry;
   if (m_entry >= m_entries) return false;
   clear_vectors_();
   m_tree->GetEntry(m_entry);
@@ -115,5 +114,6 @@ bool RootRawHitReader::next(std::vector<AHCALRawHit>& out_hits, AHCALTLURawData&
     h.hittag = (*b_hitTag)[i];
     out_hits.push_back(h);
   }
+  ++m_entry;
   return true;
 }

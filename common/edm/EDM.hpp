@@ -5,3 +5,5 @@
 #include "common/edm/RawData.hpp"
 #include "common/edm/Track.hpp"
 #include "common/edm/SimpleFittedTrack.hpp"
+#include "common/edm/SimHit.hpp"
+#include "common/edm/SimData.hpp"

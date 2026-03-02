@@ -25,7 +25,7 @@ private:
     std::unique_ptr<TFile> m_file;
     TTree* m_tree = nullptr;
 
-    long long m_entry = -1;
+    long long m_entry = 0;
     long long m_entries = 0;
     // branch buffers (simple branches) 
     int                     b_runNo;

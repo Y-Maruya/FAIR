@@ -28,6 +28,17 @@ namespace AHCALGeometry {
     const double y_max = 40.3*18/2;
     const double xy_size = 40.;
     const double z_size = 3.;
+
+    const double MIPEnergy = 0.461; // Visible
+
+    inline int CellID(int layer_ID,int chip_ID,int channel_ID){
+        return layer_ID*100000 + chip_ID*10000 + channel_ID;
+    }
+    inline void CellIDToLC(int cellID, int &layer_ID, int &chip_ID, int &channel_ID){
+        layer_ID = cellID/100000;
+        chip_ID = (cellID/10000) % 10;
+        channel_ID = cellID % 10000;
+    }
     inline double Pos_X(int channel_ID,int chip_ID){
         // int HBU_ID=chip_ID/3;
         chip_ID=chip_ID%3;

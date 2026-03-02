@@ -21,6 +21,7 @@
 #include <TString.h>
 #include <TStyle.h>
 #include <TSystem.h>
+#include <TLegend.h>
 
 #include <algorithm>
 #include <cmath>
@@ -128,10 +129,12 @@ namespace AHCALRecoAlg{
             }
         }
 
-        void fill_pattern( int layer1, int layer2, bool isdoublelost, bool issinglelost, int lost_layer) {
+        void fill_pattern( int layer1, int layer2, bool isdoublelost, bool issinglelost, int lost_layer, std::vector<int> fineTimeStamps) {
             if (isdoublelost){
                 h_double_lost[layer1]->Fill(layer2);
                 h_double_lost[layer2]->Fill(layer1);
+                h_timing_diff_double_lost[layer1*4+layer2]->Fill(fineTimeStamps[layer2] - fineTimeStamps[layer1]);
+                h_timing_diff_double_lost[layer2*4+layer1]->Fill(fineTimeStamps[layer1] - fineTimeStamps[layer2]);
             } else if (issinglelost) {
                 int other_layer = -1;
                 for (int i = 0; i < cfg_.ntrigger_layer; ++i) {
@@ -141,7 +144,11 @@ namespace AHCALRecoAlg{
                     }
                 }
                 h_single_lost[other_layer]->Fill(lost_layer);
-            }
+                h_timing_diff_single_lost[other_layer*4+lost_layer]->Fill(fineTimeStamps[lost_layer] - fineTimeStamps[other_layer]);
+            } else {
+                h_timing_diff_no_lost[layer1*4+layer2]->Fill(fineTimeStamps[layer2] - fineTimeStamps[layer1]);
+                h_timing_diff_no_lost[layer2*4+layer1]->Fill(fineTimeStamps[layer1] - fineTimeStamps[layer2]);
+             }
         }
         void write() {
             if (written_) return;
@@ -169,6 +176,15 @@ namespace AHCALRecoAlg{
             h_deltaBCID->Write();
             h_deltaCycleID->Write();
             h_deltaTimestamp->Write();
+            h_deltaTriggerID->Write();
+            h_cycle_duration->Write();
+            for (int i = 0; i < cfg_.ntrigger_layer; ++i) {
+                for (int j = 1; j < cfg_.ntrigger_layer; ++j) {
+                    h_timing_diff_double_lost[i*4+j]->Write();
+                    h_timing_diff_single_lost[i*4+j]->Write();
+                    h_timing_diff_no_lost[i*4+j]->Write();
+                }
+             }
             h_loss->GetXaxis()->SetBinLabel(1, "All Lost");
             h_loss->GetXaxis()->SetBinLabel(2, "1 Lost");
             h_loss->GetXaxis()->SetBinLabel(3, "2 Lost");
@@ -283,6 +299,34 @@ namespace AHCALRecoAlg{
                     h_single_lost[i]->Draw();
                     c.SaveAs(Form("%s/single_lost_input%d.png", cfg_.out_png_dir.c_str(), i));
                 }
+                for (int i = 0; i < cfg_.ntrigger_layer; ++i) {
+                    for (int j = 0; j < cfg_.ntrigger_layer; ++j) {
+                        if (i >= j) continue; // only plot upper triangle to avoid duplication
+                        h_timing_diff_double_lost[i*cfg_.ntrigger_layer+j]->Draw("hist");
+                        // h_timing_diff_double_lost[i]->SetMinimum(0);
+                        c.SaveAs(Form("%s/timing_diff_double_lost_%d_%d.png", cfg_.out_png_dir.c_str(), i, j));
+                        h_timing_diff_single_lost[i*cfg_.ntrigger_layer+j]->Draw("hist");
+                        // h_timing_diff_single_lost[i]->SetMinimum(0);
+                        c.SaveAs(Form("%s/timing_diff_single_lost_%d_%d.png", cfg_.out_png_dir.c_str(), i, j));
+                        h_timing_diff_no_lost[i*cfg_.ntrigger_layer+j]->Draw("hist");
+                        // h_timing_diff_no_lost[i]->SetMinimum(0);
+                        c.SaveAs(Form("%s/timing_diff_no_lost_%d_%d.png", cfg_.out_png_dir.c_str(), i, j));
+                        TLegend*legend = new TLegend(0.6, 0.7, 0.9, 0.9);
+                        legend->AddEntry(h_timing_diff_double_lost[i*cfg_.ntrigger_layer+j].get(), "Double Lost", "l");
+                        legend->AddEntry(h_timing_diff_single_lost[i*cfg_.ntrigger_layer+j].get(), Form("Single Lost (Lost layer %d)", j), "l");
+                        legend->AddEntry(h_timing_diff_no_lost[i*cfg_.ntrigger_layer+j].get(), "No Lost", "l");
+                        TCanvas c_comparison(Form("c_timing_diff_comparison_%d_%d", i, j), Form("Timing Difference Comparison for Layers %d and %d", i, j), 800, 600);
+                        h_timing_diff_double_lost[i*cfg_.ntrigger_layer+j]->SetLineColor(kRed);
+                        h_timing_diff_single_lost[i*cfg_.ntrigger_layer+j]->SetLineColor(kBlue);
+                        h_timing_diff_no_lost[i*cfg_.ntrigger_layer+j]->SetLineColor(kGreen);
+                        h_timing_diff_no_lost[i*cfg_.ntrigger_layer+j]->SetTitle(Form("Timing Difference Comparison for Layers %d - %d;Timing Difference (0.625 ns);Events", j, i));
+                        h_timing_diff_no_lost[i*cfg_.ntrigger_layer+j]->Draw("hist");
+                        h_timing_diff_double_lost[i*cfg_.ntrigger_layer+j]->Draw("histsame");
+                        h_timing_diff_single_lost[i*cfg_.ntrigger_layer+j]->Draw("histsame");
+                        legend->Draw();
+                        c_comparison.SaveAs(Form("%s/timing_diff_comparison_%d_%d.png", cfg_.out_png_dir.c_str(), i, j));
+                    }
+                }
                 delete h_dummy;
             }
         
@@ -341,6 +385,19 @@ namespace AHCALRecoAlg{
                 h_single_lost.push_back(std::make_unique<TH1D>(Form("h_single_lost_%d", i), Form("Distribution of single lost for layer %d;Input;Events", i), 4, -0.5, 3.5));
                 h_single_lost[i]->SetDirectory(nullptr);
             }
+            h_timing_diff_double_lost.clear();
+            h_timing_diff_single_lost.clear();
+            h_timing_diff_no_lost.clear();
+            for (int i = 0; i < 4; ++i) {
+                for (int j = 0; j < 4; ++j) {
+                    h_timing_diff_double_lost.push_back(std::make_unique<TH1D>(Form("h_timing_diff_double_lost_%d_%d", i, j), Form("Timing difference between layers %d - %d for double lost pattern;Time difference [ns];Events", i, j), 64, -256., 256));
+                    h_timing_diff_double_lost.back()->SetDirectory(nullptr);
+                    h_timing_diff_single_lost.push_back(std::make_unique<TH1D>(Form("h_timing_diff_single_lost_%d_%d", i, j), Form("Timing difference between lost layer and other layer for single lost pattern: lost layer %d, other layer %d;Time difference [ns];Events", i, j), 64, -256., 256));
+                    h_timing_diff_single_lost.back()->SetDirectory(nullptr);
+                    h_timing_diff_no_lost.push_back(std::make_unique<TH1D>(Form("h_timing_diff_no_lost_%d_%d", i, j), Form("Timing difference between layers %d and %d for no lost pattern;Time difference [ns];Events", i, j), 64, -256., 256));
+                    h_timing_diff_no_lost.back()->SetDirectory(nullptr);
+                }
+            }
         }
 
         std::unique_ptr<TH1D> h_full; // HitTag efficiency denominator 
@@ -363,6 +420,9 @@ namespace AHCALRecoAlg{
         std::unique_ptr<TH1D> h_loss;
         std::vector<std::unique_ptr<TH1D>> h_double_lost; // distribution of single/double lost pattern, for sanity check
         std::vector<std::unique_ptr<TH1D>> h_single_lost; // distribution of single/double lost pattern, for sanity check
+        std::vector<std::unique_ptr<TH1D> > h_timing_diff_double_lost; // distribution of timing difference between the two layers for double lost pattern
+        std::vector<std::unique_ptr<TH1D> > h_timing_diff_single_lost; // distribution of timing difference between the lost layer and the other layer for single lost pattern
+        std::vector<std::unique_ptr<TH1D> > h_timing_diff_no_lost; // distribution of timing difference between the two layers for events with no lost input, for comparison with the above two categories
     };
 
     void InputEffAlg::ImplDeleter::operator()(Impl* p) const {
@@ -458,7 +518,7 @@ namespace AHCALRecoAlg{
                     }
                 }
             }
-            impl_->fill_pattern(layer1, layer2, isdoublelost, issinglelost, lost_layer);
+            impl_->fill_pattern(layer1, layer2, isdoublelost, issinglelost, lost_layer, rawdata.FineTimestamps);
         }
         if (std::accumulate(rawdata.Inputs.begin(), rawdata.Inputs.end(), 0) == 0) {
             LOG_DEBUG("InputEffAlg: event {} has no input, total nHits = {}", evt.event_counter(), rawHits.size());

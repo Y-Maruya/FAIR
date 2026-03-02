@@ -11,3 +11,6 @@
 /eos/experiment/faser/raw/2026/021729/FaserAHCAL-Physics-021729-00007.raw 21729 7
 /eos/experiment/faser/raw/2026/021729/FaserAHCAL-Physics-021729-00008.raw 21729 8
 /eos/experiment/faser/raw/2026/021729/FaserAHCAL-Physics-021729-00009.raw 21729 9
+/eos/experiment/faser/raw/2026/021938/FaserAHCAL-Physics-021938-00000.raw 21938 0
+/eos/experiment/faser/raw/2026/021937/FaserAHCAL-Physics-021937-00000.raw 21937 0
+/eos/experiment/faser/raw/2026/021936/FaserAHCAL-Physics-021936-00000.raw 21936 0
