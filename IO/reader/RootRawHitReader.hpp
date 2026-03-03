@@ -1,5 +1,4 @@
-#ifndef RootRawHitReader_HPP
-#define RootRawHitReader_HPP
+#pragma once
 #include "common/edm/RawHit.hpp"
 #include "common/edm/RawData.hpp"
 #include <memory>
@@ -48,5 +47,3 @@ private:
   void cleanup_buffers_();
   void clear_vectors_();
 };
-
-#endif // RootRawHitReader_HPP

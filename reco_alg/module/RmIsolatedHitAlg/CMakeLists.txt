@@ -12,7 +12,7 @@ add_library(RmIsolatedHitAlg STATIC
 target_include_directories(RmIsolatedHitAlg
   PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}         # so "common/..." resolves
+    ${FAIR_ROOT_DIR}         # so "common/..." resolves
 )
 
 

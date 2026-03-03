@@ -9,7 +9,7 @@ add_library(InputEffAlg STATIC
 target_include_directories(InputEffAlg
   PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}         # so "common/..." resolves
+    ${FAIR_ROOT_DIR}         # so "common/..." resolves
 )
 
 # Use common compile options / include dirs from top-level interface lib (if present)

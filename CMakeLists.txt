@@ -23,7 +23,7 @@ endif()
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/bin)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
-
+set(FAIR_ROOT_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
 option(FAIR_BUILD_TESTS "Build tests" OFF)
 option(FAIR_ENABLE_WARNINGS "Enable extra compiler warnings" ON)
 option(FAIR_WITH_SPDLOG "Use spdlog for logging" ON)
@@ -134,24 +134,11 @@ option(FAIR_INSTALL_MUPARSER "Install muparser when running 'cmake --install'" O
 # ---------------------------
 # muparser (needed for TrackCut in reco_alg)
 if(FAIR_WITH_MUPARSER)
-  if(FAIR_INSTALL_MUPARSER)
-    add_subdirectory(muparser)
-  else()
-    # Suppress muparser install rules without touching muparser sources
-    set(_fair_prev_skip_install_rules "${CMAKE_SKIP_INSTALL_RULES}")
-    set(CMAKE_SKIP_INSTALL_RULES ON)
-    add_subdirectory(muparser)
-    set(CMAKE_SKIP_INSTALL_RULES "${_fair_prev_skip_install_rules}")
-    unset(_fair_prev_skip_install_rules)
-
-    # Some CMake versions still generate a top-level include to this file.
-    # Ensure it exists (empty) so "make install" doesn't fail.
-    if(NOT EXISTS "${CMAKE_BINARY_DIR}/muparser/cmake_install.cmake")
-      file(WRITE "${CMAKE_BINARY_DIR}/muparser/cmake_install.cmake"
-"## Dummy install script (muparser install suppressed)\n")
-    endif()
-  endif()
+  add_subdirectory(muparser)
   target_link_libraries(fair_options INTERFACE muparser)
+  
+  # Suppress muparser installation
+  set_target_properties(muparser PROPERTIES EXCLUDE_FROM_ALL TRUE)
 endif()
 # faser-common (has its own CMakeLists.txt)
 # This defines e.g. Logging, Exceptions, EventFormats targets (depending on its CMake)

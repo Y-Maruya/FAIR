@@ -1,5 +1,4 @@
-#ifndef ADC_TO_ENERGY_READ_TTree_HPP
-#define ADC_TO_ENERGY_READ_TTree_HPP
+#pragma once
 #include "common/EventStore.hpp"
 #include "common/IAlg.hpp"
 #include <string>
@@ -54,4 +53,3 @@ namespace AHCALRecoAlg {
         AdcToEnergyReadTTreeAlgCfg m_cfg;
     };
 }
-#endif // ADC_TO_ENERGY_READ_MIP_TTree_HPP

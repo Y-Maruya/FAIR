@@ -14,19 +14,20 @@ add_library(SimHitReader STATIC
 target_include_directories(RootRawHitReader
   PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}         # so "common/..." resolves
+    ${FAIR_ROOT_DIR}         # so "common/..." resolves
+    
 )
 
 target_include_directories(BinaryRawHitReader
   PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}         # so "common/..." resolves
+    ${FAIR_ROOT_DIR}         # so "common/..." resolves
 )
 
 target_include_directories(SimHitReader
   PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}         # so "common/..." resolves
+    ${FAIR_ROOT_DIR}         # so "common/..." resolves
 )
 
 # Use common compile options / include dirs from top-level interface lib (if present)

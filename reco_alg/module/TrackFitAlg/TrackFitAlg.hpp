@@ -1,5 +1,4 @@
-#ifndef AHCAL_RECO_ALG_TRACK_FIT_ALG_HPP
-#define AHCAL_RECO_ALG_TRACK_FIT_ALG_HPP
+#pragma once
 #include "common/EventStore.hpp"
 #include "common/IAlg.hpp"
 #include "common/edm/EDM.hpp"
@@ -35,5 +34,3 @@ namespace AHCALRecoAlg {
     };
 
 } // namespace AHCALRecoAlg
-
-#endif // AHCAL_RECO_ALG_TRACK_FIT_ALG_HPP

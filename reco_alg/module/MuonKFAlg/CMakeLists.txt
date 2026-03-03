@@ -12,7 +12,7 @@ add_library(MuonKFAlg STATIC
 target_include_directories(MuonKFAlg
   PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}
-    ${CMAKE_SOURCE_DIR}         # so "common/..." resolves
+    ${FAIR_ROOT_DIR}         # so "common/..." resolves
 )
 
 
