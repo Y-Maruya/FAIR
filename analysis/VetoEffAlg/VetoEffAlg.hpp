@@ -23,12 +23,14 @@ namespace AHCALRecoAlg{
         std::string out_txt_name = "veto_eff.txt";
         std::string out_png_dir = "veto_eff_png";
         double xy_size_threshold = 300;
+        double xy_outofrange_threshold = 500;
         double x_center = 0; //mm, for track extrapolation
         double y_center = 0; //mm, for track extrapolation
         double z_pos_input4 = -100; //mm, for track extrapolation
         double z_pos_input5 = -100; //mm, for track extrapolation
         double threshold_input4 = 75.0; // for plotting
         double threshold_input5 = 75.0;
+        double draw_range_y_min = 0.5;
     };
     class VetoEffAlg final : public IAlg{
     public:
