@@ -171,6 +171,22 @@ bool BinaryRawHitReader::next(std::vector<AHCALRawHit>& out_hits, AHCALTLURawDat
                 }
                 const std::vector<uint8_t> payload(payload_8bit, payload_8bit + frag->payload_size());
                 AHCALDataFragment ahcalFrag(payload);
+                uint64_t event_error = ahcalFrag.getEventError();
+                if (event_error != 0) {
+                    LOG_DEBUG("AHCAL event has error code: 0b{:02b} {}", event_error, ahcalFrag.triggerID());
+                    for (size_t i = 0; i < 40; ++i) {
+                        LOG_DEBUG("Layer {} hits: {}", i, ahcalFrag.getLayerHits(i));
+                    }
+                    for (size_t i = 0; i < payload.size(); ++i) {
+                        LOG_DEBUG("0x{:02x}", payload[i]);
+                    }
+                }
+                for (size_t layer = 0; layer < 40; ++layer) {
+                    uint64_t layer_error = ahcalFrag.getLayerErrors()[layer];
+                    if (layer_error != 0) {
+                        LOG_DEBUG("AHCAL layer {} has error code: 0b{:02b}", layer, layer_error);
+                    }
+                }
                 const auto& hits = ahcalFrag.hits();
                 out_tlu.CycleID = static_cast<int>(ahcalFrag.cycleID());
                 out_tlu.Event_Time = static_cast<int>(ahcalFrag.timestamp());

@@ -1,0 +1,3 @@
+/eos/experiment/faser/raw/2026/022160/FaserAHCAL-Physics-022160-00000.raw 22160 0
+/eos/experiment/faser/raw/2026/022160/FaserAHCAL-Physics-022160-00001.raw 22160 1
+/eos/experiment/faser/raw/2026/022160/FaserAHCAL-Physics-022160-00002.raw 22160 2

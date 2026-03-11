@@ -6,4 +6,5 @@ out/
 scripts/logs/
 scripts/err/
 scripts/out/
+scripts/faser-secret.json
 eventdisplay*/*

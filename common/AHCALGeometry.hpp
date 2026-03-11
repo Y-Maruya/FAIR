@@ -48,7 +48,7 @@ namespace AHCALGeometry {
             if(channel_ID==33)channel_ID=35;
             else if(channel_ID==35)channel_ID=33;
         }
-        return (_Pos_Y[channel_ID]-chip_ID*chip_dis_Y);
+        return -(_Pos_Y[channel_ID]-chip_ID*chip_dis_Y); // fixed to right handed coordinate (USTC script use lefthanded)
     }
     inline double Pos_Y(int channel_ID,int chip_ID,int HBU_ID=0){
         HBU_ID=chip_ID/3;
@@ -73,7 +73,7 @@ namespace AHCALGeometry {
         return -1; // not found
     }
     inline void inverse(double x,double y,int &chip,int &channel){
-        int i=x/40.3+9;
+        int i=-x/40.3+9;
         int j=-y/40.3+9;
         chip=_Chip[j/6][i/6];
         channel=_Channel[j%6][i%6];

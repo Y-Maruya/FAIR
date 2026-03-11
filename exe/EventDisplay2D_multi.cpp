@@ -92,6 +92,7 @@ int main(int argc, char** argv) {
     rr.register_vector_struct<AHCALRecoHit>("vector<AHCALRecoHit>");
     rr.register_struct<Track>("Track");
     rr.register_struct<SimpleFittedTrack>("SimpleFittedTrack");
+    rr.register_struct<AHCALTLURawData>("AHCALTLURawData");
     std::string line;
     int event_count = 0;
     while (std::getline(event_list_file, line)) {
@@ -117,7 +118,7 @@ int main(int argc, char** argv) {
         auto isolated = rr.read<std::vector<AHCALRecoHit>>("vector<AHCALRecoHit>", "RmIsolatedHits", in);
         auto track = rr.read<Track>("Track", "MuonKFTrack", in);
         auto fitted_track = rr.read<SimpleFittedTrack>("SimpleFittedTrack", "FittedTrack", in);
-
+        auto rawdata = rr.read<AHCALTLURawData>("AHCALTLURawData", "TLURawData", in);
         std::cout << "Event " << event_number << ": " << reco.size()
                 << " RecoHits, " << isolated.size() << " IsolatedHits, Track valid=" << track.valid << "\n";
         std::cout << "  Track: chi2=" << track.chi2 << ", ndof=" << track.ndof
@@ -138,11 +139,11 @@ int main(int argc, char** argv) {
         gStyle->SetNumberContours(100);
         gStyle->SetPalette(kViridis);
 
-        TH2D hxy("hxy", Form("RecoHits XY (evt %lld);X [mm];Y [mm]", event_number),
+        TH2D hxy("hxy", Form("RecoHits XY (evt %lld, triggerID=%d);X [mm];Y [mm]", event_number, rawdata.TriggerID),
                 18, xMin, xMax, 18, yMin, yMax);
-        TH2D hxz("hxz", Form("RecoHits XZ (evt %lld);Z [mm];X [mm]", event_number),
+        TH2D hxz("hxz", Form("RecoHits XZ (evt %lld, triggerID=%d);Z [mm];X [mm]", event_number, rawdata.TriggerID),
                 135, zMin, zMax, 18, xMin, xMax);
-        TH2D hyz("hyz", Form("RecoHits YZ (evt %lld);Z [mm];Y [mm]", event_number),
+        TH2D hyz("hyz", Form("RecoHits YZ (evt %lld, triggerID=%d);Z [mm];Y [mm]", event_number, rawdata.TriggerID),
                 135, zMin, zMax, 18, yMin, yMax);
         for (const auto& hit : reco) {
             const double x = hit.Xpos();
@@ -297,7 +298,7 @@ int main(int argc, char** argv) {
         RunNum.SetTextSize(0.04);
         RunNum.DrawLatex(0.12, 0.96, Form("Run %d", runNumber));
         // const std::string outPdf = Form("eventdisplay/evt%lld.pdf", ievt);
-        const std::string outPng = Form("eventdisplay_suminput1/Run%d_evt%lld.png", runNumber, event_number);
+        const std::string outPng = Form("eventdisplay_eff/Run%d_evt%lld.png", runNumber, event_number);
         // c.SaveAs(outPdf.c_str());
         c.SaveAs(outPng.c_str());
     }

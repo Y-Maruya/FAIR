@@ -2,11 +2,11 @@ run:
   input: /eos/experiment/faser/raw/2026/021722/FaserAHCAL-Physics-021722-00000.raw
   MC: false
   log_file: out_calibration/pedestal_calib/log
-  output: out_calibration/pedestal_calib/###runnumber###/out.root
+  output: out_calibration/pedestal_calib/22168/out.root
   nEvents: -1
   log_level: INFO
-  runNumber: ###runnumber###
-  poolIndex: ###poolindex###
+  runNumber: 22168
+  poolIndex: 0
 reader: 
   type: BinaryRawHitReader
   cfg:
@@ -31,6 +31,6 @@ algs: # Define the sequence of algorithms to be executed. The order matters.
       in_rawhit_key: RawHits
       pedestal_to_file: true
       pedestal_to_DB: false
-      out_pedestal_filename: out_calibration/pedestal_calib/###runnumber###/pedestal_###poolindex###.root
+      out_pedestal_filename: out_calibration/pedestal_calib/22168/pedestal.root
       use_hittag: false
       select_hittag: 0

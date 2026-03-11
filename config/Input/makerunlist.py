@@ -1,35 +1,13 @@
 import glob 
 import os
 
-output_file = "firstbeam.txt"
+output_file = "pedestal.txt"
 good_run_list = [
-    21987,
-    21989,
-    21991,
-    21993,
-    21995,
-    21997,
-    21999,
-    22001,
-    22002,
-    22005,
-    22007,
-    22009,
-    22011,
-    22013,
-    22015,
-    22017,
-    22019,
-    22021,
-    22023,
-    22025,
-    22027,
-    22029,
-    22031,
-    22033,
-    22035,
-    22037,
-    22039
+    22074,
+    22140,
+    22160,
+    22168,
+    22206
 ]
 # serch path of raw data from /eos/experiment/faser/raw/2026/Faser*-Physics-0"run_number"-{pool_number}.raw
 raw_data_path = "/eos/experiment/faser/raw/2026/0{}/Faser*-Physics-0{}-*.raw"

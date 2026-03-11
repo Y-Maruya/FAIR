@@ -29,6 +29,7 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
+#include <fstream>
 
 AHCAL_REGISTER_ALG(AHCALRecoAlg::MuonEffAlg, "MuonEffAlg")
 const double XYMIN = -AHCALGeometry::x_max;
@@ -319,6 +320,10 @@ namespace AHCALRecoAlg{
     }
     MuonEffAlg::~MuonEffAlg(){
         if (impl_) impl_->write();
+        if (out_file_) {
+            out_file_->close();
+            LOG_INFO("MuonEffAlg: wrote {}", cfg_.out_txt_filename.c_str());
+        }
     }
 
     void MuonEffAlg::execute(EventStore& evt){
@@ -368,6 +373,11 @@ namespace AHCALRecoAlg{
                                 channel = rh.channel();
                                 break;
                             }
+                        }
+                    }
+                    if (i_layer ==21 && chip == 1 && is_in_chip ==false){
+                        if (cfg_.write_to_txt && out_file_) {
+                            (*out_file_.get()) << this->ctx().config.runNumber << " " << this->ctx().config.poolIndex << " " << evt.event_counter() << " " << i_layer << " " << chip << " " << channel << " " << is_in_track << " " << is_in_chip << std::endl;
                         }
                     }
                     int cellid = i_layer*100000 + chip*10000 + channel;
@@ -529,6 +539,8 @@ namespace AHCALRecoAlg{
         cfg_.out_filename = get_or<std::string>(cfg, "out_filename", cfg_.out_filename);
         cfg_.write_to_png = get_or<bool>(cfg, "write_to_png", cfg_.write_to_png);
         cfg_.out_png_dir = get_or<std::string>(cfg, "out_png_dir", cfg_.out_png_dir);
+        cfg_.write_to_txt = get_or<bool>(cfg, "write_to_txt", cfg_.write_to_txt);
+        cfg_.out_txt_filename = get_or<std::string>(cfg, "out_txt_filename", cfg_.out_txt_filename);
         cfg_.hittag_or_MIP_cut = get_or<bool>(cfg, "hittag_or_MIP_cut", cfg_.hittag_or_MIP_cut);
         cfg_.MIP_cut = get_or<double>(cfg, "MIP_cut", cfg_.MIP_cut);
         cfg_.xy_size_threshold = get_or<double>(cfg, "xy_size_threshold", cfg_.xy_size_threshold);
@@ -541,6 +553,18 @@ namespace AHCALRecoAlg{
                 cfg_.trigger_layer.push_back(default_trigger_layer[i]);
             } else {
                 LOG_ERROR("InputEffAlg: trigger_layer config is missing entry for input index {}, skipping this input", i);
+            }
+        }
+    }
+    void MuonEffAlg::initialize(){
+        if (cfg_.write_to_txt) {
+            out_file_ = std::make_unique<std::ofstream>();
+            out_file_->open(cfg_.out_txt_filename, std::ios::out);
+            if (!out_file_->is_open()) {
+                LOG_ERROR("VetoEffAlg: cannot open output text file: {}", cfg_.out_txt_filename);
+                out_file_.reset();
+            } else {
+                LOG_INFO("VetoEffAlg: writing detailed event info to {}", cfg_.out_txt_filename);
             }
         }
     }

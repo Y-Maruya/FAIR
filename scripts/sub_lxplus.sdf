@@ -1,9 +1,9 @@
 executable     = /eos/user/y/ymaruya/FASER/AHCAL/FAIR/bin/fair_single
-arguments     = /eos/user/y/ymaruya/FASER/AHCAL/FAIR/config/muon.yaml -i /eos/user/y/ymaruya/FASER/AHCAL/FAIR/config/Input/full_muon_runs.txt
+arguments     = /eos/user/y/ymaruya/FASER/AHCAL/FAIR/config/muon_stablebeam.yaml -i /eos/user/y/ymaruya/FASER/AHCAL/FAIR/config/Input/stablebeam.txt
 log            = logs/$(ClusterId).log
 error          = err/$(ClusterId).stderr
 output         = out/$(ClusterId).stdout
-+JobFlavour      = "workday"
++JobFlavour      = "testmatch"
 getenv = True
 queue
 #module load lxbatch/eossubmit

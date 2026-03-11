@@ -1,0 +1,668 @@
+[2026-03-11 04:43:51.784] [info] [MultiInOut.cpp:152 main] Processing input file: /eos/experiment/faser/raw/2026/022074/FaserAHCAL-Physics-022074-00000.raw (RunNumber: 22074, PoolIndex: 0)
+[2026-03-11 04:43:51.785] [info] [MultiInOut.cpp:153 main] Inputs = 1 / 47
+[2026-03-11 04:43:51.785] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'nbin', using default
+[2026-03-11 04:43:51.785] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'xmin', using default
+[2026-03-11 04:43:51.785] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'xmax', using default
+[2026-03-11 04:43:51.785] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'min_entries', using default
+[2026-03-11 04:43:51.785] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'nsigma_win1', using default
+[2026-03-11 04:43:51.785] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'nsigma_win2', using default
+[2026-03-11 04:43:51.785] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'sigma_min', using default
+[2026-03-11 04:43:51.785] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'sigma_max', using default
+[2026-03-11 04:43:51.786] [info] [AlgFactory.hpp:117 make_alg] PedestalAlg: initialized
+[2026-03-11 04:43:51.798] [info] [BinaryRawHitReader.cpp:98 BinaryRawHitReader] Opened binary raw hit file: /eos/experiment/faser/raw/2026/022074/FaserAHCAL-Physics-022074-00000.raw
+[2026-03-11 04:43:51.798] [info] [MultiInOut.cpp:196 main] BinaryRawHitReader created successfully.
+[2026-03-11 04:44:13.310] [info] [MultiInOut.cpp:220 main] Processed 10000
+[2026-03-11 04:44:33.362] [info] [MultiInOut.cpp:220 main] Processed 20000
+[2026-03-11 04:44:34.395] [info] [BinaryRawHitReader.cpp:105 ~BinaryRawHitReader] Closed binary raw hit file.
+[2026-03-11 04:44:58.129] [info] [PedestalAlg.cpp:344 write] PedestalAlg: wrote out_calibration/pedestal_calib/22074/pedestal_0.root
+[2026-03-11 04:44:58.129] [info] [PedestalAlg.cpp:345 write] PedestalAlg: HG fit OK/all = 11448/11448
+[2026-03-11 04:44:58.129] [info] [PedestalAlg.cpp:346 write] PedestalAlg: LG fit OK/all = 9060/11448
+[2026-03-11 04:44:58.413] [info] [MultiInOut.cpp:152 main] Processing input file: /eos/experiment/faser/raw/2026/022074/FaserAHCAL-Physics-022074-00001.raw (RunNumber: 22074, PoolIndex: 1)
+[2026-03-11 04:44:58.413] [info] [MultiInOut.cpp:153 main] Inputs = 2 / 47
+[2026-03-11 04:44:58.414] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'nbin', using default
+[2026-03-11 04:44:58.414] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'xmin', using default
+[2026-03-11 04:44:58.414] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'xmax', using default
+[2026-03-11 04:44:58.414] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'min_entries', using default
+[2026-03-11 04:44:58.415] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'nsigma_win1', using default
+[2026-03-11 04:44:58.415] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'nsigma_win2', using default
+[2026-03-11 04:44:58.415] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'sigma_min', using default
+[2026-03-11 04:44:58.415] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'sigma_max', using default
+[2026-03-11 04:44:58.415] [info] [AlgFactory.hpp:117 make_alg] PedestalAlg: initialized
+[2026-03-11 04:44:58.420] [info] [BinaryRawHitReader.cpp:98 BinaryRawHitReader] Opened binary raw hit file: /eos/experiment/faser/raw/2026/022074/FaserAHCAL-Physics-022074-00001.raw
+[2026-03-11 04:44:58.420] [info] [MultiInOut.cpp:196 main] BinaryRawHitReader created successfully.
+[2026-03-11 04:45:27.759] [info] [MultiInOut.cpp:220 main] Processed 10000
+[2026-03-11 04:45:58.031] [info] [MultiInOut.cpp:220 main] Processed 20000
+[2026-03-11 04:45:59.722] [info] [BinaryRawHitReader.cpp:105 ~BinaryRawHitReader] Closed binary raw hit file.
+[2026-03-11 04:46:19.046] [info] [PedestalAlg.cpp:344 write] PedestalAlg: wrote out_calibration/pedestal_calib/22074/pedestal_1.root
+[2026-03-11 04:46:19.046] [info] [PedestalAlg.cpp:345 write] PedestalAlg: HG fit OK/all = 11448/11448
+[2026-03-11 04:46:19.046] [info] [PedestalAlg.cpp:346 write] PedestalAlg: LG fit OK/all = 9032/11448
+[2026-03-11 04:46:19.322] [info] [MultiInOut.cpp:152 main] Processing input file: /eos/experiment/faser/raw/2026/022074/FaserAHCAL-Physics-022074-00002.raw (RunNumber: 22074, PoolIndex: 2)
+[2026-03-11 04:46:19.322] [info] [MultiInOut.cpp:153 main] Inputs = 3 / 47
+[2026-03-11 04:46:19.322] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'nbin', using default
+[2026-03-11 04:46:19.322] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'xmin', using default
+[2026-03-11 04:46:19.322] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'xmax', using default
+[2026-03-11 04:46:19.322] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'min_entries', using default
+[2026-03-11 04:46:19.323] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'nsigma_win1', using default
+[2026-03-11 04:46:19.323] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'nsigma_win2', using default
+[2026-03-11 04:46:19.323] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'sigma_min', using default
+[2026-03-11 04:46:19.323] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'sigma_max', using default
+[2026-03-11 04:46:19.323] [info] [AlgFactory.hpp:117 make_alg] PedestalAlg: initialized
+[2026-03-11 04:46:19.329] [info] [BinaryRawHitReader.cpp:98 BinaryRawHitReader] Opened binary raw hit file: /eos/experiment/faser/raw/2026/022074/FaserAHCAL-Physics-022074-00002.raw
+[2026-03-11 04:46:19.330] [info] [MultiInOut.cpp:196 main] BinaryRawHitReader created successfully.
+[2026-03-11 04:46:51.386] [info] [MultiInOut.cpp:220 main] Processed 10000
+[2026-03-11 04:47:22.298] [info] [MultiInOut.cpp:220 main] Processed 20000
+[2026-03-11 04:47:23.795] [info] [BinaryRawHitReader.cpp:105 ~BinaryRawHitReader] Closed binary raw hit file.
+[2026-03-11 04:47:43.515] [info] [PedestalAlg.cpp:344 write] PedestalAlg: wrote out_calibration/pedestal_calib/22074/pedestal_2.root
+[2026-03-11 04:47:43.515] [info] [PedestalAlg.cpp:345 write] PedestalAlg: HG fit OK/all = 11448/11448
+[2026-03-11 04:47:43.515] [info] [PedestalAlg.cpp:346 write] PedestalAlg: LG fit OK/all = 9043/11448
+[2026-03-11 04:47:43.801] [info] [MultiInOut.cpp:152 main] Processing input file: /eos/experiment/faser/raw/2026/022074/FaserAHCAL-Physics-022074-00003.raw (RunNumber: 22074, PoolIndex: 3)
+[2026-03-11 04:47:43.801] [info] [MultiInOut.cpp:153 main] Inputs = 4 / 47
+[2026-03-11 04:47:43.802] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'nbin', using default
+[2026-03-11 04:47:43.802] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'xmin', using default
+[2026-03-11 04:47:43.802] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'xmax', using default
+[2026-03-11 04:47:43.802] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'min_entries', using default
+[2026-03-11 04:47:43.802] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'nsigma_win1', using default
+[2026-03-11 04:47:43.802] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'nsigma_win2', using default
+[2026-03-11 04:47:43.802] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'sigma_min', using default
+[2026-03-11 04:47:43.802] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'sigma_max', using default
+[2026-03-11 04:47:43.802] [info] [AlgFactory.hpp:117 make_alg] PedestalAlg: initialized
+[2026-03-11 04:47:43.807] [info] [BinaryRawHitReader.cpp:98 BinaryRawHitReader] Opened binary raw hit file: /eos/experiment/faser/raw/2026/022074/FaserAHCAL-Physics-022074-00003.raw
+[2026-03-11 04:47:43.808] [info] [MultiInOut.cpp:196 main] BinaryRawHitReader created successfully.
+[2026-03-11 04:48:16.972] [info] [MultiInOut.cpp:220 main] Processed 10000
+[2026-03-11 04:48:51.803] [info] [MultiInOut.cpp:220 main] Processed 20000
+[2026-03-11 04:48:53.615] [info] [BinaryRawHitReader.cpp:105 ~BinaryRawHitReader] Closed binary raw hit file.
+[2026-03-11 04:49:11.993] [info] [PedestalAlg.cpp:344 write] PedestalAlg: wrote out_calibration/pedestal_calib/22074/pedestal_3.root
+[2026-03-11 04:49:11.993] [info] [PedestalAlg.cpp:345 write] PedestalAlg: HG fit OK/all = 11448/11448
+[2026-03-11 04:49:11.994] [info] [PedestalAlg.cpp:346 write] PedestalAlg: LG fit OK/all = 9096/11448
+[2026-03-11 04:49:12.307] [info] [MultiInOut.cpp:152 main] Processing input file: /eos/experiment/faser/raw/2026/022074/FaserAHCAL-Physics-022074-00004.raw (RunNumber: 22074, PoolIndex: 4)
+[2026-03-11 04:49:12.308] [info] [MultiInOut.cpp:153 main] Inputs = 5 / 47
+[2026-03-11 04:49:12.308] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'nbin', using default
+[2026-03-11 04:49:12.308] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'xmin', using default
+[2026-03-11 04:49:12.308] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'xmax', using default
+[2026-03-11 04:49:12.308] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'min_entries', using default
+[2026-03-11 04:49:12.309] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'nsigma_win1', using default
+[2026-03-11 04:49:12.309] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'nsigma_win2', using default
+[2026-03-11 04:49:12.309] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'sigma_min', using default
+[2026-03-11 04:49:12.309] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'sigma_max', using default
+[2026-03-11 04:49:12.309] [info] [AlgFactory.hpp:117 make_alg] PedestalAlg: initialized
+[2026-03-11 04:49:12.320] [info] [BinaryRawHitReader.cpp:98 BinaryRawHitReader] Opened binary raw hit file: /eos/experiment/faser/raw/2026/022074/FaserAHCAL-Physics-022074-00004.raw
+[2026-03-11 04:49:12.320] [info] [MultiInOut.cpp:196 main] BinaryRawHitReader created successfully.
+[2026-03-11 04:49:46.517] [info] [MultiInOut.cpp:220 main] Processed 10000
+[2026-03-11 04:50:21.331] [info] [MultiInOut.cpp:220 main] Processed 20000
+[2026-03-11 04:50:22.781] [info] [BinaryRawHitReader.cpp:105 ~BinaryRawHitReader] Closed binary raw hit file.
+[2026-03-11 04:50:41.803] [info] [PedestalAlg.cpp:344 write] PedestalAlg: wrote out_calibration/pedestal_calib/22074/pedestal_4.root
+[2026-03-11 04:50:41.803] [info] [PedestalAlg.cpp:345 write] PedestalAlg: HG fit OK/all = 11448/11448
+[2026-03-11 04:50:41.804] [info] [PedestalAlg.cpp:346 write] PedestalAlg: LG fit OK/all = 9045/11448
+[2026-03-11 04:50:42.137] [info] [MultiInOut.cpp:152 main] Processing input file: /eos/experiment/faser/raw/2026/022074/FaserAHCAL-Physics-022074-00005.raw (RunNumber: 22074, PoolIndex: 5)
+[2026-03-11 04:50:42.137] [info] [MultiInOut.cpp:153 main] Inputs = 6 / 47
+[2026-03-11 04:50:42.137] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'nbin', using default
+[2026-03-11 04:50:42.137] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'xmin', using default
+[2026-03-11 04:50:42.138] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'xmax', using default
+[2026-03-11 04:50:42.138] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'min_entries', using default
+[2026-03-11 04:50:42.138] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'nsigma_win1', using default
+[2026-03-11 04:50:42.138] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'nsigma_win2', using default
+[2026-03-11 04:50:42.138] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'sigma_min', using default
+[2026-03-11 04:50:42.138] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'sigma_max', using default
+[2026-03-11 04:50:42.138] [info] [AlgFactory.hpp:117 make_alg] PedestalAlg: initialized
+[2026-03-11 04:50:42.144] [info] [BinaryRawHitReader.cpp:98 BinaryRawHitReader] Opened binary raw hit file: /eos/experiment/faser/raw/2026/022074/FaserAHCAL-Physics-022074-00005.raw
+[2026-03-11 04:50:42.144] [info] [MultiInOut.cpp:196 main] BinaryRawHitReader created successfully.
+[2026-03-11 04:51:14.806] [info] [MultiInOut.cpp:220 main] Processed 10000
+[2026-03-11 04:51:52.436] [info] [MultiInOut.cpp:220 main] Processed 20000
+[2026-03-11 04:51:54.452] [info] [BinaryRawHitReader.cpp:105 ~BinaryRawHitReader] Closed binary raw hit file.
+[2026-03-11 04:52:13.756] [info] [PedestalAlg.cpp:344 write] PedestalAlg: wrote out_calibration/pedestal_calib/22074/pedestal_5.root
+[2026-03-11 04:52:13.756] [info] [PedestalAlg.cpp:345 write] PedestalAlg: HG fit OK/all = 11448/11448
+[2026-03-11 04:52:13.756] [info] [PedestalAlg.cpp:346 write] PedestalAlg: LG fit OK/all = 9027/11448
+[2026-03-11 04:52:14.085] [info] [MultiInOut.cpp:152 main] Processing input file: /eos/experiment/faser/raw/2026/022074/FaserAHCAL-Physics-022074-00006.raw (RunNumber: 22074, PoolIndex: 6)
+[2026-03-11 04:52:14.085] [info] [MultiInOut.cpp:153 main] Inputs = 7 / 47
+[2026-03-11 04:52:14.085] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'nbin', using default
+[2026-03-11 04:52:14.085] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'xmin', using default
+[2026-03-11 04:52:14.085] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'xmax', using default
+[2026-03-11 04:52:14.085] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'min_entries', using default
+[2026-03-11 04:52:14.086] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'nsigma_win1', using default
+[2026-03-11 04:52:14.086] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'nsigma_win2', using default
+[2026-03-11 04:52:14.086] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'sigma_min', using default
+[2026-03-11 04:52:14.086] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'sigma_max', using default
+[2026-03-11 04:52:14.086] [info] [AlgFactory.hpp:117 make_alg] PedestalAlg: initialized
+[2026-03-11 04:52:14.093] [info] [BinaryRawHitReader.cpp:98 BinaryRawHitReader] Opened binary raw hit file: /eos/experiment/faser/raw/2026/022074/FaserAHCAL-Physics-022074-00006.raw
+[2026-03-11 04:52:14.093] [info] [MultiInOut.cpp:196 main] BinaryRawHitReader created successfully.
+[2026-03-11 04:52:50.223] [info] [MultiInOut.cpp:220 main] Processed 10000
+[2026-03-11 04:53:30.433] [info] [MultiInOut.cpp:220 main] Processed 20000
+[2026-03-11 04:53:32.558] [info] [BinaryRawHitReader.cpp:105 ~BinaryRawHitReader] Closed binary raw hit file.
+[2026-03-11 04:53:53.450] [info] [PedestalAlg.cpp:344 write] PedestalAlg: wrote out_calibration/pedestal_calib/22074/pedestal_6.root
+[2026-03-11 04:53:53.450] [info] [PedestalAlg.cpp:345 write] PedestalAlg: HG fit OK/all = 11447/11448
+[2026-03-11 04:53:53.451] [info] [PedestalAlg.cpp:346 write] PedestalAlg: LG fit OK/all = 9051/11448
+[2026-03-11 04:53:53.787] [info] [MultiInOut.cpp:152 main] Processing input file: /eos/experiment/faser/raw/2026/022074/FaserAHCAL-Physics-022074-00007.raw (RunNumber: 22074, PoolIndex: 7)
+[2026-03-11 04:53:53.787] [info] [MultiInOut.cpp:153 main] Inputs = 8 / 47
+[2026-03-11 04:53:53.787] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'nbin', using default
+[2026-03-11 04:53:53.787] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'xmin', using default
+[2026-03-11 04:53:53.788] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'xmax', using default
+[2026-03-11 04:53:53.788] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'min_entries', using default
+[2026-03-11 04:53:53.788] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'nsigma_win1', using default
+[2026-03-11 04:53:53.788] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'nsigma_win2', using default
+[2026-03-11 04:53:53.788] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'sigma_min', using default
+[2026-03-11 04:53:53.788] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'sigma_max', using default
+[2026-03-11 04:53:53.788] [info] [AlgFactory.hpp:117 make_alg] PedestalAlg: initialized
+[2026-03-11 04:53:53.794] [info] [BinaryRawHitReader.cpp:98 BinaryRawHitReader] Opened binary raw hit file: /eos/experiment/faser/raw/2026/022074/FaserAHCAL-Physics-022074-00007.raw
+[2026-03-11 04:53:53.794] [info] [MultiInOut.cpp:196 main] BinaryRawHitReader created successfully.
+[2026-03-11 06:43:50.810] [info] [MultiInOneOut.cpp:56 main] Input text file specified: config/Input/ped_22074.txt
+[2026-03-11 06:43:50.871] [info] [MultiInOneOut.cpp:82 main] Number of input files to process: 20
+[2026-03-11 06:43:50.871] [info] [MultiInOneOut.cpp:89 main] AHCAL Application started.
+[2026-03-11 06:43:50.871] [info] [MultiInOneOut.cpp:90 main] RunConfig parsed successfully.
+[2026-03-11 06:43:50.871] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'nbin', using default
+[2026-03-11 06:43:50.871] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'xmin', using default
+[2026-03-11 06:43:50.871] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'xmax', using default
+[2026-03-11 06:43:50.871] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'min_entries', using default
+[2026-03-11 06:43:50.871] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'nsigma_win1', using default
+[2026-03-11 06:43:50.871] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'nsigma_win2', using default
+[2026-03-11 06:43:50.871] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'sigma_min', using default
+[2026-03-11 06:43:50.872] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'sigma_max', using default
+[2026-03-11 06:43:50.872] [info] [AlgFactory.hpp:117 make_alg] PedestalAlg: initialized
+[2026-03-11 06:43:50.872] [info] [MultiInOneOut.cpp:151 main] Processing input file: /eos/experiment/faser/raw/2026/022074/FaserAHCAL-Physics-022074-00000.raw (RunNumber: 22074, PoolIndex: 0)
+[2026-03-11 06:43:50.872] [info] [MultiInOneOut.cpp:152 main] Inputs = 1 / 20
+[2026-03-11 06:43:51.125] [info] [BinaryRawHitReader.cpp:98 BinaryRawHitReader] Opened binary raw hit file: /eos/experiment/faser/raw/2026/022074/FaserAHCAL-Physics-022074-00000.raw
+[2026-03-11 06:43:51.125] [info] [MultiInOneOut.cpp:154 main] BinaryRawHitReader created successfully.
+[2026-03-11 06:44:02.541] [info] [MultiInOneOut.cpp:56 main] Input text file specified: config/Input/ped_22074.txt
+[2026-03-11 06:44:02.543] [info] [MultiInOneOut.cpp:82 main] Number of input files to process: 20
+[2026-03-11 06:44:02.543] [info] [MultiInOneOut.cpp:89 main] AHCAL Application started.
+[2026-03-11 06:44:02.544] [info] [MultiInOneOut.cpp:90 main] RunConfig parsed successfully.
+[2026-03-11 06:44:02.544] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'nbin', using default
+[2026-03-11 06:44:02.544] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'xmin', using default
+[2026-03-11 06:44:02.545] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'xmax', using default
+[2026-03-11 06:44:02.545] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'min_entries', using default
+[2026-03-11 06:44:02.545] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'nsigma_win1', using default
+[2026-03-11 06:44:02.546] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'nsigma_win2', using default
+[2026-03-11 06:44:02.546] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'sigma_min', using default
+[2026-03-11 06:44:02.547] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'sigma_max', using default
+[2026-03-11 06:44:02.547] [info] [AlgFactory.hpp:117 make_alg] PedestalAlg: initialized
+[2026-03-11 06:44:02.547] [info] [MultiInOneOut.cpp:151 main] Processing input file: /eos/experiment/faser/raw/2026/022074/FaserAHCAL-Physics-022074-00000.raw (RunNumber: 22074, PoolIndex: 0)
+[2026-03-11 06:44:02.548] [info] [MultiInOneOut.cpp:152 main] Inputs = 1 / 20
+[2026-03-11 06:44:02.550] [info] [BinaryRawHitReader.cpp:98 BinaryRawHitReader] Opened binary raw hit file: /eos/experiment/faser/raw/2026/022074/FaserAHCAL-Physics-022074-00000.raw
+[2026-03-11 06:44:02.551] [info] [MultiInOneOut.cpp:154 main] BinaryRawHitReader created successfully.
+[2026-03-11 06:44:02.555] [info] [MultiInOneOut.cpp:56 main] Input text file specified: config/Input/ped_22140.txt
+[2026-03-11 06:44:02.556] [info] [MultiInOneOut.cpp:82 main] Number of input files to process: 5
+[2026-03-11 06:44:02.557] [info] [MultiInOneOut.cpp:89 main] AHCAL Application started.
+[2026-03-11 06:44:02.557] [info] [MultiInOneOut.cpp:90 main] RunConfig parsed successfully.
+[2026-03-11 06:44:02.557] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'nbin', using default
+[2026-03-11 06:44:02.557] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'xmin', using default
+[2026-03-11 06:44:02.558] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'xmax', using default
+[2026-03-11 06:44:02.559] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'min_entries', using default
+[2026-03-11 06:44:02.559] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'nsigma_win1', using default
+[2026-03-11 06:44:02.559] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'nsigma_win2', using default
+[2026-03-11 06:44:02.559] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'sigma_min', using default
+[2026-03-11 06:44:02.560] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'sigma_max', using default
+[2026-03-11 06:44:02.560] [info] [AlgFactory.hpp:117 make_alg] PedestalAlg: initialized
+[2026-03-11 06:44:02.560] [info] [MultiInOneOut.cpp:151 main] Processing input file: /eos/experiment/faser/raw/2026/022140/FaserAHCAL-Physics-022140-00000.raw (RunNumber: 22140, PoolIndex: 0)
+[2026-03-11 06:44:02.561] [info] [MultiInOneOut.cpp:56 main] Input text file specified: config/Input/ped_22168.txt
+[2026-03-11 06:44:02.561] [info] [MultiInOneOut.cpp:152 main] Inputs = 1 / 5
+[2026-03-11 06:44:02.563] [info] [MultiInOneOut.cpp:82 main] Number of input files to process: 4
+[2026-03-11 06:44:02.563] [info] [MultiInOneOut.cpp:89 main] AHCAL Application started.
+[2026-03-11 06:44:02.563] [info] [MultiInOneOut.cpp:90 main] RunConfig parsed successfully.
+[2026-03-11 06:44:02.564] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'nbin', using default
+[2026-03-11 06:44:02.564] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'xmin', using default
+[2026-03-11 06:44:02.564] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'xmax', using default
+[2026-03-11 06:44:02.564] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'min_entries', using default
+[2026-03-11 06:44:02.565] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'nsigma_win1', using default
+[2026-03-11 06:44:02.565] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'nsigma_win2', using default
+[2026-03-11 06:44:02.565] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'sigma_min', using default
+[2026-03-11 06:44:02.565] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'sigma_max', using default
+[2026-03-11 06:44:02.565] [info] [AlgFactory.hpp:117 make_alg] PedestalAlg: initialized
+[2026-03-11 06:44:02.565] [info] [MultiInOneOut.cpp:151 main] Processing input file: /eos/experiment/faser/raw/2026/022168/FaserAHCAL-Physics-022168-00000.raw (RunNumber: 22168, PoolIndex: 0)
+[2026-03-11 06:44:02.565] [info] [MultiInOneOut.cpp:152 main] Inputs = 1 / 4
+[2026-03-11 06:44:02.566] [info] [BinaryRawHitReader.cpp:98 BinaryRawHitReader] Opened binary raw hit file: /eos/experiment/faser/raw/2026/022140/FaserAHCAL-Physics-022140-00000.raw
+[2026-03-11 06:44:02.567] [info] [MultiInOneOut.cpp:154 main] BinaryRawHitReader created successfully.
+[2026-03-11 06:44:02.572] [info] [MultiInOneOut.cpp:56 main] Input text file specified: config/Input/ped_22160.txt
+[2026-03-11 06:44:02.572] [info] [BinaryRawHitReader.cpp:98 BinaryRawHitReader] Opened binary raw hit file: /eos/experiment/faser/raw/2026/022168/FaserAHCAL-Physics-022168-00000.raw
+[2026-03-11 06:44:02.575] [info] [MultiInOneOut.cpp:154 main] BinaryRawHitReader created successfully.
+[2026-03-11 06:44:02.576] [info] [MultiInOneOut.cpp:82 main] Number of input files to process: 3
+[2026-03-11 06:44:02.576] [info] [MultiInOneOut.cpp:89 main] AHCAL Application started.
+[2026-03-11 06:44:02.577] [info] [MultiInOneOut.cpp:90 main] RunConfig parsed successfully.
+[2026-03-11 06:44:02.577] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'nbin', using default
+[2026-03-11 06:44:02.577] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'xmin', using default
+[2026-03-11 06:44:02.582] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'xmax', using default
+[2026-03-11 06:44:02.582] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'min_entries', using default
+[2026-03-11 06:44:02.582] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'nsigma_win1', using default
+[2026-03-11 06:44:02.583] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'nsigma_win2', using default
+[2026-03-11 06:44:02.583] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'sigma_min', using default
+[2026-03-11 06:44:02.583] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'sigma_max', using default
+[2026-03-11 06:44:02.583] [info] [AlgFactory.hpp:117 make_alg] PedestalAlg: initialized
+[2026-03-11 06:44:02.583] [info] [MultiInOneOut.cpp:151 main] Processing input file: /eos/experiment/faser/raw/2026/022160/FaserAHCAL-Physics-022160-00000.raw (RunNumber: 22160, PoolIndex: 0)
+[2026-03-11 06:44:02.584] [info] [MultiInOneOut.cpp:152 main] Inputs = 1 / 3
+[2026-03-11 06:44:02.588] [info] [BinaryRawHitReader.cpp:98 BinaryRawHitReader] Opened binary raw hit file: /eos/experiment/faser/raw/2026/022160/FaserAHCAL-Physics-022160-00000.raw
+[2026-03-11 06:44:02.590] [info] [MultiInOneOut.cpp:154 main] BinaryRawHitReader created successfully.
+[2026-03-11 06:44:24.584] [info] [MultiInOneOut.cpp:175 main] Processed 10000
+[2026-03-11 06:44:24.737] [info] [MultiInOneOut.cpp:175 main] Processed 10000
+[2026-03-11 06:44:25.026] [info] [MultiInOneOut.cpp:175 main] Processed 10000
+[2026-03-11 06:44:26.882] [info] [MultiInOneOut.cpp:175 main] Processed 10000
+[2026-03-11 06:44:44.102] [info] [MultiInOneOut.cpp:175 main] Processed 20000
+[2026-03-11 06:44:44.953] [info] [MultiInOneOut.cpp:179 main] Finished processing input file: /eos/experiment/faser/raw/2026/022160/FaserAHCAL-Physics-022160-00000.raw (RunNumber: 22160, PoolIndex: 0)
+[2026-03-11 06:44:44.954] [info] [MultiInOneOut.cpp:180 main] Total events processed so far: 20545
+[2026-03-11 06:44:44.955] [info] [BinaryRawHitReader.cpp:105 ~BinaryRawHitReader] Closed binary raw hit file.
+[2026-03-11 06:44:44.955] [info] [MultiInOneOut.cpp:151 main] Processing input file: /eos/experiment/faser/raw/2026/022160/FaserAHCAL-Physics-022160-00001.raw (RunNumber: 22160, PoolIndex: 1)
+[2026-03-11 06:44:44.955] [info] [MultiInOneOut.cpp:152 main] Inputs = 2 / 3
+[2026-03-11 06:44:44.959] [info] [BinaryRawHitReader.cpp:98 BinaryRawHitReader] Opened binary raw hit file: /eos/experiment/faser/raw/2026/022160/FaserAHCAL-Physics-022160-00001.raw
+[2026-03-11 06:44:44.960] [info] [MultiInOneOut.cpp:154 main] BinaryRawHitReader created successfully.
+[2026-03-11 06:44:45.178] [info] [MultiInOneOut.cpp:175 main] Processed 20000
+[2026-03-11 06:44:46.105] [info] [MultiInOneOut.cpp:179 main] Finished processing input file: /eos/experiment/faser/raw/2026/022140/FaserAHCAL-Physics-022140-00000.raw (RunNumber: 22140, PoolIndex: 0)
+[2026-03-11 06:44:46.105] [info] [MultiInOneOut.cpp:180 main] Total events processed so far: 20545
+[2026-03-11 06:44:46.106] [info] [BinaryRawHitReader.cpp:105 ~BinaryRawHitReader] Closed binary raw hit file.
+[2026-03-11 06:44:46.106] [info] [MultiInOneOut.cpp:151 main] Processing input file: /eos/experiment/faser/raw/2026/022140/FaserAHCAL-Physics-022140-00001.raw (RunNumber: 22140, PoolIndex: 1)
+[2026-03-11 06:44:46.107] [info] [MultiInOneOut.cpp:152 main] Inputs = 2 / 5
+[2026-03-11 06:44:46.111] [info] [BinaryRawHitReader.cpp:98 BinaryRawHitReader] Opened binary raw hit file: /eos/experiment/faser/raw/2026/022140/FaserAHCAL-Physics-022140-00001.raw
+[2026-03-11 06:44:46.111] [info] [MultiInOneOut.cpp:154 main] BinaryRawHitReader created successfully.
+[2026-03-11 06:44:49.376] [info] [MultiInOneOut.cpp:175 main] Processed 20000
+[2026-03-11 06:44:50.075] [info] [MultiInOneOut.cpp:175 main] Processed 20000
+[2026-03-11 06:44:50.600] [info] [MultiInOneOut.cpp:179 main] Finished processing input file: /eos/experiment/faser/raw/2026/022074/FaserAHCAL-Physics-022074-00000.raw (RunNumber: 22074, PoolIndex: 0)
+[2026-03-11 06:44:50.600] [info] [MultiInOneOut.cpp:180 main] Total events processed so far: 20545
+[2026-03-11 06:44:50.601] [info] [BinaryRawHitReader.cpp:105 ~BinaryRawHitReader] Closed binary raw hit file.
+[2026-03-11 06:44:50.601] [info] [MultiInOneOut.cpp:151 main] Processing input file: /eos/experiment/faser/raw/2026/022074/FaserAHCAL-Physics-022074-00001.raw (RunNumber: 22074, PoolIndex: 1)
+[2026-03-11 06:44:50.602] [info] [MultiInOneOut.cpp:152 main] Inputs = 2 / 20
+[2026-03-11 06:44:50.605] [info] [BinaryRawHitReader.cpp:98 BinaryRawHitReader] Opened binary raw hit file: /eos/experiment/faser/raw/2026/022074/FaserAHCAL-Physics-022074-00001.raw
+[2026-03-11 06:44:50.605] [info] [MultiInOneOut.cpp:154 main] BinaryRawHitReader created successfully.
+[2026-03-11 06:44:51.673] [info] [MultiInOneOut.cpp:179 main] Finished processing input file: /eos/experiment/faser/raw/2026/022168/FaserAHCAL-Physics-022168-00000.raw (RunNumber: 22168, PoolIndex: 0)
+[2026-03-11 06:44:51.675] [info] [MultiInOneOut.cpp:180 main] Total events processed so far: 20545
+[2026-03-11 06:44:51.675] [info] [BinaryRawHitReader.cpp:105 ~BinaryRawHitReader] Closed binary raw hit file.
+[2026-03-11 06:44:51.675] [info] [MultiInOneOut.cpp:151 main] Processing input file: /eos/experiment/faser/raw/2026/022168/FaserAHCAL-Physics-022168-00001.raw (RunNumber: 22168, PoolIndex: 1)
+[2026-03-11 06:44:51.676] [info] [MultiInOneOut.cpp:152 main] Inputs = 2 / 4
+[2026-03-11 06:44:51.679] [info] [BinaryRawHitReader.cpp:98 BinaryRawHitReader] Opened binary raw hit file: /eos/experiment/faser/raw/2026/022168/FaserAHCAL-Physics-022168-00001.raw
+[2026-03-11 06:44:51.680] [info] [MultiInOneOut.cpp:154 main] BinaryRawHitReader created successfully.
+[2026-03-11 06:45:01.297] [info] [MultiInOneOut.cpp:175 main] Processed 30000
+[2026-03-11 06:45:04.084] [info] [MultiInOneOut.cpp:175 main] Processed 30000
+[2026-03-11 06:45:06.760] [info] [MultiInOneOut.cpp:175 main] Processed 30000
+[2026-03-11 06:45:11.992] [info] [MultiInOneOut.cpp:175 main] Processed 30000
+[2026-03-11 06:45:20.761] [info] [MultiInOneOut.cpp:175 main] Processed 40000
+[2026-03-11 06:45:22.853] [info] [MultiInOneOut.cpp:179 main] Finished processing input file: /eos/experiment/faser/raw/2026/022160/FaserAHCAL-Physics-022160-00001.raw (RunNumber: 22160, PoolIndex: 1)
+[2026-03-11 06:45:22.853] [info] [MultiInOneOut.cpp:180 main] Total events processed so far: 41090
+[2026-03-11 06:45:22.853] [info] [BinaryRawHitReader.cpp:105 ~BinaryRawHitReader] Closed binary raw hit file.
+[2026-03-11 06:45:22.854] [info] [MultiInOneOut.cpp:151 main] Processing input file: /eos/experiment/faser/raw/2026/022160/FaserAHCAL-Physics-022160-00002.raw (RunNumber: 22160, PoolIndex: 2)
+[2026-03-11 06:45:22.854] [info] [MultiInOneOut.cpp:152 main] Inputs = 3 / 3
+[2026-03-11 06:45:22.859] [info] [BinaryRawHitReader.cpp:98 BinaryRawHitReader] Opened binary raw hit file: /eos/experiment/faser/raw/2026/022160/FaserAHCAL-Physics-022160-00002.raw
+[2026-03-11 06:45:22.859] [info] [MultiInOneOut.cpp:154 main] BinaryRawHitReader created successfully.
+[2026-03-11 06:45:28.168] [info] [MultiInOneOut.cpp:175 main] Processed 40000
+[2026-03-11 06:45:28.669] [info] [MultiInOneOut.cpp:175 main] Processed 40000
+[2026-03-11 06:45:30.933] [info] [MultiInOneOut.cpp:179 main] Finished processing input file: /eos/experiment/faser/raw/2026/022140/FaserAHCAL-Physics-022140-00001.raw (RunNumber: 22140, PoolIndex: 1)
+[2026-03-11 06:45:30.934] [info] [MultiInOneOut.cpp:180 main] Total events processed so far: 41090
+[2026-03-11 06:45:30.934] [info] [BinaryRawHitReader.cpp:105 ~BinaryRawHitReader] Closed binary raw hit file.
+[2026-03-11 06:45:30.935] [info] [MultiInOneOut.cpp:151 main] Processing input file: /eos/experiment/faser/raw/2026/022140/FaserAHCAL-Physics-022140-00002.raw (RunNumber: 22140, PoolIndex: 2)
+[2026-03-11 06:45:30.935] [info] [MultiInOneOut.cpp:152 main] Inputs = 3 / 5
+[2026-03-11 06:45:30.938] [info] [BinaryRawHitReader.cpp:98 BinaryRawHitReader] Opened binary raw hit file: /eos/experiment/faser/raw/2026/022140/FaserAHCAL-Physics-022140-00002.raw
+[2026-03-11 06:45:30.939] [info] [MultiInOneOut.cpp:154 main] BinaryRawHitReader created successfully.
+[2026-03-11 06:45:31.012] [info] [MultiInOneOut.cpp:179 main] Finished processing input file: /eos/experiment/faser/raw/2026/022074/FaserAHCAL-Physics-022074-00001.raw (RunNumber: 22074, PoolIndex: 1)
+[2026-03-11 06:45:31.012] [info] [MultiInOneOut.cpp:180 main] Total events processed so far: 41090
+[2026-03-11 06:45:31.013] [info] [BinaryRawHitReader.cpp:105 ~BinaryRawHitReader] Closed binary raw hit file.
+[2026-03-11 06:45:31.013] [info] [MultiInOneOut.cpp:151 main] Processing input file: /eos/experiment/faser/raw/2026/022074/FaserAHCAL-Physics-022074-00002.raw (RunNumber: 22074, PoolIndex: 2)
+[2026-03-11 06:45:31.013] [info] [MultiInOneOut.cpp:152 main] Inputs = 3 / 20
+[2026-03-11 06:45:31.016] [info] [BinaryRawHitReader.cpp:98 BinaryRawHitReader] Opened binary raw hit file: /eos/experiment/faser/raw/2026/022074/FaserAHCAL-Physics-022074-00002.raw
+[2026-03-11 06:45:31.016] [info] [MultiInOneOut.cpp:154 main] BinaryRawHitReader created successfully.
+[2026-03-11 06:45:36.669] [info] [MultiInOneOut.cpp:175 main] Processed 40000
+[2026-03-11 06:45:38.591] [info] [MultiInOneOut.cpp:179 main] Finished processing input file: /eos/experiment/faser/raw/2026/022168/FaserAHCAL-Physics-022168-00001.raw (RunNumber: 22168, PoolIndex: 1)
+[2026-03-11 06:45:38.591] [info] [MultiInOneOut.cpp:180 main] Total events processed so far: 41090
+[2026-03-11 06:45:38.591] [info] [BinaryRawHitReader.cpp:105 ~BinaryRawHitReader] Closed binary raw hit file.
+[2026-03-11 06:45:38.592] [info] [MultiInOneOut.cpp:151 main] Processing input file: /eos/experiment/faser/raw/2026/022168/FaserAHCAL-Physics-022168-00002.raw (RunNumber: 22168, PoolIndex: 2)
+[2026-03-11 06:45:38.592] [info] [MultiInOneOut.cpp:152 main] Inputs = 3 / 4
+[2026-03-11 06:45:38.595] [info] [BinaryRawHitReader.cpp:98 BinaryRawHitReader] Opened binary raw hit file: /eos/experiment/faser/raw/2026/022168/FaserAHCAL-Physics-022168-00002.raw
+[2026-03-11 06:45:38.595] [info] [MultiInOneOut.cpp:154 main] BinaryRawHitReader created successfully.
+[2026-03-11 06:45:42.193] [info] [MultiInOneOut.cpp:175 main] Processed 50000
+[2026-03-11 06:45:51.687] [info] [MultiInOneOut.cpp:175 main] Processed 50000
+[2026-03-11 06:45:51.711] [info] [MultiInOneOut.cpp:175 main] Processed 50000
+[2026-03-11 06:45:55.188] [info] [MultiInOneOut.cpp:175 main] Processed 50000
+[2026-03-11 06:45:56.882] [info] [MultiInOneOut.cpp:179 main] Finished processing input file: /eos/experiment/faser/raw/2026/022160/FaserAHCAL-Physics-022160-00002.raw (RunNumber: 22160, PoolIndex: 2)
+[2026-03-11 06:45:56.882] [info] [MultiInOneOut.cpp:180 main] Total events processed so far: 56984
+[2026-03-11 06:45:56.882] [info] [BinaryRawHitReader.cpp:105 ~BinaryRawHitReader] Closed binary raw hit file.
+[2026-03-11 06:46:08.220] [info] [MultiInOneOut.cpp:175 main] Processed 60000
+[2026-03-11 06:46:11.298] [info] [MultiInOneOut.cpp:179 main] Finished processing input file: /eos/experiment/faser/raw/2026/022074/FaserAHCAL-Physics-022074-00002.raw (RunNumber: 22074, PoolIndex: 2)
+[2026-03-11 06:46:11.298] [info] [MultiInOneOut.cpp:180 main] Total events processed so far: 61635
+[2026-03-11 06:46:11.299] [info] [BinaryRawHitReader.cpp:105 ~BinaryRawHitReader] Closed binary raw hit file.
+[2026-03-11 06:46:11.299] [info] [MultiInOneOut.cpp:151 main] Processing input file: /eos/experiment/faser/raw/2026/022074/FaserAHCAL-Physics-022074-00003.raw (RunNumber: 22074, PoolIndex: 3)
+[2026-03-11 06:46:11.299] [info] [MultiInOneOut.cpp:152 main] Inputs = 4 / 20
+[2026-03-11 06:46:11.304] [info] [BinaryRawHitReader.cpp:98 BinaryRawHitReader] Opened binary raw hit file: /eos/experiment/faser/raw/2026/022074/FaserAHCAL-Physics-022074-00003.raw
+[2026-03-11 06:46:11.304] [info] [MultiInOneOut.cpp:154 main] BinaryRawHitReader created successfully.
+[2026-03-11 06:46:15.484] [info] [MultiInOneOut.cpp:175 main] Processed 60000
+[2026-03-11 06:46:18.723] [info] [MultiInOneOut.cpp:175 main] Processed 60000
+[2026-03-11 06:46:19.983] [info] [MultiInOneOut.cpp:179 main] Finished processing input file: /eos/experiment/faser/raw/2026/022140/FaserAHCAL-Physics-022140-00002.raw (RunNumber: 22140, PoolIndex: 2)
+[2026-03-11 06:46:19.984] [info] [MultiInOneOut.cpp:180 main] Total events processed so far: 61635
+[2026-03-11 06:46:19.984] [info] [BinaryRawHitReader.cpp:105 ~BinaryRawHitReader] Closed binary raw hit file.
+[2026-03-11 06:46:19.984] [info] [MultiInOneOut.cpp:151 main] Processing input file: /eos/experiment/faser/raw/2026/022140/FaserAHCAL-Physics-022140-00003.raw (RunNumber: 22140, PoolIndex: 3)
+[2026-03-11 06:46:19.984] [info] [MultiInOneOut.cpp:152 main] Inputs = 4 / 5
+[2026-03-11 06:46:19.987] [info] [BinaryRawHitReader.cpp:98 BinaryRawHitReader] Opened binary raw hit file: /eos/experiment/faser/raw/2026/022140/FaserAHCAL-Physics-022140-00003.raw
+[2026-03-11 06:46:19.988] [info] [MultiInOneOut.cpp:154 main] BinaryRawHitReader created successfully.
+[2026-03-11 06:46:21.898] [info] [MultiInOneOut.cpp:179 main] Finished processing input file: /eos/experiment/faser/raw/2026/022168/FaserAHCAL-Physics-022168-00002.raw (RunNumber: 22168, PoolIndex: 2)
+[2026-03-11 06:46:21.898] [info] [MultiInOneOut.cpp:180 main] Total events processed so far: 61635
+[2026-03-11 06:46:21.899] [info] [BinaryRawHitReader.cpp:105 ~BinaryRawHitReader] Closed binary raw hit file.
+[2026-03-11 06:46:21.899] [info] [MultiInOneOut.cpp:151 main] Processing input file: /eos/experiment/faser/raw/2026/022168/FaserAHCAL-Physics-022168-00003.raw (RunNumber: 22168, PoolIndex: 3)
+[2026-03-11 06:46:21.899] [info] [MultiInOneOut.cpp:152 main] Inputs = 4 / 4
+[2026-03-11 06:46:21.903] [info] [BinaryRawHitReader.cpp:98 BinaryRawHitReader] Opened binary raw hit file: /eos/experiment/faser/raw/2026/022168/FaserAHCAL-Physics-022168-00003.raw
+[2026-03-11 06:46:21.911] [info] [MultiInOneOut.cpp:154 main] BinaryRawHitReader created successfully.
+[2026-03-11 06:46:22.330] [info] [MultiInOneOut.cpp:179 main] Finished processing input file: /eos/experiment/faser/raw/2026/022168/FaserAHCAL-Physics-022168-00003.raw (RunNumber: 22168, PoolIndex: 3)
+[2026-03-11 06:46:22.330] [info] [MultiInOneOut.cpp:180 main] Total events processed so far: 61800
+[2026-03-11 06:46:22.330] [info] [BinaryRawHitReader.cpp:105 ~BinaryRawHitReader] Closed binary raw hit file.
+[2026-03-11 06:46:23.601] [info] [PedestalAlg.cpp:344 write] PedestalAlg: wrote out_calibration/pedestal_calib/22160/pedestal.root
+[2026-03-11 06:46:23.601] [info] [PedestalAlg.cpp:345 write] PedestalAlg: HG fit OK/all = 11448/11448
+[2026-03-11 06:46:23.601] [info] [PedestalAlg.cpp:346 write] PedestalAlg: LG fit OK/all = 7775/11448
+[2026-03-11 06:46:23.892] [info] [MultiInOneOut.cpp:270 main] AHCAL Application finished.
+[2026-03-11 06:46:27.387] [info] [MultiInOneOut.cpp:175 main] Processed 70000
+[2026-03-11 06:46:37.753] [info] [MultiInOneOut.cpp:175 main] Processed 70000
+[2026-03-11 06:46:45.450] [info] [MultiInOneOut.cpp:175 main] Processed 80000
+[2026-03-11 06:46:45.778] [info] [PedestalAlg.cpp:344 write] PedestalAlg: wrote out_calibration/pedestal_calib/22168/pedestal.root
+[2026-03-11 06:46:45.779] [info] [PedestalAlg.cpp:345 write] PedestalAlg: HG fit OK/all = 11448/11448
+[2026-03-11 06:46:45.779] [info] [PedestalAlg.cpp:346 write] PedestalAlg: LG fit OK/all = 7785/11448
+[2026-03-11 06:46:46.066] [info] [MultiInOneOut.cpp:270 main] AHCAL Application finished.
+[2026-03-11 06:46:48.725] [info] [MultiInOneOut.cpp:179 main] Finished processing input file: /eos/experiment/faser/raw/2026/022074/FaserAHCAL-Physics-022074-00003.raw (RunNumber: 22074, PoolIndex: 3)
+[2026-03-11 06:46:48.725] [info] [MultiInOneOut.cpp:180 main] Total events processed so far: 82180
+[2026-03-11 06:46:48.726] [info] [BinaryRawHitReader.cpp:105 ~BinaryRawHitReader] Closed binary raw hit file.
+[2026-03-11 06:46:48.726] [info] [MultiInOneOut.cpp:151 main] Processing input file: /eos/experiment/faser/raw/2026/022074/FaserAHCAL-Physics-022074-00004.raw (RunNumber: 22074, PoolIndex: 4)
+[2026-03-11 06:46:48.726] [info] [MultiInOneOut.cpp:152 main] Inputs = 5 / 20
+[2026-03-11 06:46:48.730] [info] [BinaryRawHitReader.cpp:98 BinaryRawHitReader] Opened binary raw hit file: /eos/experiment/faser/raw/2026/022074/FaserAHCAL-Physics-022074-00004.raw
+[2026-03-11 06:46:48.731] [info] [MultiInOneOut.cpp:154 main] BinaryRawHitReader created successfully.
+[2026-03-11 06:46:55.100] [info] [MultiInOneOut.cpp:175 main] Processed 80000
+[2026-03-11 06:46:58.361] [info] [MultiInOneOut.cpp:179 main] Finished processing input file: /eos/experiment/faser/raw/2026/022140/FaserAHCAL-Physics-022140-00003.raw (RunNumber: 22140, PoolIndex: 3)
+[2026-03-11 06:46:58.362] [info] [MultiInOneOut.cpp:180 main] Total events processed so far: 82180
+[2026-03-11 06:46:58.362] [info] [BinaryRawHitReader.cpp:105 ~BinaryRawHitReader] Closed binary raw hit file.
+[2026-03-11 06:46:58.362] [info] [MultiInOneOut.cpp:151 main] Processing input file: /eos/experiment/faser/raw/2026/022140/FaserAHCAL-Physics-022140-00004.raw (RunNumber: 22140, PoolIndex: 4)
+[2026-03-11 06:46:58.362] [info] [MultiInOneOut.cpp:152 main] Inputs = 5 / 5
+[2026-03-11 06:46:58.366] [info] [BinaryRawHitReader.cpp:98 BinaryRawHitReader] Opened binary raw hit file: /eos/experiment/faser/raw/2026/022140/FaserAHCAL-Physics-022140-00004.raw
+[2026-03-11 06:46:58.366] [info] [MultiInOneOut.cpp:154 main] BinaryRawHitReader created successfully.
+[2026-03-11 06:47:02.250] [info] [MultiInOneOut.cpp:175 main] Processed 90000
+[2026-03-11 06:47:13.905] [info] [MultiInOneOut.cpp:175 main] Processed 90000
+[2026-03-11 06:47:17.788] [info] [MultiInOneOut.cpp:175 main] Processed 100000
+[2026-03-11 06:47:22.008] [info] [MultiInOneOut.cpp:179 main] Finished processing input file: /eos/experiment/faser/raw/2026/022074/FaserAHCAL-Physics-022074-00004.raw (RunNumber: 22074, PoolIndex: 4)
+[2026-03-11 06:47:22.008] [info] [MultiInOneOut.cpp:180 main] Total events processed so far: 102725
+[2026-03-11 06:47:22.009] [info] [BinaryRawHitReader.cpp:105 ~BinaryRawHitReader] Closed binary raw hit file.
+[2026-03-11 06:47:22.009] [info] [MultiInOneOut.cpp:151 main] Processing input file: /eos/experiment/faser/raw/2026/022074/FaserAHCAL-Physics-022074-00005.raw (RunNumber: 22074, PoolIndex: 5)
+[2026-03-11 06:47:22.009] [info] [MultiInOneOut.cpp:152 main] Inputs = 6 / 20
+[2026-03-11 06:47:22.014] [info] [BinaryRawHitReader.cpp:98 BinaryRawHitReader] Opened binary raw hit file: /eos/experiment/faser/raw/2026/022074/FaserAHCAL-Physics-022074-00005.raw
+[2026-03-11 06:47:22.014] [info] [MultiInOneOut.cpp:154 main] BinaryRawHitReader created successfully.
+[2026-03-11 06:47:33.874] [info] [MultiInOneOut.cpp:175 main] Processed 100000
+[2026-03-11 06:47:34.066] [info] [MultiInOneOut.cpp:175 main] Processed 110000
+[2026-03-11 06:47:39.221] [info] [MultiInOneOut.cpp:179 main] Finished processing input file: /eos/experiment/faser/raw/2026/022140/FaserAHCAL-Physics-022140-00004.raw (RunNumber: 22140, PoolIndex: 4)
+[2026-03-11 06:47:39.221] [info] [MultiInOneOut.cpp:180 main] Total events processed so far: 102669
+[2026-03-11 06:47:39.221] [info] [BinaryRawHitReader.cpp:105 ~BinaryRawHitReader] Closed binary raw hit file.
+[2026-03-11 06:47:49.010] [info] [MultiInOneOut.cpp:175 main] Processed 120000
+[2026-03-11 06:47:54.155] [info] [MultiInOneOut.cpp:179 main] Finished processing input file: /eos/experiment/faser/raw/2026/022074/FaserAHCAL-Physics-022074-00005.raw (RunNumber: 22074, PoolIndex: 5)
+[2026-03-11 06:47:54.155] [info] [MultiInOneOut.cpp:180 main] Total events processed so far: 123270
+[2026-03-11 06:47:54.155] [info] [BinaryRawHitReader.cpp:105 ~BinaryRawHitReader] Closed binary raw hit file.
+[2026-03-11 06:47:54.156] [info] [MultiInOneOut.cpp:151 main] Processing input file: /eos/experiment/faser/raw/2026/022074/FaserAHCAL-Physics-022074-00006.raw (RunNumber: 22074, PoolIndex: 6)
+[2026-03-11 06:47:54.156] [info] [MultiInOneOut.cpp:152 main] Inputs = 7 / 20
+[2026-03-11 06:47:54.161] [info] [BinaryRawHitReader.cpp:98 BinaryRawHitReader] Opened binary raw hit file: /eos/experiment/faser/raw/2026/022074/FaserAHCAL-Physics-022074-00006.raw
+[2026-03-11 06:47:54.161] [info] [MultiInOneOut.cpp:154 main] BinaryRawHitReader created successfully.
+[2026-03-11 06:48:01.531] [info] [PedestalAlg.cpp:344 write] PedestalAlg: wrote out_calibration/pedestal_calib/22140/pedestal.root
+[2026-03-11 06:48:01.532] [info] [PedestalAlg.cpp:345 write] PedestalAlg: HG fit OK/all = 11448/11448
+[2026-03-11 06:48:01.532] [info] [PedestalAlg.cpp:346 write] PedestalAlg: LG fit OK/all = 7856/11448
+[2026-03-11 06:48:01.897] [info] [MultiInOneOut.cpp:270 main] AHCAL Application finished.
+[2026-03-11 06:48:05.345] [info] [MultiInOneOut.cpp:175 main] Processed 130000
+[2026-03-11 06:48:22.603] [info] [MultiInOneOut.cpp:175 main] Processed 140000
+[2026-03-11 06:48:28.771] [info] [MultiInOneOut.cpp:179 main] Finished processing input file: /eos/experiment/faser/raw/2026/022074/FaserAHCAL-Physics-022074-00006.raw (RunNumber: 22074, PoolIndex: 6)
+[2026-03-11 06:48:28.772] [info] [MultiInOneOut.cpp:180 main] Total events processed so far: 143815
+[2026-03-11 06:48:28.772] [info] [BinaryRawHitReader.cpp:105 ~BinaryRawHitReader] Closed binary raw hit file.
+[2026-03-11 06:48:28.772] [info] [MultiInOneOut.cpp:151 main] Processing input file: /eos/experiment/faser/raw/2026/022074/FaserAHCAL-Physics-022074-00007.raw (RunNumber: 22074, PoolIndex: 7)
+[2026-03-11 06:48:28.772] [info] [MultiInOneOut.cpp:152 main] Inputs = 8 / 20
+[2026-03-11 06:48:28.776] [info] [BinaryRawHitReader.cpp:98 BinaryRawHitReader] Opened binary raw hit file: /eos/experiment/faser/raw/2026/022074/FaserAHCAL-Physics-022074-00007.raw
+[2026-03-11 06:48:28.777] [info] [MultiInOneOut.cpp:154 main] BinaryRawHitReader created successfully.
+[2026-03-11 06:48:37.962] [info] [MultiInOneOut.cpp:175 main] Processed 150000
+[2026-03-11 06:48:38.530] [info] [MultiInOneOut.cpp:56 main] Input text file specified: config/Input/ped_22206.txt
+[2026-03-11 06:48:38.553] [info] [MultiInOneOut.cpp:82 main] Number of input files to process: 15
+[2026-03-11 06:48:38.553] [info] [MultiInOneOut.cpp:89 main] AHCAL Application started.
+[2026-03-11 06:48:38.553] [info] [MultiInOneOut.cpp:90 main] RunConfig parsed successfully.
+[2026-03-11 06:48:38.554] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'nbin', using default
+[2026-03-11 06:48:38.555] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'xmin', using default
+[2026-03-11 06:48:38.555] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'xmax', using default
+[2026-03-11 06:48:38.555] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'min_entries', using default
+[2026-03-11 06:48:38.556] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'nsigma_win1', using default
+[2026-03-11 06:48:38.556] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'nsigma_win2', using default
+[2026-03-11 06:48:38.556] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'sigma_min', using default
+[2026-03-11 06:48:38.557] [warning] [YAMLUtil.hpp:10 get_or] YAMLUtil::get_or: missing key 'sigma_max', using default
+[2026-03-11 06:48:38.557] [info] [AlgFactory.hpp:117 make_alg] PedestalAlg: initialized
+[2026-03-11 06:48:38.557] [info] [MultiInOneOut.cpp:151 main] Processing input file: /eos/experiment/faser/raw/2026/022206/FaserAHCAL-Physics-022206-00000.raw (RunNumber: 22206, PoolIndex: 0)
+[2026-03-11 06:48:38.558] [info] [MultiInOneOut.cpp:152 main] Inputs = 1 / 15
+[2026-03-11 06:48:38.562] [info] [BinaryRawHitReader.cpp:98 BinaryRawHitReader] Opened binary raw hit file: /eos/experiment/faser/raw/2026/022206/FaserAHCAL-Physics-022206-00000.raw
+[2026-03-11 06:48:38.563] [info] [MultiInOneOut.cpp:154 main] BinaryRawHitReader created successfully.
+[2026-03-11 06:48:54.147] [info] [MultiInOneOut.cpp:175 main] Processed 160000
+[2026-03-11 06:48:56.729] [info] [MultiInOneOut.cpp:175 main] Processed 10000
+[2026-03-11 06:49:02.248] [info] [MultiInOneOut.cpp:179 main] Finished processing input file: /eos/experiment/faser/raw/2026/022074/FaserAHCAL-Physics-022074-00007.raw (RunNumber: 22074, PoolIndex: 7)
+[2026-03-11 06:49:02.249] [info] [MultiInOneOut.cpp:180 main] Total events processed so far: 164360
+[2026-03-11 06:49:02.249] [info] [BinaryRawHitReader.cpp:105 ~BinaryRawHitReader] Closed binary raw hit file.
+[2026-03-11 06:49:02.250] [info] [MultiInOneOut.cpp:151 main] Processing input file: /eos/experiment/faser/raw/2026/022074/FaserAHCAL-Physics-022074-00008.raw (RunNumber: 22074, PoolIndex: 8)
+[2026-03-11 06:49:02.250] [info] [MultiInOneOut.cpp:152 main] Inputs = 9 / 20
+[2026-03-11 06:49:02.265] [info] [BinaryRawHitReader.cpp:98 BinaryRawHitReader] Opened binary raw hit file: /eos/experiment/faser/raw/2026/022074/FaserAHCAL-Physics-022074-00008.raw
+[2026-03-11 06:49:02.265] [info] [MultiInOneOut.cpp:154 main] BinaryRawHitReader created successfully.
+[2026-03-11 06:49:12.216] [info] [MultiInOneOut.cpp:175 main] Processed 170000
+[2026-03-11 06:49:15.102] [info] [MultiInOneOut.cpp:175 main] Processed 20000
+[2026-03-11 06:49:15.968] [info] [MultiInOneOut.cpp:179 main] Finished processing input file: /eos/experiment/faser/raw/2026/022206/FaserAHCAL-Physics-022206-00000.raw (RunNumber: 22206, PoolIndex: 0)
+[2026-03-11 06:49:15.968] [info] [MultiInOneOut.cpp:180 main] Total events processed so far: 20545
+[2026-03-11 06:49:15.968] [info] [BinaryRawHitReader.cpp:105 ~BinaryRawHitReader] Closed binary raw hit file.
+[2026-03-11 06:49:15.969] [info] [MultiInOneOut.cpp:151 main] Processing input file: /eos/experiment/faser/raw/2026/022206/FaserAHCAL-Physics-022206-00001.raw (RunNumber: 22206, PoolIndex: 1)
+[2026-03-11 06:49:15.969] [info] [MultiInOneOut.cpp:152 main] Inputs = 2 / 15
+[2026-03-11 06:49:15.973] [info] [BinaryRawHitReader.cpp:98 BinaryRawHitReader] Opened binary raw hit file: /eos/experiment/faser/raw/2026/022206/FaserAHCAL-Physics-022206-00001.raw
+[2026-03-11 06:49:15.973] [info] [MultiInOneOut.cpp:154 main] BinaryRawHitReader created successfully.
+[2026-03-11 06:49:28.645] [info] [MultiInOneOut.cpp:175 main] Processed 180000
+[2026-03-11 06:49:31.837] [info] [MultiInOneOut.cpp:175 main] Processed 30000
+[2026-03-11 06:49:36.412] [info] [MultiInOneOut.cpp:179 main] Finished processing input file: /eos/experiment/faser/raw/2026/022074/FaserAHCAL-Physics-022074-00008.raw (RunNumber: 22074, PoolIndex: 8)
+[2026-03-11 06:49:36.413] [info] [MultiInOneOut.cpp:180 main] Total events processed so far: 184905
+[2026-03-11 06:49:36.413] [info] [BinaryRawHitReader.cpp:105 ~BinaryRawHitReader] Closed binary raw hit file.
+[2026-03-11 06:49:36.413] [info] [MultiInOneOut.cpp:151 main] Processing input file: /eos/experiment/faser/raw/2026/022074/FaserAHCAL-Physics-022074-00009.raw (RunNumber: 22074, PoolIndex: 9)
+[2026-03-11 06:49:36.413] [info] [MultiInOneOut.cpp:152 main] Inputs = 10 / 20
+[2026-03-11 06:49:36.420] [info] [BinaryRawHitReader.cpp:98 BinaryRawHitReader] Opened binary raw hit file: /eos/experiment/faser/raw/2026/022074/FaserAHCAL-Physics-022074-00009.raw
+[2026-03-11 06:49:36.420] [info] [MultiInOneOut.cpp:154 main] BinaryRawHitReader created successfully.
+[2026-03-11 06:49:44.507] [info] [MultiInOneOut.cpp:175 main] Processed 190000
+[2026-03-11 06:49:47.742] [info] [MultiInOneOut.cpp:175 main] Processed 40000
+[2026-03-11 06:49:49.422] [info] [MultiInOneOut.cpp:179 main] Finished processing input file: /eos/experiment/faser/raw/2026/022206/FaserAHCAL-Physics-022206-00001.raw (RunNumber: 22206, PoolIndex: 1)
+[2026-03-11 06:49:49.422] [info] [MultiInOneOut.cpp:180 main] Total events processed so far: 41090
+[2026-03-11 06:49:49.422] [info] [BinaryRawHitReader.cpp:105 ~BinaryRawHitReader] Closed binary raw hit file.
+[2026-03-11 06:49:49.422] [info] [MultiInOneOut.cpp:151 main] Processing input file: /eos/experiment/faser/raw/2026/022206/FaserAHCAL-Physics-022206-00002.raw (RunNumber: 22206, PoolIndex: 2)
+[2026-03-11 06:49:49.423] [info] [MultiInOneOut.cpp:152 main] Inputs = 3 / 15
+[2026-03-11 06:49:49.426] [info] [BinaryRawHitReader.cpp:98 BinaryRawHitReader] Opened binary raw hit file: /eos/experiment/faser/raw/2026/022206/FaserAHCAL-Physics-022206-00002.raw
+[2026-03-11 06:49:49.426] [info] [MultiInOneOut.cpp:154 main] BinaryRawHitReader created successfully.
+[2026-03-11 06:49:59.680] [info] [MultiInOneOut.cpp:175 main] Processed 200000
+[2026-03-11 06:50:03.750] [info] [MultiInOneOut.cpp:175 main] Processed 50000
+[2026-03-11 06:50:07.786] [info] [MultiInOneOut.cpp:179 main] Finished processing input file: /eos/experiment/faser/raw/2026/022074/FaserAHCAL-Physics-022074-00009.raw (RunNumber: 22074, PoolIndex: 9)
+[2026-03-11 06:50:07.787] [info] [MultiInOneOut.cpp:180 main] Total events processed so far: 205450
+[2026-03-11 06:50:07.787] [info] [BinaryRawHitReader.cpp:105 ~BinaryRawHitReader] Closed binary raw hit file.
+[2026-03-11 06:50:07.788] [info] [MultiInOneOut.cpp:151 main] Processing input file: /eos/experiment/faser/raw/2026/022074/FaserAHCAL-Physics-022074-00010.raw (RunNumber: 22074, PoolIndex: 10)
+[2026-03-11 06:50:07.788] [info] [MultiInOneOut.cpp:152 main] Inputs = 11 / 20
+[2026-03-11 06:50:07.903] [info] [BinaryRawHitReader.cpp:98 BinaryRawHitReader] Opened binary raw hit file: /eos/experiment/faser/raw/2026/022074/FaserAHCAL-Physics-022074-00010.raw
+[2026-03-11 06:50:07.903] [info] [MultiInOneOut.cpp:154 main] BinaryRawHitReader created successfully.
+[2026-03-11 06:50:15.221] [info] [MultiInOneOut.cpp:175 main] Processed 210000
+[2026-03-11 06:50:21.729] [info] [MultiInOneOut.cpp:175 main] Processed 60000
+[2026-03-11 06:50:24.534] [info] [MultiInOneOut.cpp:179 main] Finished processing input file: /eos/experiment/faser/raw/2026/022206/FaserAHCAL-Physics-022206-00002.raw (RunNumber: 22206, PoolIndex: 2)
+[2026-03-11 06:50:24.536] [info] [MultiInOneOut.cpp:180 main] Total events processed so far: 61635
+[2026-03-11 06:50:24.536] [info] [BinaryRawHitReader.cpp:105 ~BinaryRawHitReader] Closed binary raw hit file.
+[2026-03-11 06:50:24.537] [info] [MultiInOneOut.cpp:151 main] Processing input file: /eos/experiment/faser/raw/2026/022206/FaserAHCAL-Physics-022206-00003.raw (RunNumber: 22206, PoolIndex: 3)
+[2026-03-11 06:50:24.537] [info] [MultiInOneOut.cpp:152 main] Inputs = 4 / 15
+[2026-03-11 06:50:24.540] [info] [BinaryRawHitReader.cpp:98 BinaryRawHitReader] Opened binary raw hit file: /eos/experiment/faser/raw/2026/022206/FaserAHCAL-Physics-022206-00003.raw
+[2026-03-11 06:50:24.541] [info] [MultiInOneOut.cpp:154 main] BinaryRawHitReader created successfully.
+[2026-03-11 06:50:31.598] [info] [MultiInOneOut.cpp:175 main] Processed 220000
+[2026-03-11 06:50:39.879] [info] [MultiInOneOut.cpp:175 main] Processed 70000
+[2026-03-11 06:50:41.464] [info] [MultiInOneOut.cpp:179 main] Finished processing input file: /eos/experiment/faser/raw/2026/022074/FaserAHCAL-Physics-022074-00010.raw (RunNumber: 22074, PoolIndex: 10)
+[2026-03-11 06:50:41.464] [info] [MultiInOneOut.cpp:180 main] Total events processed so far: 225995
+[2026-03-11 06:50:41.465] [info] [BinaryRawHitReader.cpp:105 ~BinaryRawHitReader] Closed binary raw hit file.
+[2026-03-11 06:50:41.465] [info] [MultiInOneOut.cpp:151 main] Processing input file: /eos/experiment/faser/raw/2026/022074/FaserAHCAL-Physics-022074-00011.raw (RunNumber: 22074, PoolIndex: 11)
+[2026-03-11 06:50:41.465] [info] [MultiInOneOut.cpp:152 main] Inputs = 12 / 20
+[2026-03-11 06:50:41.469] [info] [BinaryRawHitReader.cpp:98 BinaryRawHitReader] Opened binary raw hit file: /eos/experiment/faser/raw/2026/022074/FaserAHCAL-Physics-022074-00011.raw
+[2026-03-11 06:50:41.469] [info] [MultiInOneOut.cpp:154 main] BinaryRawHitReader created successfully.
+[2026-03-11 06:50:48.200] [info] [MultiInOneOut.cpp:175 main] Processed 230000
+[2026-03-11 06:50:55.699] [info] [MultiInOneOut.cpp:175 main] Processed 80000
+[2026-03-11 06:50:59.099] [info] [MultiInOneOut.cpp:179 main] Finished processing input file: /eos/experiment/faser/raw/2026/022206/FaserAHCAL-Physics-022206-00003.raw (RunNumber: 22206, PoolIndex: 3)
+[2026-03-11 06:50:59.099] [info] [MultiInOneOut.cpp:180 main] Total events processed so far: 82180
+[2026-03-11 06:50:59.099] [info] [BinaryRawHitReader.cpp:105 ~BinaryRawHitReader] Closed binary raw hit file.
+[2026-03-11 06:50:59.099] [info] [MultiInOneOut.cpp:151 main] Processing input file: /eos/experiment/faser/raw/2026/022206/FaserAHCAL-Physics-022206-00004.raw (RunNumber: 22206, PoolIndex: 4)
+[2026-03-11 06:50:59.100] [info] [MultiInOneOut.cpp:152 main] Inputs = 5 / 15
+[2026-03-11 06:50:59.102] [info] [BinaryRawHitReader.cpp:98 BinaryRawHitReader] Opened binary raw hit file: /eos/experiment/faser/raw/2026/022206/FaserAHCAL-Physics-022206-00004.raw
+[2026-03-11 06:50:59.103] [info] [MultiInOneOut.cpp:154 main] BinaryRawHitReader created successfully.
+[2026-03-11 06:51:05.502] [info] [MultiInOneOut.cpp:175 main] Processed 240000
+[2026-03-11 06:51:11.718] [info] [MultiInOneOut.cpp:175 main] Processed 90000
+[2026-03-11 06:51:16.651] [info] [MultiInOneOut.cpp:179 main] Finished processing input file: /eos/experiment/faser/raw/2026/022074/FaserAHCAL-Physics-022074-00011.raw (RunNumber: 22074, PoolIndex: 11)
+[2026-03-11 06:51:16.651] [info] [MultiInOneOut.cpp:180 main] Total events processed so far: 246540
+[2026-03-11 06:51:16.651] [info] [BinaryRawHitReader.cpp:105 ~BinaryRawHitReader] Closed binary raw hit file.
+[2026-03-11 06:51:16.651] [info] [MultiInOneOut.cpp:151 main] Processing input file: /eos/experiment/faser/raw/2026/022074/FaserAHCAL-Physics-022074-00012.raw (RunNumber: 22074, PoolIndex: 12)
+[2026-03-11 06:51:16.652] [info] [MultiInOneOut.cpp:152 main] Inputs = 13 / 20
+[2026-03-11 06:51:16.655] [info] [BinaryRawHitReader.cpp:98 BinaryRawHitReader] Opened binary raw hit file: /eos/experiment/faser/raw/2026/022074/FaserAHCAL-Physics-022074-00012.raw
+[2026-03-11 06:51:16.656] [info] [MultiInOneOut.cpp:154 main] BinaryRawHitReader created successfully.
+[2026-03-11 06:51:23.300] [info] [MultiInOneOut.cpp:175 main] Processed 250000
+[2026-03-11 06:51:28.578] [info] [MultiInOneOut.cpp:175 main] Processed 100000
+[2026-03-11 06:51:33.958] [info] [MultiInOneOut.cpp:179 main] Finished processing input file: /eos/experiment/faser/raw/2026/022206/FaserAHCAL-Physics-022206-00004.raw (RunNumber: 22206, PoolIndex: 4)
+[2026-03-11 06:51:33.958] [info] [MultiInOneOut.cpp:180 main] Total events processed so far: 102725
+[2026-03-11 06:51:33.959] [info] [BinaryRawHitReader.cpp:105 ~BinaryRawHitReader] Closed binary raw hit file.
+[2026-03-11 06:51:33.959] [info] [MultiInOneOut.cpp:151 main] Processing input file: /eos/experiment/faser/raw/2026/022206/FaserAHCAL-Physics-022206-00005.raw (RunNumber: 22206, PoolIndex: 5)
+[2026-03-11 06:51:33.959] [info] [MultiInOneOut.cpp:152 main] Inputs = 6 / 15
+[2026-03-11 06:51:33.962] [info] [BinaryRawHitReader.cpp:98 BinaryRawHitReader] Opened binary raw hit file: /eos/experiment/faser/raw/2026/022206/FaserAHCAL-Physics-022206-00005.raw
+[2026-03-11 06:51:33.962] [info] [MultiInOneOut.cpp:154 main] BinaryRawHitReader created successfully.
+[2026-03-11 06:51:42.499] [info] [MultiInOneOut.cpp:175 main] Processed 260000
+[2026-03-11 06:51:47.095] [info] [MultiInOneOut.cpp:175 main] Processed 110000
+[2026-03-11 06:51:57.182] [info] [MultiInOneOut.cpp:179 main] Finished processing input file: /eos/experiment/faser/raw/2026/022074/FaserAHCAL-Physics-022074-00012.raw (RunNumber: 22074, PoolIndex: 12)
+[2026-03-11 06:51:57.183] [info] [MultiInOneOut.cpp:180 main] Total events processed so far: 267085
+[2026-03-11 06:51:57.183] [info] [BinaryRawHitReader.cpp:105 ~BinaryRawHitReader] Closed binary raw hit file.
+[2026-03-11 06:51:57.183] [info] [MultiInOneOut.cpp:151 main] Processing input file: /eos/experiment/faser/raw/2026/022074/FaserAHCAL-Physics-022074-00013.raw (RunNumber: 22074, PoolIndex: 13)
+[2026-03-11 06:51:57.184] [info] [MultiInOneOut.cpp:152 main] Inputs = 14 / 20
+[2026-03-11 06:51:57.187] [info] [BinaryRawHitReader.cpp:98 BinaryRawHitReader] Opened binary raw hit file: /eos/experiment/faser/raw/2026/022074/FaserAHCAL-Physics-022074-00013.raw
+[2026-03-11 06:51:57.187] [info] [MultiInOneOut.cpp:154 main] BinaryRawHitReader created successfully.
+[2026-03-11 06:52:02.314] [info] [MultiInOneOut.cpp:175 main] Processed 270000
+[2026-03-11 06:52:06.224] [info] [MultiInOneOut.cpp:175 main] Processed 120000
+[2026-03-11 06:52:12.480] [info] [MultiInOneOut.cpp:179 main] Finished processing input file: /eos/experiment/faser/raw/2026/022206/FaserAHCAL-Physics-022206-00005.raw (RunNumber: 22206, PoolIndex: 5)
+[2026-03-11 06:52:12.481] [info] [MultiInOneOut.cpp:180 main] Total events processed so far: 123270
+[2026-03-11 06:52:12.481] [info] [BinaryRawHitReader.cpp:105 ~BinaryRawHitReader] Closed binary raw hit file.
+[2026-03-11 06:52:12.481] [info] [MultiInOneOut.cpp:151 main] Processing input file: /eos/experiment/faser/raw/2026/022206/FaserAHCAL-Physics-022206-00006.raw (RunNumber: 22206, PoolIndex: 6)
+[2026-03-11 06:52:12.482] [info] [MultiInOneOut.cpp:152 main] Inputs = 7 / 15
+[2026-03-11 06:52:12.485] [info] [BinaryRawHitReader.cpp:98 BinaryRawHitReader] Opened binary raw hit file: /eos/experiment/faser/raw/2026/022206/FaserAHCAL-Physics-022206-00006.raw
+[2026-03-11 06:52:12.485] [info] [MultiInOneOut.cpp:154 main] BinaryRawHitReader created successfully.
+[2026-03-11 06:52:18.039] [info] [MultiInOneOut.cpp:175 main] Processed 280000
+[2026-03-11 06:52:23.468] [info] [MultiInOneOut.cpp:175 main] Processed 130000
+[2026-03-11 06:52:32.286] [info] [MultiInOneOut.cpp:179 main] Finished processing input file: /eos/experiment/faser/raw/2026/022074/FaserAHCAL-Physics-022074-00013.raw (RunNumber: 22074, PoolIndex: 13)
+[2026-03-11 06:52:32.287] [info] [MultiInOneOut.cpp:180 main] Total events processed so far: 287630
+[2026-03-11 06:52:32.287] [info] [BinaryRawHitReader.cpp:105 ~BinaryRawHitReader] Closed binary raw hit file.
+[2026-03-11 06:52:32.287] [info] [MultiInOneOut.cpp:151 main] Processing input file: /eos/experiment/faser/raw/2026/022074/FaserAHCAL-Physics-022074-00014.raw (RunNumber: 22074, PoolIndex: 14)
+[2026-03-11 06:52:32.287] [info] [MultiInOneOut.cpp:152 main] Inputs = 15 / 20
+[2026-03-11 06:52:32.291] [info] [BinaryRawHitReader.cpp:98 BinaryRawHitReader] Opened binary raw hit file: /eos/experiment/faser/raw/2026/022074/FaserAHCAL-Physics-022074-00014.raw
+[2026-03-11 06:52:32.291] [info] [MultiInOneOut.cpp:154 main] BinaryRawHitReader created successfully.
+[2026-03-11 06:52:36.922] [info] [MultiInOneOut.cpp:175 main] Processed 290000
+[2026-03-11 06:52:40.204] [info] [MultiInOneOut.cpp:175 main] Processed 140000
+[2026-03-11 06:52:46.112] [info] [MultiInOneOut.cpp:179 main] Finished processing input file: /eos/experiment/faser/raw/2026/022206/FaserAHCAL-Physics-022206-00006.raw (RunNumber: 22206, PoolIndex: 6)
+[2026-03-11 06:52:46.151] [info] [MultiInOneOut.cpp:180 main] Total events processed so far: 143815
+[2026-03-11 06:52:46.151] [info] [BinaryRawHitReader.cpp:105 ~BinaryRawHitReader] Closed binary raw hit file.
+[2026-03-11 06:52:46.151] [info] [MultiInOneOut.cpp:151 main] Processing input file: /eos/experiment/faser/raw/2026/022206/FaserAHCAL-Physics-022206-00007.raw (RunNumber: 22206, PoolIndex: 7)
+[2026-03-11 06:52:46.151] [info] [MultiInOneOut.cpp:152 main] Inputs = 8 / 15
+[2026-03-11 06:52:46.155] [info] [BinaryRawHitReader.cpp:98 BinaryRawHitReader] Opened binary raw hit file: /eos/experiment/faser/raw/2026/022206/FaserAHCAL-Physics-022206-00007.raw
+[2026-03-11 06:52:46.155] [info] [MultiInOneOut.cpp:154 main] BinaryRawHitReader created successfully.
+[2026-03-11 06:52:52.846] [info] [MultiInOneOut.cpp:175 main] Processed 300000
+[2026-03-11 06:52:57.145] [info] [MultiInOneOut.cpp:175 main] Processed 150000
+[2026-03-11 06:53:06.456] [info] [MultiInOneOut.cpp:179 main] Finished processing input file: /eos/experiment/faser/raw/2026/022074/FaserAHCAL-Physics-022074-00014.raw (RunNumber: 22074, PoolIndex: 14)
+[2026-03-11 06:53:06.456] [info] [MultiInOneOut.cpp:180 main] Total events processed so far: 308175
+[2026-03-11 06:53:06.456] [info] [BinaryRawHitReader.cpp:105 ~BinaryRawHitReader] Closed binary raw hit file.
+[2026-03-11 06:53:06.457] [info] [MultiInOneOut.cpp:151 main] Processing input file: /eos/experiment/faser/raw/2026/022074/FaserAHCAL-Physics-022074-00015.raw (RunNumber: 22074, PoolIndex: 15)
+[2026-03-11 06:53:06.457] [info] [MultiInOneOut.cpp:152 main] Inputs = 16 / 20
+[2026-03-11 06:53:06.461] [info] [BinaryRawHitReader.cpp:98 BinaryRawHitReader] Opened binary raw hit file: /eos/experiment/faser/raw/2026/022074/FaserAHCAL-Physics-022074-00015.raw
+[2026-03-11 06:53:06.461] [info] [MultiInOneOut.cpp:154 main] BinaryRawHitReader created successfully.
+[2026-03-11 06:53:09.399] [info] [MultiInOneOut.cpp:175 main] Processed 310000
+[2026-03-11 06:53:13.579] [info] [MultiInOneOut.cpp:175 main] Processed 160000
+[2026-03-11 06:53:20.220] [info] [MultiInOneOut.cpp:179 main] Finished processing input file: /eos/experiment/faser/raw/2026/022206/FaserAHCAL-Physics-022206-00007.raw (RunNumber: 22206, PoolIndex: 7)
+[2026-03-11 06:53:20.220] [info] [MultiInOneOut.cpp:180 main] Total events processed so far: 164360
+[2026-03-11 06:53:20.220] [info] [BinaryRawHitReader.cpp:105 ~BinaryRawHitReader] Closed binary raw hit file.
+[2026-03-11 06:53:20.221] [info] [MultiInOneOut.cpp:151 main] Processing input file: /eos/experiment/faser/raw/2026/022206/FaserAHCAL-Physics-022206-00008.raw (RunNumber: 22206, PoolIndex: 8)
+[2026-03-11 06:53:20.221] [info] [MultiInOneOut.cpp:152 main] Inputs = 9 / 15
+[2026-03-11 06:53:20.224] [info] [BinaryRawHitReader.cpp:98 BinaryRawHitReader] Opened binary raw hit file: /eos/experiment/faser/raw/2026/022206/FaserAHCAL-Physics-022206-00008.raw
+[2026-03-11 06:53:20.224] [info] [MultiInOneOut.cpp:154 main] BinaryRawHitReader created successfully.
+[2026-03-11 06:53:25.001] [info] [MultiInOneOut.cpp:175 main] Processed 320000
+[2026-03-11 06:53:28.989] [info] [MultiInOneOut.cpp:175 main] Processed 170000
+[2026-03-11 06:53:38.256] [info] [MultiInOneOut.cpp:179 main] Finished processing input file: /eos/experiment/faser/raw/2026/022074/FaserAHCAL-Physics-022074-00015.raw (RunNumber: 22074, PoolIndex: 15)
+[2026-03-11 06:53:38.257] [info] [MultiInOneOut.cpp:180 main] Total events processed so far: 328720
+[2026-03-11 06:53:38.257] [info] [BinaryRawHitReader.cpp:105 ~BinaryRawHitReader] Closed binary raw hit file.
+[2026-03-11 06:53:38.257] [info] [MultiInOneOut.cpp:151 main] Processing input file: /eos/experiment/faser/raw/2026/022074/FaserAHCAL-Physics-022074-00016.raw (RunNumber: 22074, PoolIndex: 16)
+[2026-03-11 06:53:38.257] [info] [MultiInOneOut.cpp:152 main] Inputs = 17 / 20
+[2026-03-11 06:53:38.262] [info] [BinaryRawHitReader.cpp:98 BinaryRawHitReader] Opened binary raw hit file: /eos/experiment/faser/raw/2026/022074/FaserAHCAL-Physics-022074-00016.raw
+[2026-03-11 06:53:38.263] [info] [MultiInOneOut.cpp:154 main] BinaryRawHitReader created successfully.
+[2026-03-11 06:53:41.157] [info] [MultiInOneOut.cpp:175 main] Processed 330000
+[2026-03-11 06:53:44.443] [info] [MultiInOneOut.cpp:175 main] Processed 180000
+[2026-03-11 06:53:53.322] [info] [MultiInOneOut.cpp:179 main] Finished processing input file: /eos/experiment/faser/raw/2026/022206/FaserAHCAL-Physics-022206-00008.raw (RunNumber: 22206, PoolIndex: 8)
+[2026-03-11 06:53:53.322] [info] [MultiInOneOut.cpp:180 main] Total events processed so far: 184905
+[2026-03-11 06:53:53.322] [info] [BinaryRawHitReader.cpp:105 ~BinaryRawHitReader] Closed binary raw hit file.
+[2026-03-11 06:53:53.323] [info] [MultiInOneOut.cpp:151 main] Processing input file: /eos/experiment/faser/raw/2026/022206/FaserAHCAL-Physics-022206-00009.raw (RunNumber: 22206, PoolIndex: 9)
+[2026-03-11 06:53:53.323] [info] [MultiInOneOut.cpp:152 main] Inputs = 10 / 15
+[2026-03-11 06:53:53.326] [info] [BinaryRawHitReader.cpp:98 BinaryRawHitReader] Opened binary raw hit file: /eos/experiment/faser/raw/2026/022206/FaserAHCAL-Physics-022206-00009.raw
+[2026-03-11 06:53:53.326] [info] [MultiInOneOut.cpp:154 main] BinaryRawHitReader created successfully.
+[2026-03-11 06:53:59.492] [info] [MultiInOneOut.cpp:175 main] Processed 340000
+[2026-03-11 06:54:01.022] [info] [MultiInOneOut.cpp:175 main] Processed 190000
+[2026-03-11 06:54:16.252] [info] [MultiInOneOut.cpp:179 main] Finished processing input file: /eos/experiment/faser/raw/2026/022074/FaserAHCAL-Physics-022074-00016.raw (RunNumber: 22074, PoolIndex: 16)
+[2026-03-11 06:54:16.253] [info] [MultiInOneOut.cpp:180 main] Total events processed so far: 349265
+[2026-03-11 06:54:16.253] [info] [BinaryRawHitReader.cpp:105 ~BinaryRawHitReader] Closed binary raw hit file.
+[2026-03-11 06:54:16.253] [info] [MultiInOneOut.cpp:151 main] Processing input file: /eos/experiment/faser/raw/2026/022074/FaserAHCAL-Physics-022074-00017.raw (RunNumber: 22074, PoolIndex: 17)
+[2026-03-11 06:54:16.254] [info] [MultiInOneOut.cpp:152 main] Inputs = 18 / 20
+[2026-03-11 06:54:16.265] [info] [BinaryRawHitReader.cpp:98 BinaryRawHitReader] Opened binary raw hit file: /eos/experiment/faser/raw/2026/022074/FaserAHCAL-Physics-022074-00017.raw
+[2026-03-11 06:54:16.265] [info] [MultiInOneOut.cpp:154 main] BinaryRawHitReader created successfully.
+[2026-03-11 06:54:16.963] [info] [MultiInOneOut.cpp:175 main] Processed 200000
+[2026-03-11 06:54:17.519] [info] [MultiInOneOut.cpp:175 main] Processed 350000
+[2026-03-11 06:54:26.522] [info] [MultiInOneOut.cpp:179 main] Finished processing input file: /eos/experiment/faser/raw/2026/022206/FaserAHCAL-Physics-022206-00009.raw (RunNumber: 22206, PoolIndex: 9)
+[2026-03-11 06:54:26.523] [info] [MultiInOneOut.cpp:180 main] Total events processed so far: 205450
+[2026-03-11 06:54:26.523] [info] [BinaryRawHitReader.cpp:105 ~BinaryRawHitReader] Closed binary raw hit file.
+[2026-03-11 06:54:26.523] [info] [MultiInOneOut.cpp:151 main] Processing input file: /eos/experiment/faser/raw/2026/022206/FaserAHCAL-Physics-022206-00010.raw (RunNumber: 22206, PoolIndex: 10)
+[2026-03-11 06:54:26.523] [info] [MultiInOneOut.cpp:152 main] Inputs = 11 / 15
+[2026-03-11 06:54:26.527] [info] [BinaryRawHitReader.cpp:98 BinaryRawHitReader] Opened binary raw hit file: /eos/experiment/faser/raw/2026/022206/FaserAHCAL-Physics-022206-00010.raw
+[2026-03-11 06:54:26.527] [info] [MultiInOneOut.cpp:154 main] BinaryRawHitReader created successfully.
+[2026-03-11 06:54:34.770] [info] [MultiInOneOut.cpp:175 main] Processed 210000
+[2026-03-11 06:54:36.336] [info] [MultiInOneOut.cpp:175 main] Processed 360000
+[2026-03-11 06:54:50.932] [info] [MultiInOneOut.cpp:175 main] Processed 220000
+[2026-03-11 06:54:51.275] [info] [MultiInOneOut.cpp:179 main] Finished processing input file: /eos/experiment/faser/raw/2026/022074/FaserAHCAL-Physics-022074-00017.raw (RunNumber: 22074, PoolIndex: 17)
+[2026-03-11 06:54:51.275] [info] [MultiInOneOut.cpp:180 main] Total events processed so far: 369810
+[2026-03-11 06:54:51.276] [info] [BinaryRawHitReader.cpp:105 ~BinaryRawHitReader] Closed binary raw hit file.
+[2026-03-11 06:54:51.276] [info] [MultiInOneOut.cpp:151 main] Processing input file: /eos/experiment/faser/raw/2026/022074/FaserAHCAL-Physics-022074-00018.raw (RunNumber: 22074, PoolIndex: 18)
+[2026-03-11 06:54:51.276] [info] [MultiInOneOut.cpp:152 main] Inputs = 19 / 20
+[2026-03-11 06:54:51.280] [info] [BinaryRawHitReader.cpp:98 BinaryRawHitReader] Opened binary raw hit file: /eos/experiment/faser/raw/2026/022074/FaserAHCAL-Physics-022074-00018.raw
+[2026-03-11 06:54:51.280] [info] [MultiInOneOut.cpp:154 main] BinaryRawHitReader created successfully.
+[2026-03-11 06:54:51.621] [info] [MultiInOneOut.cpp:175 main] Processed 370000
+[2026-03-11 06:55:00.465] [info] [MultiInOneOut.cpp:179 main] Finished processing input file: /eos/experiment/faser/raw/2026/022206/FaserAHCAL-Physics-022206-00010.raw (RunNumber: 22206, PoolIndex: 10)
+[2026-03-11 06:55:00.466] [info] [MultiInOneOut.cpp:180 main] Total events processed so far: 225995
+[2026-03-11 06:55:00.466] [info] [BinaryRawHitReader.cpp:105 ~BinaryRawHitReader] Closed binary raw hit file.
+[2026-03-11 06:55:00.466] [info] [MultiInOneOut.cpp:151 main] Processing input file: /eos/experiment/faser/raw/2026/022206/FaserAHCAL-Physics-022206-00011.raw (RunNumber: 22206, PoolIndex: 11)
+[2026-03-11 06:55:00.466] [info] [MultiInOneOut.cpp:152 main] Inputs = 12 / 15
+[2026-03-11 06:55:00.470] [info] [BinaryRawHitReader.cpp:98 BinaryRawHitReader] Opened binary raw hit file: /eos/experiment/faser/raw/2026/022206/FaserAHCAL-Physics-022206-00011.raw
+[2026-03-11 06:55:00.470] [info] [MultiInOneOut.cpp:154 main] BinaryRawHitReader created successfully.
+[2026-03-11 06:55:06.655] [info] [MultiInOneOut.cpp:175 main] Processed 230000
+[2026-03-11 06:55:07.498] [info] [MultiInOneOut.cpp:175 main] Processed 380000
+[2026-03-11 06:55:22.557] [info] [MultiInOneOut.cpp:175 main] Processed 240000
+[2026-03-11 06:55:24.005] [info] [MultiInOneOut.cpp:175 main] Processed 390000
+[2026-03-11 06:55:24.621] [info] [MultiInOneOut.cpp:179 main] Finished processing input file: /eos/experiment/faser/raw/2026/022074/FaserAHCAL-Physics-022074-00018.raw (RunNumber: 22074, PoolIndex: 18)
+[2026-03-11 06:55:24.621] [info] [MultiInOneOut.cpp:180 main] Total events processed so far: 390355
+[2026-03-11 06:55:24.622] [info] [BinaryRawHitReader.cpp:105 ~BinaryRawHitReader] Closed binary raw hit file.
+[2026-03-11 06:55:24.622] [info] [MultiInOneOut.cpp:151 main] Processing input file: /eos/experiment/faser/raw/2026/022074/FaserAHCAL-Physics-022074-00019.raw (RunNumber: 22074, PoolIndex: 19)
+[2026-03-11 06:55:24.622] [info] [MultiInOneOut.cpp:152 main] Inputs = 20 / 20
+[2026-03-11 06:55:24.626] [info] [BinaryRawHitReader.cpp:98 BinaryRawHitReader] Opened binary raw hit file: /eos/experiment/faser/raw/2026/022074/FaserAHCAL-Physics-022074-00019.raw
+[2026-03-11 06:55:24.627] [info] [MultiInOneOut.cpp:154 main] BinaryRawHitReader created successfully.
+[2026-03-11 06:55:34.805] [info] [MultiInOneOut.cpp:179 main] Finished processing input file: /eos/experiment/faser/raw/2026/022206/FaserAHCAL-Physics-022206-00011.raw (RunNumber: 22206, PoolIndex: 11)
+[2026-03-11 06:55:34.806] [info] [MultiInOneOut.cpp:180 main] Total events processed so far: 246540
+[2026-03-11 06:55:34.806] [info] [BinaryRawHitReader.cpp:105 ~BinaryRawHitReader] Closed binary raw hit file.
+[2026-03-11 06:55:34.807] [info] [MultiInOneOut.cpp:151 main] Processing input file: /eos/experiment/faser/raw/2026/022206/FaserAHCAL-Physics-022206-00012.raw (RunNumber: 22206, PoolIndex: 12)
+[2026-03-11 06:55:34.807] [info] [MultiInOneOut.cpp:152 main] Inputs = 13 / 15
+[2026-03-11 06:55:34.810] [info] [BinaryRawHitReader.cpp:98 BinaryRawHitReader] Opened binary raw hit file: /eos/experiment/faser/raw/2026/022206/FaserAHCAL-Physics-022206-00012.raw
+[2026-03-11 06:55:34.810] [info] [MultiInOneOut.cpp:154 main] BinaryRawHitReader created successfully.
+[2026-03-11 06:55:40.394] [info] [MultiInOneOut.cpp:175 main] Processed 250000
+[2026-03-11 06:55:41.176] [info] [MultiInOneOut.cpp:175 main] Processed 400000
+[2026-03-11 06:55:52.783] [info] [MultiInOneOut.cpp:179 main] Finished processing input file: /eos/experiment/faser/raw/2026/022074/FaserAHCAL-Physics-022074-00019.raw (RunNumber: 22074, PoolIndex: 19)
+[2026-03-11 06:55:52.784] [info] [MultiInOneOut.cpp:180 main] Total events processed so far: 407336
+[2026-03-11 06:55:52.785] [info] [BinaryRawHitReader.cpp:105 ~BinaryRawHitReader] Closed binary raw hit file.
+[2026-03-11 06:55:56.447] [info] [MultiInOneOut.cpp:175 main] Processed 260000
+[2026-03-11 06:56:08.176] [info] [MultiInOneOut.cpp:179 main] Finished processing input file: /eos/experiment/faser/raw/2026/022206/FaserAHCAL-Physics-022206-00012.raw (RunNumber: 22206, PoolIndex: 12)
+[2026-03-11 06:56:08.177] [info] [MultiInOneOut.cpp:180 main] Total events processed so far: 267085
+[2026-03-11 06:56:08.177] [info] [BinaryRawHitReader.cpp:105 ~BinaryRawHitReader] Closed binary raw hit file.
+[2026-03-11 06:56:08.177] [info] [MultiInOneOut.cpp:151 main] Processing input file: /eos/experiment/faser/raw/2026/022206/FaserAHCAL-Physics-022206-00013.raw (RunNumber: 22206, PoolIndex: 13)
+[2026-03-11 06:56:08.177] [info] [MultiInOneOut.cpp:152 main] Inputs = 14 / 15
+[2026-03-11 06:56:08.182] [info] [BinaryRawHitReader.cpp:98 BinaryRawHitReader] Opened binary raw hit file: /eos/experiment/faser/raw/2026/022206/FaserAHCAL-Physics-022206-00013.raw
+[2026-03-11 06:56:08.182] [info] [MultiInOneOut.cpp:154 main] BinaryRawHitReader created successfully.
+[2026-03-11 06:56:12.955] [info] [MultiInOneOut.cpp:175 main] Processed 270000
+[2026-03-11 06:56:14.302] [info] [PedestalAlg.cpp:344 write] PedestalAlg: wrote out_calibration/pedestal_calib/22074/pedestal.root
+[2026-03-11 06:56:14.302] [info] [PedestalAlg.cpp:345 write] PedestalAlg: HG fit OK/all = 11448/11448
+[2026-03-11 06:56:14.303] [info] [PedestalAlg.cpp:346 write] PedestalAlg: LG fit OK/all = 9155/11448
+[2026-03-11 06:56:14.559] [info] [MultiInOneOut.cpp:270 main] AHCAL Application finished.
+[2026-03-11 06:56:29.213] [info] [MultiInOneOut.cpp:175 main] Processed 280000
+[2026-03-11 06:56:40.997] [info] [MultiInOneOut.cpp:179 main] Finished processing input file: /eos/experiment/faser/raw/2026/022206/FaserAHCAL-Physics-022206-00013.raw (RunNumber: 22206, PoolIndex: 13)
+[2026-03-11 06:56:40.998] [info] [MultiInOneOut.cpp:180 main] Total events processed so far: 287630
+[2026-03-11 06:56:40.999] [info] [BinaryRawHitReader.cpp:105 ~BinaryRawHitReader] Closed binary raw hit file.
+[2026-03-11 06:56:40.999] [info] [MultiInOneOut.cpp:151 main] Processing input file: /eos/experiment/faser/raw/2026/022206/FaserAHCAL-Physics-022206-00014.raw (RunNumber: 22206, PoolIndex: 14)
+[2026-03-11 06:56:40.999] [info] [MultiInOneOut.cpp:152 main] Inputs = 15 / 15
+[2026-03-11 06:56:41.004] [info] [BinaryRawHitReader.cpp:98 BinaryRawHitReader] Opened binary raw hit file: /eos/experiment/faser/raw/2026/022206/FaserAHCAL-Physics-022206-00014.raw
+[2026-03-11 06:56:41.005] [info] [MultiInOneOut.cpp:154 main] BinaryRawHitReader created successfully.
+[2026-03-11 06:56:45.023] [info] [MultiInOneOut.cpp:175 main] Processed 290000
+[2026-03-11 06:57:00.208] [info] [MultiInOneOut.cpp:175 main] Processed 300000
+[2026-03-11 06:57:05.572] [info] [MultiInOneOut.cpp:179 main] Finished processing input file: /eos/experiment/faser/raw/2026/022206/FaserAHCAL-Physics-022206-00014.raw (RunNumber: 22206, PoolIndex: 14)
+[2026-03-11 06:57:05.572] [info] [MultiInOneOut.cpp:180 main] Total events processed so far: 303578
+[2026-03-11 06:57:05.572] [info] [BinaryRawHitReader.cpp:105 ~BinaryRawHitReader] Closed binary raw hit file.
+[2026-03-11 06:57:27.090] [info] [PedestalAlg.cpp:344 write] PedestalAlg: wrote out_calibration/pedestal_calib/22206/pedestal.root
+[2026-03-11 06:57:27.090] [info] [PedestalAlg.cpp:345 write] PedestalAlg: HG fit OK/all = 11448/11448
+[2026-03-11 06:57:27.090] [info] [PedestalAlg.cpp:346 write] PedestalAlg: LG fit OK/all = 7920/11448
+[2026-03-11 06:57:27.349] [info] [MultiInOneOut.cpp:270 main] AHCAL Application finished.

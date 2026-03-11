@@ -178,6 +178,11 @@ namespace AHCALRecoAlg{
             h_deltaTimestamp->Write();
             h_deltaTriggerID->Write();
             h_cycle_duration->Write();
+            h_deltaBCID_failed->Write();
+            h_deltaCycleID_failed->Write();
+            h_deltaTimestamp_failed->Write();
+            h_deltaTriggerID_failed->Write();
+            h_cycle_duration_failed->Write();
             for (int i = 0; i < cfg_.ntrigger_layer; ++i) {
                 for (int j = 1; j < cfg_.ntrigger_layer; ++j) {
                     h_timing_diff_double_lost[i*4+j]->Write();
@@ -289,6 +294,21 @@ namespace AHCALRecoAlg{
                 h_loss->Draw("histe1");
                 h_loss->SetMinimum(0);
                 c.SaveAs(Form("%s/input_loss.png", cfg_.out_png_dir.c_str()));
+                h_deltaBCID_failed->Draw("histe1");
+                h_deltaBCID_failed->SetMinimum(0);
+                c.SaveAs(Form("%s/input_deltaBCID_failed.png", cfg_.out_png_dir.c_str()));
+                h_deltaCycleID_failed->Draw("histe1");
+                h_deltaCycleID_failed->SetMinimum(0);
+                c.SaveAs(Form("%s/input_deltaCycleID_failed.png", cfg_.out_png_dir.c_str()));
+                h_deltaTimestamp_failed->Draw("histe1");
+                h_deltaTimestamp_failed->SetMinimum(0);
+                c.SaveAs(Form("%s/input_deltaTimestamp_failed.png", cfg_.out_png_dir.c_str()));
+                h_deltaTriggerID_failed->Draw("histe1");
+                h_deltaTriggerID_failed->SetMinimum(0);
+                c.SaveAs(Form("%s/input_deltaTriggerID_failed.png", cfg_.out_png_dir.c_str()));
+                h_cycle_duration_failed->Draw("histe1");
+                h_cycle_duration_failed->SetMinimum(0);
+                c.SaveAs(Form("%s/input_cycle_duration_failed.png", cfg_.out_png_dir.c_str()));
                 for (auto& eff : effs) {
                     eff->Draw("AP");
                     c.SaveAs(Form("%s/%s.png", cfg_.out_png_dir.c_str(), eff->GetName()));
@@ -351,9 +371,14 @@ namespace AHCALRecoAlg{
             h_nHits_failed = std::make_unique<TH1D>("h_nHits_failed", "Distribution of nHits for events that failed the HitTag;nHits;Events", 100, 0, 100);
             h_deltaBCID = std::make_unique<TH1D>("h_deltaBCID", "Distribution of BCID difference between AHCAL hit and TLU;#Delta BCID;Events", 1024, -1024, 1024);
             h_deltaCycleID = std::make_unique<TH1D>("h_deltaCycleID", "Distribution of CycleID difference between AHCAL hit and TLU;#Delta CycleID;Events", 1024, -1024, 1024);
-            h_deltaTimestamp = std::make_unique<TH1D>("h_deltaTimestamp", "Distribution of Timestamp difference between AHCAL hit and TLU;#Delta Timestamp;Events", 1024, -1024, 1024);
-            h_deltaTriggerID = std::make_unique<TH1D>("h_deltaTriggerID", "Distribution of TriggerID difference between AHCAL hit and TLU;#Delta TriggerID;Events", 1024, 0, 1024);
+            h_deltaTimestamp = std::make_unique<TH1D>("h_deltaTimestamp", "Distribution of Timestamp difference between last;#Delta Timestamp;Events", 1000, 0, 1e6);
+            h_deltaTriggerID = std::make_unique<TH1D>("h_deltaTriggerID", "Distribution of TriggerID difference between AHCAL hit and TLU;#Delta TriggerID;Events", 5, -0.5, 4.5);
             h_cycle_duration = std::make_unique<TH1D>("h_cycle_duration", "Distribution of cycle duration calculated from TLU timestamp and BCID difference;Cycle duration (ns);Events", 100, 0, 10000000);
+            h_deltaBCID_failed = std::make_unique<TH1D>("h_deltaBCID_failed", "Distribution of BCID difference for double lost events;#Delta BCID;Events", 1024, -1024, 1024);
+            h_deltaCycleID_failed = std::make_unique<TH1D>("h_deltaCycleID_failed", "Distribution of CycleID difference for double lost events;#Delta CycleID;Events", 1024, -1024, 1024);
+            h_deltaTimestamp_failed = std::make_unique<TH1D>("h_deltaTimestamp_failed", "Distribution of Timestamp difference for double lost events;#Delta Timestamp;Events", 1000, 0, 1e6);
+            h_deltaTriggerID_failed = std::make_unique<TH1D>("h_deltaTriggerID_failed", "Distribution of TriggerID difference for double lost events;#Delta TriggerID;Events", 5, -0.5, 4.5);
+            h_cycle_duration_failed = std::make_unique<TH1D>("h_cycle_duration_failed", "Distribution of cycle duration for double lost events;Cycle duration (ns);Events", 100, 0, 10000000);
             h_loss = std::make_unique<TH1D>("h_loss", "Distribution of syncronization of the lost trigger;Loss category;Events", 5, -0.5, 4.5);
             h_full->SetDirectory(nullptr);
             h_passed->SetDirectory(nullptr);
@@ -372,6 +397,11 @@ namespace AHCALRecoAlg{
             h_deltaTimestamp->SetDirectory(nullptr);
             h_deltaTriggerID->SetDirectory(nullptr);
             h_cycle_duration->SetDirectory(nullptr);
+            h_deltaBCID_failed->SetDirectory(nullptr);
+            h_deltaCycleID_failed->SetDirectory(nullptr);
+            h_deltaTimestamp_failed->SetDirectory(nullptr);
+            h_deltaTriggerID_failed->SetDirectory(nullptr);
+            h_cycle_duration_failed->SetDirectory(nullptr);
             h_loss->SetDirectory(nullptr);
 
             //
@@ -417,6 +447,11 @@ namespace AHCALRecoAlg{
         std::unique_ptr<TH1D> h_deltaTimestamp;
         std::unique_ptr<TH1D> h_deltaTriggerID;
         std::unique_ptr<TH1D> h_cycle_duration;
+        std::unique_ptr<TH1D> h_deltaBCID_failed;
+        std::unique_ptr<TH1D> h_deltaCycleID_failed;
+        std::unique_ptr<TH1D> h_deltaTimestamp_failed;
+        std::unique_ptr<TH1D> h_deltaTriggerID_failed;
+        std::unique_ptr<TH1D> h_cycle_duration_failed;
         std::unique_ptr<TH1D> h_loss;
         std::vector<std::unique_ptr<TH1D>> h_double_lost; // distribution of single/double lost pattern, for sanity check
         std::vector<std::unique_ptr<TH1D>> h_single_lost; // distribution of single/double lost pattern, for sanity check
@@ -465,10 +500,6 @@ namespace AHCALRecoAlg{
                 impl_->h_cycle_duration->Fill(cycle_duration);
             }
         }
-        last_cycle_id = current_cycle_id;
-        last_AHCAL_bcid = current_AHCAL_bcid;
-        last_TLU_timestamp = current_TLU_timestamp;
-        last_trigger_id = current_trigger_id;
         // categorize the inputs 
         std::vector<bool> lost_inputs;
         for (int l = 0; l < cfg_.ntrigger_layer; ++l){
@@ -519,6 +550,20 @@ namespace AHCALRecoAlg{
                 }
             }
             impl_->fill_pattern(layer1, layer2, isdoublelost, issinglelost, lost_layer, rawdata.FineTimestamps);
+            if (isdoublelost){
+                int delta_cycle_id = current_cycle_id - last_cycle_id;
+                int delta_bcid = current_AHCAL_bcid - last_AHCAL_bcid;
+                int delta_timestamp = current_TLU_timestamp - last_TLU_timestamp;
+                int delta_trigger_id = current_trigger_id - last_trigger_id;
+                impl_->h_deltaBCID_failed->Fill(delta_bcid);
+                impl_->h_deltaCycleID_failed->Fill(delta_cycle_id);
+                impl_->h_deltaTimestamp_failed->Fill(delta_timestamp);
+                impl_->h_deltaTriggerID_failed->Fill(delta_trigger_id);
+                if (delta_cycle_id > 1 && delta_timestamp > 0 && delta_trigger_id == 1) { 
+                    double cycle_duration = (delta_timestamp*25 - delta_bcid*200) / delta_cycle_id; 
+                    impl_->h_cycle_duration_failed->Fill(cycle_duration);
+                }
+            }
         }
         if (std::accumulate(rawdata.Inputs.begin(), rawdata.Inputs.end(), 0) == 0) {
             LOG_DEBUG("InputEffAlg: event {} has no input, total nHits = {}", evt.event_counter(), rawHits.size());
@@ -538,6 +583,10 @@ namespace AHCALRecoAlg{
                 }
             }
         }
+        last_cycle_id = current_cycle_id;
+        last_AHCAL_bcid = current_AHCAL_bcid;
+        last_TLU_timestamp = current_TLU_timestamp;
+        last_trigger_id = current_trigger_id;
     }
     void InputEffAlg::parse_cfg(const YAML::Node& cfg){
         cfg_.in_data_key = get_or<std::string>(cfg, "in_data_key", cfg_.in_data_key);

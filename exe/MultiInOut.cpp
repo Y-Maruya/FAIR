@@ -26,26 +26,51 @@ std::string customPad(const std::string& str, size_t totalLength) {
     }
     return oss.str();
 }
+void replaceRunNumberPoolIndexInFile(const std::string& filename, int runnumber, int poolindex) {
+    // read file
+    std::ifstream infile(filename);
+    if (!infile) {
+        std::cerr << "Error: cannot open file " << filename << std::endl;
+        return;
+    }
+
+    std::stringstream buffer;
+    buffer << infile.rdbuf();
+    std::string content = buffer.str();
+    infile.close();
+
+    // replacement string
+    std::string placeholder = "###runnumber###";
+    std::string runStr = std::to_string(runnumber);
+
+    // replace all occurrences
+    size_t pos = 0;
+    while ((pos = content.find(placeholder, pos)) != std::string::npos) {
+        content.replace(pos, placeholder.length(), runStr);
+        pos += runStr.length();
+    }
+
+    // replacement string
+    std::string placeholder_pool = "###poolindex###";
+    std::string poolStr = std::to_string(poolindex);
+
+    // replace all occurrences
+    pos = 0;
+    while ((pos = content.find(placeholder_pool, pos)) != std::string::npos) {
+        content.replace(pos, placeholder_pool.length(), poolStr);
+        pos += poolStr.length();
+    }
+    // write back
+    std::ofstream outfile("/tmp/"+std::to_string(runnumber)+".yaml");
+    outfile << content;
+}
 using namespace AHCALRecoAlg;
 int main(int argc, char* argv[]) {
     if (argc < 2) {
         LOG_ERROR("Usage: {} <config_yaml> [-i <input text file>]", argv[0]);
         return 1;
     }
-    YAML::Node config = YAML::LoadFile(argv[1]);
-    RunContext ctx;
-    ctx.config = parse_run_config(config);
-    if (ctx.config.log_level == "debug" || ctx.config.log_level == "DEBUG") {
-        FAIR::init_logger("AHCALApp", ctx.config.log_file, spdlog::level::debug);
-    } else if (ctx.config.log_level == "info" || ctx.config.log_level == "INFO") {
-        FAIR::init_logger("AHCALApp", ctx.config.log_file, spdlog::level::info);
-    } else if (ctx.config.log_level == "warn" || ctx.config.log_level == "WARN") {
-        FAIR::init_logger("AHCALApp", ctx.config.log_file, spdlog::level::warn);
-    } else if (ctx.config.log_level == "error" || ctx.config.log_level == "ERROR") {
-        FAIR::init_logger("AHCALApp", ctx.config.log_file, spdlog::level::err);
-    } else {
-        FAIR::init_logger("AHCALApp", ctx.config.log_file, spdlog::level::info);
-    } 
+
     std::string input_text_file;
     bool use_input_text_file = false;
     for (int i = 2; i < argc; ++i) {
@@ -57,14 +82,14 @@ int main(int argc, char* argv[]) {
         }
     }
     std::cout << "AHCAL Application started." << std::endl;
-    std::cout << "Logger initialized with level: " << ctx.config.log_level << " and log file: " << ctx.config.log_file << std::endl;
-    std::string outputfile = ctx.config.output;
-    std::cout << "Output file: " << outputfile << std::endl;
+    // std::cout << "Logger initialized with level: " << ctx.config.log_level << " and log file: " << ctx.config.log_file << std::endl;
+    // std::string outputfile = ctx.config.output;
+    // std::cout << "Output file: " << outputfile << std::endl;
     int ninputs = 1;
     std::vector<std::string> input_files;
     std::vector<int> runNumbers;
     std::vector<int> poolIndexes;
-    std::vector<std::string> output_files;
+    // std::vector<std::string> output_files;
     if (use_input_text_file) {
         std::ifstream infile(input_text_file, std::ios::in);
         std::string line;
@@ -77,47 +102,66 @@ int main(int argc, char* argv[]) {
             input_files.push_back(filename);
             runNumbers.push_back(runNumber);
             poolIndexes.push_back(poolIndex);
-            std::string o = outputfile;
-            const char* ext = ".root";
-            constexpr std::size_t ext_len = 5;
-            if (o.size() >= ext_len && o.compare(o.size() - ext_len, ext_len, ext) == 0) {
-                o.erase(o.size() - ext_len);
-            }
+            // std::string o = outputfile;
+            // const char* ext = ".root";
+            // constexpr std::size_t ext_len = 5;
+            // if (o.size() >= ext_len && o.compare(o.size() - ext_len, ext_len, ext) == 0) {
+            //     o.erase(o.size() - ext_len);
+            // }
 
-            output_files.push_back(
-                o + "-" + customPad(std::to_string(runNumber), 6) + "-" +
-                customPad(std::to_string(poolIndex), 5) + ".root"
-            );
+            // output_files.push_back(
+            //     o + "-" + customPad(std::to_string(runNumber), 6) + "-" +
+            //     customPad(std::to_string(poolIndex), 5) + ".root"
+            // );
         }
         ninputs = input_files.size();
         LOG_INFO("Number of input files to process: {}", ninputs);
     }else {
         ninputs = 1;
-        input_files.push_back(ctx.config.input);
-        runNumbers.push_back(ctx.config.runNumber);
-        poolIndexes.push_back(ctx.config.poolIndex);
-        output_files.push_back(outputfile);
+        // input_files.push_back(ctx.config.input);
+        // runNumbers.push_back(ctx.config.runNumber);
+        // poolIndexes.push_back(ctx.config.poolIndex);
+        // output_files.push_back(outputfile);
     }
     LOG_INFO("AHCAL Application started.");
     LOG_INFO("RunConfig parsed successfully.");
+    
     for (int iinput = 0; iinput < ninputs; ++iinput) {
-        ctx.config.input = input_files[iinput];
-        ctx.config.runNumber = runNumbers[iinput];
-        ctx.config.poolIndex = poolIndexes[iinput];
-        ctx.config.output = output_files[iinput];
-        LOG_INFO("Processing input file: {} (RunNumber: {}, PoolIndex: {})", ctx.config.input, ctx.config.runNumber, ctx.config.poolIndex);
+        replaceRunNumberPoolIndexInFile(argv[1],runNumbers[iinput],poolIndexes[iinput]);
+        YAML::Node config_i = YAML::LoadFile("/tmp/"+std::to_string(runNumbers[iinput])+".yaml");
+        RunContext ctx_i;
+        ctx_i.config = parse_run_config(config_i);
+        if (ctx_i.config.log_level == "debug" || ctx_i.config.log_level == "DEBUG") {
+            FAIR::init_logger("AHCALApp", ctx_i.config.log_file, spdlog::level::debug);
+        } else if (ctx_i.config.log_level == "info" || ctx_i.config.log_level == "INFO") {
+            FAIR::init_logger("AHCALApp", ctx_i.config.log_file, spdlog::level::info);
+        } else if (ctx_i.config.log_level == "warn" || ctx_i.config.log_level == "WARN") {
+            FAIR::init_logger("AHCALApp", ctx_i.config.log_file, spdlog::level::warn);
+        } else if (ctx_i.config.log_level == "error" || ctx_i.config.log_level == "ERROR") {
+            FAIR::init_logger("AHCALApp", ctx_i.config.log_file, spdlog::level::err);
+        } else {
+            FAIR::init_logger("AHCALApp", ctx_i.config.log_file, spdlog::level::info);
+        } 
+        if (ninputs!=1){
+            ctx_i.config.input = input_files[iinput];
+            ctx_i.config.runNumber = runNumbers[iinput];
+            ctx_i.config.poolIndex = poolIndexes[iinput];
+        }
+        // ctx_i.config.output = output_files[iinput];
+        
+        LOG_INFO("Processing input file: {} (RunNumber: {}, PoolIndex: {})", ctx_i.config.input, ctx_i.config.runNumber, ctx_i.config.poolIndex);
         LOG_INFO("Inputs = {} / {}", iinput + 1, ninputs);
-        auto algs = build_pipeline(ctx, config);
+        auto algs = build_pipeline(ctx_i, config_i);
         for (auto& alg : algs) {
             alg->initialize();
         }
-        YAML::Node reader_config = require_node(config, "reader");
+        YAML::Node reader_config = require_node(config_i, "reader");
         const std::string type = require_string(reader_config, "type");
         const YAML::Node cfg = reader_config["cfg"] ? reader_config["cfg"] : YAML::Node(YAML::NodeType::Map);
 
         if (type == "RootRawHitReader") {
             // Initialize RootRawHitReader
-            RootRawHitReader rawHitReader(ctx.config.input, "Raw_Hit");
+            RootRawHitReader rawHitReader(ctx_i.config.input, "Raw_Hit");
             LOG_INFO("RootRawHitReader created successfully.");
             int nEvent = 0;
             std::string input_key_hits = require_string(cfg, "out_rawhits_key");
@@ -130,7 +174,7 @@ int main(int argc, char* argv[]) {
                 if (!rawHitReader.next(rawHits, tluData)) {
                     break; // No more events
                 }
-                if (ctx.config.nEvents > 0 && nEvent >= ctx.config.nEvents) {
+                if (ctx_i.config.nEvents > 0 && nEvent >= ctx_i.config.nEvents) {
                     break; // Reached the maximum number of events to process
                 }
                 EventStore eventStore;
@@ -148,7 +192,7 @@ int main(int argc, char* argv[]) {
             }
         } else if (type == "BinaryRawHitReader") {
             // Initialize BinaryRawHitReader
-            BinaryRawHitReader rawHitReader(ctx.config.input);
+            BinaryRawHitReader rawHitReader(ctx_i.config.input);
             LOG_INFO("BinaryRawHitReader created successfully.");
             int nEvent = 0;
             std::string input_key_hits = require_string(cfg, "out_rawhits_key");
@@ -161,7 +205,7 @@ int main(int argc, char* argv[]) {
                 if (!rawHitReader.next(rawHits, tluData)) {
                     break; // No more events or error
                 }
-                if (ctx.config.nEvents > 0 && nEvent >= ctx.config.nEvents) {
+                if (ctx_i.config.nEvents > 0 && nEvent >= ctx_i.config.nEvents) {
                     break; // Reached the maximum number of events to process
                 }
                 EventStore eventStore;
@@ -179,7 +223,7 @@ int main(int argc, char* argv[]) {
             }
         }else if (type == "RootInput") {
             // Initialize RootInput reader
-            RootInput in(ctx.config.input, "events");
+            RootInput in(ctx_i.config.input, "events");
             LOG_INFO("RootInput reader created successfully.");
             ReaderRegistry rr = parse_reader_registry(cfg);
             Long64_t total_entries = in.entries();
@@ -189,7 +233,7 @@ int main(int argc, char* argv[]) {
                 if (!in.next()) {
                     break; // No more events
                 }
-                if (ctx.config.nEvents > 0 && nEvent >= ctx.config.nEvents) {
+                if (ctx_i.config.nEvents > 0 && nEvent >= ctx_i.config.nEvents) {
                     break; // Reached the maximum number of events to process
                 }
                 EventStore eventStore;

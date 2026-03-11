@@ -17,7 +17,7 @@ namespace AHCALRecoAlg{
         // Histogram / fit config (macro defaults)
         int    nbin = 800;
         double xmin = 0.0;
-        double xmax = 2000.0;
+        double xmax = 800.0;
 
         int    min_entries = 200;
 
