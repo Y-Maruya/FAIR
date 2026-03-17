@@ -317,7 +317,7 @@ void drawRepresentativeHistogramSet(const std::vector<RunData> &runs,
                            Form("%s %s", gain.c_str(), label.c_str()), 1400, 450 * nRows);
   c->Divide(nCols, nRows);
 
-  int colors[] = {kRed + 1, kBlue + 1, kGreen + 2, kMagenta + 1, kOrange + 7, kCyan + 2};
+  int colors[] = {kRed + 1, kBlue + 1, kGreen + 2, kMagenta + 1, kOrange + 7, kCyan + 2, kRed + 3, kBlue + 3, kGreen + 4, kMagenta + 3, kOrange + 9, kCyan + 4};
 
   for (int i = 0; i < n; ++i) {
     c->cd(i + 1);
@@ -334,7 +334,7 @@ void drawRepresentativeHistogramSet(const std::vector<RunData> &runs,
 
       if (h->Integral() > 0) h->Scale(1.0 / h->Integral());
       h->GetXaxis()->SetRangeUser(cells[i].meanValue - 50, cells[i].meanValue + 50);
-      h->SetLineColor(colors[irun % 6]);
+      h->SetLineColor(colors[irun % 12]);
       h->SetLineWidth(2);
       h->SetStats(0);
       h->SetTitle(Form("%s cell %d (spread = %.3f);ADC counts;Normalized entries",
@@ -455,6 +455,120 @@ TH1D *makeDeltaHist(const char *name,
   for (double d : deltas) h->Fill(d);
   h->SetLineWidth(2);
   return h;
+}
+
+std::vector<double> collectDeltaValues(const RunData &ref,
+                                       const RunData &target,
+                                       const std::string &branch,
+                                       bool onlyFitOk) {
+  std::vector<double> deltas;
+  deltas.reserve(ref.byCellId.size());
+
+  for (const auto &kv : ref.byCellId) {
+    const int cellid = kv.first;
+    const auto it = target.byCellId.find(cellid);
+    if (it == target.byCellId.end()) continue;
+
+    const PedestalEntry &a = kv.second;
+    const PedestalEntry &b = it->second;
+    double va = 0.0;
+    double vb = 0.0;
+    bool ok = true;
+
+    if (branch == "highgain_peak") {
+      ok = !onlyFitOk || (a.fitOk_hg && b.fitOk_hg);
+      va = a.highgain_peak;
+      vb = b.highgain_peak;
+    } else if (branch == "lowgain_peak") {
+      ok = !onlyFitOk || (a.fitOk_lg && b.fitOk_lg);
+      va = a.lowgain_peak;
+      vb = b.lowgain_peak;
+    } else if (branch == "highgain_sigma") {
+      ok = !onlyFitOk || (a.fitOk_hg && b.fitOk_hg);
+      va = a.highgain_sigma;
+      vb = b.highgain_sigma;
+    } else if (branch == "lowgain_sigma") {
+      ok = !onlyFitOk || (a.fitOk_lg && b.fitOk_lg);
+      va = a.lowgain_sigma;
+      vb = b.lowgain_sigma;
+    }
+
+    if (ok) deltas.push_back(vb - va);
+  }
+
+  return deltas;
+}
+
+void drawDeltaFromReferenceByRun(const std::vector<RunData> &runs,
+                                 const std::string &branch,
+                                 const std::string &title,
+                                 const std::string &outTag,
+                                 const std::string &outDir,
+                                 bool onlyFitOk = true) {
+  if (runs.size() < 2) return;
+
+  const RunData &ref = runs.front();
+  std::vector<std::vector<double>> allDeltas(runs.size());
+  double globalMin = 1e30;
+  double globalMax = -1e30;
+
+  for (size_t i = 1; i < runs.size(); ++i) {
+    allDeltas[i] = collectDeltaValues(ref, runs[i], branch, onlyFitOk);
+    if (allDeltas[i].empty()) continue;
+
+    auto mm = std::minmax_element(allDeltas[i].begin(), allDeltas[i].end());
+    globalMin = std::min(globalMin, *mm.first);
+    globalMax = std::max(globalMax, *mm.second);
+  }
+
+  if (globalMin > globalMax) return;
+  if (globalMin == globalMax) {
+    globalMin -= 1.0;
+    globalMax += 1.0;
+  }
+
+  const double span = std::max(1e-6, globalMax - globalMin);
+  const double xmin = globalMin - 0.1 * span;
+  const double xmax = globalMax + 0.1 * span;
+  double ymax = 0.0;
+  TCanvas *c = new TCanvas(Form("c_%s_delta_ref", outTag.c_str()), title.c_str(), 1000, 700);
+  c->SetGrid();
+
+  TLegend *leg = new TLegend(0.62, 0.64, 0.88, 0.88);
+  int colors[] = {kRed + 1, kBlue + 1, kGreen + 2, kMagenta + 1, kOrange + 7, kCyan + 2, kRed + 3, kBlue + 3, kGreen + 4, kMagenta + 3, kOrange + 9, kCyan + 4};
+  bool first = true;
+  std::vector<TH1D *> drawn;
+  for (size_t i = 1; i < runs.size(); ++i) {
+    if (allDeltas[i].empty()) continue;
+
+    TH1D *h = new TH1D(Form("h_%s_delta_ref_%d", outTag.c_str(), runs[i].run),
+                       Form("%s (ref run %d);#Delta ADC;Normalized entries", title.c_str(), ref.run),
+                       80, xmin, xmax);
+    for (double d : allDeltas[i]) h->Fill(d);
+    if (h->Integral() > 0) h->Scale(1.0 / h->Integral());
+    if (ymax < h->GetMaximum()) ymax = h->GetMaximum() * 1.25;
+    h->SetLineColor(colors[(i - 1) % 12]);
+    h->SetLineWidth(2);
+    h->SetStats(0);
+    if (first) {
+      h->Draw("HIST");
+      first = false;
+    } else {
+      h->Draw("HIST SAME");
+    }
+    drawn.push_back(h);
+    leg->AddEntry(h, Form("Run %d - %d", runs[i].run, ref.run), "l");
+  }
+  for (TH1D *hist : drawn) {
+    hist->SetMaximum(ymax);
+  }
+
+  if (!first) {
+    leg->Draw();
+    c->SaveAs((outDir + "/" + outTag + "_delta_from_first_run_overlay.pdf").c_str());
+    c->SaveAs((outDir + "/" + outTag + "_delta_from_first_run_overlay.png").c_str());
+  }
+
 }
 
 void drawSummaryGraphs(const std::vector<RunData> &runs, const std::string &outDir) {
@@ -579,7 +693,7 @@ void drawOverlayHistograms(const std::vector<RunData> &runs, const std::string &
       {"lowgain_sigma", "Low-gain pedestal sigma", "ADC counts", true},
   };
 
-  int colors[] = {kRed + 1, kBlue + 1, kGreen + 2, kMagenta + 1, kOrange + 7, kCyan + 2};
+  int colors[] = {kRed + 1, kBlue + 1, kGreen + 2, kMagenta + 1, kOrange + 7, kCyan + 2, kRed + 3, kBlue + 3, kGreen + 4, kMagenta + 3, kOrange + 9, kCyan + 4};
 
   for (const auto &def : defs) {
     std::vector<TH1D *> hists;
@@ -636,7 +750,7 @@ void drawOverlayHistograms(const std::vector<RunData> &runs, const std::string &
       }
 
       if (h->Integral() > 0) h->Scale(1.0 / h->Integral());
-      h->SetLineColor(colors[i % 6]);
+      h->SetLineColor(colors[i % 12]);
       h->SetLineWidth(2);
       h->SetStats(0);
       if (first) {
@@ -739,7 +853,7 @@ void printSummaryTable(const std::vector<RunData> &runs) {
 }
 
 void compare(const char *baseDir = ".",
-             const char *runListCsv = "22074,22140,22160,22168,22206",
+             const char *runListCsv = "22074,22140,22160,22168,22206,22249,22287,22324,22334",
              int focusCellId = -1,
              const char *outDirName = "compare_plots") {
   gROOT->SetBatch(kTRUE);
@@ -773,6 +887,10 @@ void compare(const char *baseDir = ".",
   drawSummaryGraphs(runs, outDir);
   drawOverlayHistograms(runs, outDir);
   drawRepresentativeHistograms(runs, outDir);
+  drawDeltaFromReferenceByRun(runs, "highgain_peak", "HG peak shift from first run",
+                              "highgain_peak", outDir, true);
+  drawDeltaFromReferenceByRun(runs, "lowgain_peak", "LG peak shift from first run",
+                              "lowgain_peak", outDir, true);
 
   if (focusCellId >= 0) {
     drawCellTrend(runs, focusCellId, outDir);

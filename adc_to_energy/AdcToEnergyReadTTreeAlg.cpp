@@ -228,17 +228,7 @@ AdcToEnergyReadTTreeAlg::~AdcToEnergyReadTTreeAlg() {
 }
 
 int AdcToEnergyReadTTreeAlg::cellid_conversion(int input_cellid) {
-  if (file_cellid_version == 1) {
-    return input_cellid;
-  }
-  if (file_cellid_version == 0) {
-    const int layer = input_cellid / 100000;
-    const int new_layer = AHCALGeometry::PosToLayerID(layer);
-    return new_layer * 100000 + (input_cellid % 100000);
-  }
-  LOG_WARN("Unknown cellid_version: {}. Returning input cellID as is.",
-           file_cellid_version);
-  return input_cellid;
+  return AHCALGeometry::cellid_conversion(input_cellid, file_cellid_version);
 }
 
 void AdcToEnergyReadTTreeAlg::execute(EventStore &evt) { 

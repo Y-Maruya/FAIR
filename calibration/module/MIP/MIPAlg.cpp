@@ -19,6 +19,7 @@
 #include <TString.h>
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <memory>
 #include <string>
@@ -44,10 +45,13 @@ namespace AHCALRecoAlg{
         int ndf = 0;
         int fit_status = 999;
         bool fit_ok = false;
+        double fit_ms = 0.0;
+        double pro_ms = 0.0;
     };
     static FitOut fitLandauGaus(TH1D* h, 
                                 int minEntries)
     {
+        using Clock = std::chrono::steady_clock;
         FitOut r;
         if (!h) return r;
         if (h->GetEntries() < minEntries){
@@ -62,17 +66,26 @@ namespace AHCALRecoAlg{
         int ndf;
         fr[0] = 0;fr[1] = 1500;
         pllo[0] = 0;  pllo[1] = 0; pllo[2] = 100; pllo[3] = 0;
-        plhi[0] = 200;plhi[1] = 700;plhi[2] = 100000;plhi[3] = 300;
+        plhi[0] = 300;plhi[1] = 1200;plhi[2] = 100000;plhi[3] = 300;
         sv[0] = 50; sv[1] = 300; sv[2] = 30000;   sv[3] = 60;
 
+        const auto fit_t0 = Clock::now();
         TF1* fLandauGaus = langaufit(h, fr, sv, pllo, plhi, fps, fpe, &chisqr, &ndf);
+        const auto fit_t1 = Clock::now();
+        r.fit_ms = std::chrono::duration<double, std::milli>(fit_t1 - fit_t0).count();
         if (!fLandauGaus) return r;
+
         double maxx=0,fwhm;
+        const auto pro_t0 = Clock::now();
         langaupro(fps,maxx,fwhm);
+        const auto pro_t1 = Clock::now();
+        r.pro_ms = std::chrono::duration<double, std::milli>(pro_t1 - pro_t0).count();
         r.mpv = fps[1];
         r.width = fps[0];
         r.total_area = fps[2];
         r.gaus_sigma = fps[3];
+        r.max_x = maxx;
+        r.FWHM = fwhm;
         r.entries = h->GetEntries();
         r.chi2 = chisqr;
         r.ndf = ndf;
@@ -210,9 +223,20 @@ namespace AHCALRecoAlg{
             tp.Branch("y_mm", &y_mm);
 
             int nFitAll = 0, nFitOK = 0;
+            constexpr int kTimingLogEvery = 200;
+            struct TimingAgg {
+                double fit_ms = 0.0;
+                double pro_ms = 0.0;
+                double map_ms = 0.0;
+                double tree_ms = 0.0;
+                double total_ms = 0.0;
+                int n = 0;
+            } timing;
+
             LOG_INFO("MIPAlg: start fitting {} histograms", items.size());
             int i = 0;
             for (auto& [cid, hhg] : items) {
+                const auto total_t0 = std::chrono::steady_clock::now();
                 cellid = cid;
                 i++;
                 if (i % 1000 == 0) {
@@ -225,10 +249,14 @@ namespace AHCALRecoAlg{
                 cellid_to_xy(C, ch, x_mm, y_mm);
 
                 FitOut fr;
+                double fit_ms = 0.0;
+                double pro_ms = 0.0;
                 entries = hhg ? static_cast<int>(hhg->GetEntries()) : 0;
                 if (hhg) {
                     nFitAll++;
                     fr = fitLandauGaus(hhg, cfg_.min_entries);
+                    fit_ms = fr.fit_ms;
+                    pro_ms = fr.pro_ms;
                     if (fr.fit_ok) nFitOK++;
                 }
                 mpv = fr.mpv;
@@ -243,6 +271,7 @@ namespace AHCALRecoAlg{
                 fit_status = fr.fit_status;
                 fit_ok = fr.fit_ok ? 1 : 0;
 
+                const auto map_t0 = std::chrono::steady_clock::now();
                 if (L >= 0 && L < AHCALGeometry::Layer_No){
                     const int binx = hMPV[L]->GetXaxis()->FindBin(x_mm);
                     const int biny = hMPV[L]->GetYaxis()->FindBin(y_mm);
@@ -256,8 +285,69 @@ namespace AHCALRecoAlg{
                         }
                     }
                 }
+                const auto map_t1 = std::chrono::steady_clock::now();
+                const double map_ms = std::chrono::duration<double, std::milli>(map_t1 - map_t0).count();
 
+                const auto tree_t0 = std::chrono::steady_clock::now();
                 tp.Fill();
+                const auto tree_t1 = std::chrono::steady_clock::now();
+                const double tree_ms = std::chrono::duration<double, std::milli>(tree_t1 - tree_t0).count();
+
+                const auto total_t1 = std::chrono::steady_clock::now();
+                const double total_ms = std::chrono::duration<double, std::milli>(total_t1 - total_t0).count();
+
+                timing.fit_ms += fit_ms;
+                timing.pro_ms += pro_ms;
+                timing.map_ms += map_ms;
+                timing.tree_ms += tree_ms;
+                timing.total_ms += total_ms;
+                timing.n += 1;
+
+                if (i % kTimingLogEvery == 0) {
+                    const double inv = timing.n > 0 ? 1.0 / timing.n : 0.0;
+                    LOG_DEBUG(
+                        "MIPAlg timing summary n={} fit_avg_ms={:.3f} pro_avg_ms={:.3f} map_avg_ms={:.3f} tree_avg_ms={:.3f} total_avg_ms={:.3f}",
+                        timing.n,
+                        timing.fit_ms * inv,
+                        timing.pro_ms * inv,
+                        timing.map_ms * inv,
+                        timing.tree_ms * inv,
+                        timing.total_ms * inv
+                    );
+                    LOG_DEBUG(
+                        "MIPAlg timing cellid={} entries={} fit_ms={:.3f} pro_ms={:.3f} map_ms={:.3f} tree_ms={:.3f} total_ms={:.3f} fit_ok={}",
+                        cellid,
+                        entries,
+                        fit_ms,
+                        pro_ms,
+                        map_ms,
+                        tree_ms,
+                        total_ms,
+                        fit_ok
+                    );
+                }
+            }
+
+            if (timing.n > 0) {
+                const double total_stage = timing.fit_ms + timing.pro_ms + timing.map_ms + timing.tree_ms;
+                const double fit_frac = total_stage > 0.0 ? 100.0 * timing.fit_ms / total_stage : 0.0;
+                const double pro_frac = total_stage > 0.0 ? 100.0 * timing.pro_ms / total_stage : 0.0;
+                const double map_frac = total_stage > 0.0 ? 100.0 * timing.map_ms / total_stage : 0.0;
+                const double tree_frac = total_stage > 0.0 ? 100.0 * timing.tree_ms / total_stage : 0.0;
+                const double inv = 1.0 / timing.n;
+                LOG_INFO(
+                    "MIPAlg timing final n={} fit_avg_ms={:.3f} ({:.1f}%) pro_avg_ms={:.3f} ({:.1f}%) map_avg_ms={:.3f} ({:.1f}%) tree_avg_ms={:.3f} ({:.1f}%) total_avg_ms={:.3f}",
+                    timing.n,
+                    timing.fit_ms * inv,
+                    fit_frac,
+                    timing.pro_ms * inv,
+                    pro_frac,
+                    timing.map_ms * inv,
+                    map_frac,
+                    timing.tree_ms * inv,
+                    tree_frac,
+                    timing.total_ms * inv
+                );
             }
 
             auto cAllMPV = std::make_unique<TCanvas>("cAllMPV_7x6", "MIP MPV maps (all layers)", 5600, 4200);

@@ -1,5 +1,6 @@
 #pragma once
 #include <vector>
+#include "common/Logger.hpp"
 // #include "EventFormats/AHCALDataFragment.hpp"
 
 namespace AHCALGeometry {
@@ -83,6 +84,19 @@ namespace AHCALGeometry {
             if(channel==33)channel=35;
             else if(channel==35)channel=33;
         }
+    }
+    inline int cellid_conversion(int input_cellid, int cellid_version){
+        if (cellid_version == 1) {
+            return input_cellid;
+        }
+        if (cellid_version == 0) {
+            const int layer = input_cellid / 100000;
+            const int new_layer = AHCALGeometry::PosToLayerID(layer);
+            return new_layer * 100000 + (input_cellid % 100000);
+        }
+        LOG_WARN("Unknown cellid_version: {}. Returning input cellID as is.",
+                cellid_version);
+        return input_cellid;
     }
 }
 

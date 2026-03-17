@@ -5,11 +5,7 @@ import re
 # output_file = "pedestal_run.txt"
 # NOTE: Use tuples (run_number, output_file). Sets are unordered, and can swap values.
 good_run_list = [
-    (22074, "ped_22074.txt"),
-    (22140, "ped_22140.txt"),
-    (22160, "ped_22160.txt"),
-    (22168, "ped_22168.txt"),
-    (22206, "ped_22206.txt"),
+    (22334, "ped_22334.txt")
 ]
 
 # search path of raw data from /eos/experiment/faser/raw/2026/0"run_number"/Faser*-Physics-0"run_number"-*.raw

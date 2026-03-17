@@ -105,6 +105,7 @@ int main(int argc, char* argv[]) {
             ctx.config.runNumber = runNumbers[iinput];
             ctx.config.poolIndex = poolIndexes[iinput];
             ctx.config.output = outputfile;
+            ctx.conditions = parse_condition_store(runNumbers[iinput]);
             LOG_INFO("Processing input file: {} (RunNumber: {}, PoolIndex: {})", ctx.config.input, ctx.config.runNumber, ctx.config.poolIndex);
             LOG_INFO("Inputs = {} / {}", iinput + 1, ninputs);
             RootRawHitReader rawHitReader(ctx.config.input, "Raw_Hit");
@@ -148,6 +149,7 @@ int main(int argc, char* argv[]) {
             ctx.config.runNumber = runNumbers[iinput];
             ctx.config.poolIndex = poolIndexes[iinput];
             ctx.config.output = outputfile;
+            ctx.conditions = parse_condition_store(runNumbers[iinput]);
             LOG_INFO("Processing input file: {} (RunNumber: {}, PoolIndex: {})", ctx.config.input, ctx.config.runNumber, ctx.config.poolIndex);
             LOG_INFO("Inputs = {} / {}", iinput + 1, ninputs);
             BinaryRawHitReader rawHitReader(ctx.config.input);
@@ -189,6 +191,7 @@ int main(int argc, char* argv[]) {
             ctx.config.runNumber = runNumbers[iinput];
             ctx.config.poolIndex = poolIndexes[iinput];
             ctx.config.output = outputfile;
+            // ctx.conditions = parse_condition_store(runNumbers[iinput]);
             LOG_INFO("Processing input file: {} (RunNumber: {}, PoolIndex: {})", ctx.config.input, ctx.config.runNumber, ctx.config.poolIndex);
             LOG_INFO("Inputs = {} / {}", iinput + 1, ninputs);
             SimHitReader simHitReader(ctx.config.input);
@@ -227,7 +230,7 @@ int main(int argc, char* argv[]) {
             ctx.config.runNumber = runNumbers[iinput];
             ctx.config.poolIndex = poolIndexes[iinput];
             ctx.config.output = outputfile;
-            LOG_INFO("Processing input file: {} (RunNumber: {}, PoolIndex: {})", ctx.config.input, ctx.config.runNumber, ctx.config.poolIndex);
+            ctx.conditions = parse_condition_store(runNumbers[iinput]);
             LOG_INFO("Inputs = {} / {}", iinput + 1, ninputs);
             // Initialize RootInput reader
             RootInput in(ctx.config.input, "events");

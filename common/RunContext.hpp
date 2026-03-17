@@ -17,6 +17,15 @@ struct RunConfig {
 struct ConditionStore {
   // Placeholder for condition data
   std::vector<int> skipLayers = {0,2,14,24};
+  int nTriggerLayers = 4;
+  std::vector<int> triggerLayers = {9,19,29,38};
+  double starttime = 0;
+  double endtime = 0;
+  std::string triggerLogic = "";
+  std::vector<double> thresholds = {0.1, 0.1, 0.1, 0.1, -0.075, -0.075};
+  std::vector<int> triggerStretch = {3,3,3,3,20,20}; // in units of 6.25ns
+  std::vector<int> triggerDelay = {2,2,2,2,0,0}; // in units of 6.25ns
+  int calibRate = 0; 
 };
 
 struct RunContext {

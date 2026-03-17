@@ -148,7 +148,7 @@ int main(int argc, char* argv[]) {
             ctx_i.config.poolIndex = poolIndexes[iinput];
         }
         // ctx_i.config.output = output_files[iinput];
-        
+        ctx_i.conditions = parse_condition_store(runNumbers[iinput]);
         LOG_INFO("Processing input file: {} (RunNumber: {}, PoolIndex: {})", ctx_i.config.input, ctx_i.config.runNumber, ctx_i.config.poolIndex);
         LOG_INFO("Inputs = {} / {}", iinput + 1, ninputs);
         auto algs = build_pipeline(ctx_i, config_i);

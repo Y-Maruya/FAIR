@@ -128,6 +128,9 @@ endif()
 option(FAIR_WITH_MUPARSER "Use muParser for cut/expression evaluation" ON)
 option(FAIR_INSTALL_MUPARSER "Install muparser when running 'cmake --install'" OFF)
 
+# Use curl for fetching run conditions from web API
+find_package(CURL REQUIRED)
+target_link_libraries(fair_options INTERFACE CURL::libcurl)
 
 # ---------------------------
 # Subprojects

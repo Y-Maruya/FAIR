@@ -36,6 +36,8 @@ if(TARGET fair_options)
       VetoEffAlg
       InputEffAlg
       NoiseHitAlg
+      SimHitReader
+      RateAnaAlg
       -Wl,--no-whole-archive
   )
   target_link_libraries(fair_single 
@@ -55,6 +57,7 @@ if(TARGET fair_options)
       InputEffAlg
       NoiseHitAlg
       SimHitReader
+      RateAnaAlg
       -Wl,--no-whole-archive
   )
   target_link_libraries(EventDisplay2D
