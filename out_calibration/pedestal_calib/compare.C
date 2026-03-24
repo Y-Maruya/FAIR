@@ -1,7 +1,9 @@
 #include <algorithm>
+#include <cctype>
 #include <cmath>
 #include <cstdlib>
 #include <fstream>
+#include <functional>
 #include <iostream>
 #include <map>
 #include <numeric>
@@ -32,17 +34,21 @@ struct PedestalEntry {
   int entries_lg = 0;
   int fitStatus_hg = 0;
   int fitStatus_lg = 0;
-  int fitOk_hg = 0;
-  int fitOk_lg = 0;
+  int fitOk_hg = 1;
+  int fitOk_lg = 1;
   double x_mm = 0.0;
   double y_mm = 0.0;
 };
 
 struct RunData {
   int run = 0;
+  std::string label;
   std::string path;
   std::vector<PedestalEntry> entries;
   std::map<int, PedestalEntry> byCellId;
+  bool hasFitFlags = false;
+  bool hasCoordinates = false;
+  bool usesRmsForSigma = false;
 };
 
 struct SummaryStats {
@@ -65,7 +71,17 @@ struct CellShiftInfo {
 std::vector<int> parseRunList(const char *csv) {
   std::vector<int> runs;
   if (!csv) return runs;
-
+  if (csv == std::string("all")) {
+    gSystem->Exec("ls -d */ | sed 's#/##' > run_list.txt");
+    std::ifstream ifs("run_list.txt");
+    std::string line;
+    while (std::getline(ifs, line)) {
+      line.erase(std::remove_if(line.begin(), line.end(), ::isspace), line.end());
+      if (line.empty()) continue;
+      runs.push_back(std::atoi(line.c_str()));
+    }
+    return runs;
+  }
   std::stringstream ss(csv);
   std::string token;
   while (std::getline(ss, token, ',')) {
@@ -74,6 +90,59 @@ std::vector<int> parseRunList(const char *csv) {
     runs.push_back(std::atoi(token.c_str()));
   }
   return runs;
+}
+
+bool setBranchIfExists(TTree *tree, const char *name, void *addr) {
+  if (!tree || !tree->GetBranch(name)) return false;
+  tree->SetBranchAddress(name, addr);
+  return true;
+}
+    inline int HBUPositionOrder[40] = {
+                                39, 38, 37, 27, 14, 6, 7, 9, 12, 0,
+                        2, 3, 5, 8, 10, 11, 13, 15, 16, 1, 
+                        17, 18, 19, 20, 21, 22, 23, 24, 25, 4, 
+                        26, 28, 29, 30, 31, 32, 33, 35, 34, 36
+                        };
+    inline int PosToLayerID(int position_order){
+        for (int i = 0; i < 40; ++i){
+            if (HBUPositionOrder[i] == position_order){
+                return i;
+            }
+        }
+        return -1; // not found
+    }
+int mapCellIdForComparison(int rawCellId) {
+  // TODO(ymaruya): implement TestBeam->FAIR cellid conversion here when map is finalized.
+        const int layer = rawCellId / 100000;
+        const int new_layer = PosToLayerID(layer);
+        rawCellId = new_layer * 100000 + (rawCellId % 100000);
+  return rawCellId;
+}
+
+int mapCellIdForComparisonInverse(int mappedCellId) {
+  // TODO(ymaruya): implement FAIR->TestBeam cellid conversion here when map is finalized.
+    const int layer = mappedCellId / 100000;
+        const int new_layer = HBUPositionOrder[layer];
+        mappedCellId = new_layer * 100000 + (mappedCellId % 100000);
+  return mappedCellId;
+}
+
+std::string toLowerAscii(std::string s) {
+  std::transform(s.begin(), s.end(), s.begin(),
+                 [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+  return s;
+}
+
+std::vector<std::string> getGainAliases(const std::string &gain) {
+  std::vector<std::string> aliases;
+  aliases.push_back(gain);
+  if (gain == "HG") aliases.push_back("highgain");
+  if (gain == "LG") aliases.push_back("lowgain");
+  std::string lower = toLowerAscii(gain);
+  if (std::find(aliases.begin(), aliases.end(), lower) == aliases.end()) {
+    aliases.push_back(lower);
+  }
+  return aliases;
 }
 
 SummaryStats computeStats(const std::vector<double> &values) {
@@ -112,10 +181,15 @@ SummaryStats extractStats(const RunData &runData, const std::string &what, bool 
   return computeStats(values);
 }
 
-bool loadRun(const std::string &baseDir, int run, RunData &out) {
+bool loadRunFromFile(const std::string &filePath,
+                     int run,
+                     const std::string &label,
+                     bool applyCellIdMapping,
+                     RunData &out) {
   out = RunData();
   out.run = run;
-  out.path = baseDir + "/" + std::to_string(run) + "/pedestal.root";
+  out.label = label;
+  out.path = filePath;
 
   TFile *file = TFile::Open(out.path.c_str(), "READ");
   if (!file || file->IsZombie()) {
@@ -132,31 +206,77 @@ bool loadRun(const std::string &baseDir, int run, RunData &out) {
   }
 
   PedestalEntry e;
-  tree->SetBranchAddress("cellid", &e.cellid);
-  tree->SetBranchAddress("highgain_peak", &e.highgain_peak);
-  tree->SetBranchAddress("lowgain_peak", &e.lowgain_peak);
-  tree->SetBranchAddress("highgain_sigma", &e.highgain_sigma);
-  tree->SetBranchAddress("lowgain_sigma", &e.lowgain_sigma);
-  tree->SetBranchAddress("entries_hg", &e.entries_hg);
-  tree->SetBranchAddress("entries_lg", &e.entries_lg);
-  tree->SetBranchAddress("fitStatus_hg", &e.fitStatus_hg);
-  tree->SetBranchAddress("fitStatus_lg", &e.fitStatus_lg);
-  tree->SetBranchAddress("fitOk_hg", &e.fitOk_hg);
-  tree->SetBranchAddress("fitOk_lg", &e.fitOk_lg);
-  tree->SetBranchAddress("x_mm", &e.x_mm);
-  tree->SetBranchAddress("y_mm", &e.y_mm);
+  if (!setBranchIfExists(tree, "cellid", &e.cellid) ||
+      !setBranchIfExists(tree, "highgain_peak", &e.highgain_peak) ||
+      !setBranchIfExists(tree, "lowgain_peak", &e.lowgain_peak)) {
+    std::cerr << "[compare] missing mandatory branches in " << out.path << std::endl;
+    file->Close();
+    return false;
+  }
+
+  bool hasHgSigma = setBranchIfExists(tree, "highgain_sigma", &e.highgain_sigma);
+  bool hasLgSigma = setBranchIfExists(tree, "lowgain_sigma", &e.lowgain_sigma);
+  bool hasHgRms = false;
+  bool hasLgRms = false;
+  if (!hasHgSigma) hasHgRms = setBranchIfExists(tree, "highgain_rms", &e.highgain_sigma);
+  if (!hasLgSigma) hasLgRms = setBranchIfExists(tree, "lowgain_rms", &e.lowgain_sigma);
+  if ((!hasHgSigma && !hasHgRms) || (!hasLgSigma && !hasLgRms)) {
+    std::cerr << "[compare] missing sigma/rms branches in " << out.path << std::endl;
+    file->Close();
+    return false;
+  }
+
+  out.usesRmsForSigma = hasHgRms || hasLgRms;
+  setBranchIfExists(tree, "entries_hg", &e.entries_hg);
+  setBranchIfExists(tree, "entries_lg", &e.entries_lg);
+  setBranchIfExists(tree, "fitStatus_hg", &e.fitStatus_hg);
+  setBranchIfExists(tree, "fitStatus_lg", &e.fitStatus_lg);
+  bool hasFitOkHg = setBranchIfExists(tree, "fitOk_hg", &e.fitOk_hg);
+  bool hasFitOkLg = setBranchIfExists(tree, "fitOk_lg", &e.fitOk_lg);
+  out.hasFitFlags = hasFitOkHg && hasFitOkLg;
+  bool hasX = setBranchIfExists(tree, "x_mm", &e.x_mm);
+  bool hasY = setBranchIfExists(tree, "y_mm", &e.y_mm);
+  out.hasCoordinates = hasX && hasY;
 
   const Long64_t nEntries = tree->GetEntries();
   out.entries.reserve(nEntries);
 
   for (Long64_t i = 0; i < nEntries; ++i) {
+    e.fitOk_hg = 1;
+    e.fitOk_lg = 1;
+    e.x_mm = 0.0;
+    e.y_mm = 0.0;
     tree->GetEntry(i);
-    out.entries.push_back(e);
-    out.byCellId[e.cellid] = e;
+    PedestalEntry mapped = e;
+    mapped.cellid = applyCellIdMapping ? mapCellIdForComparison(e.cellid) : e.cellid;
+    out.entries.push_back(mapped);
+    out.byCellId[mapped.cellid] = mapped;
+  }
+
+  if (!out.hasFitFlags) {
+    std::cout << "[compare] run " << run
+              << " has no fitOk branches, using all cells as valid" << std::endl;
+  }
+  if (!out.hasCoordinates) {
+    std::cout << "[compare] run " << run
+              << " has no x_mm/y_mm coordinates" << std::endl;
   }
 
   file->Close();
   return true;
+}
+
+bool loadRun(const std::string &baseDir, int run, RunData &out) {
+  const std::string path = baseDir + "/" + std::to_string(run) + "/pedestal.root";
+  return loadRunFromFile(path, run, std::to_string(run), false, out);
+}
+
+bool loadTestBeamRun(const std::string &baseDir,
+                     const std::string &testBeamDir,
+                     int pseudoRun,
+                     RunData &out) {
+  const std::string path = baseDir + "/" + testBeamDir + "/pedestal.root";
+  return loadRunFromFile(path, pseudoRun, testBeamDir, true, out);
 }
 
 void setGraphStyle(TGraph *g, int color, int markerStyle) {
@@ -255,11 +375,13 @@ TH1 *loadPedestalHistogram(const std::string &filePath, const std::string &gain,
     return nullptr;
   }
 
-  std::vector<std::string> candidates = {
-      Form("Pedestal/%s/hPed%s_%d", gain.c_str(), gain.c_str(), cellid),
-      Form("%s/hPed%s_%d", gain.c_str(), gain.c_str(), cellid),
-      Form("hPed%s_%d", gain.c_str(), cellid),
-  };
+  std::vector<std::string> candidates;
+  std::vector<std::string> aliases = getGainAliases(gain);
+  for (const std::string &alias : aliases) {
+    candidates.push_back(Form("Pedestal/%s/hPed%s_%d", alias.c_str(), alias.c_str(), cellid));
+    candidates.push_back(Form("%s/hPed%s_%d", alias.c_str(), alias.c_str(), cellid));
+    candidates.push_back(Form("hPed%s_%d", alias.c_str(), cellid));
+  }
 
   TH1 *hist = nullptr;
   for (const auto &name : candidates) {
@@ -323,13 +445,17 @@ void drawRepresentativeHistogramSet(const std::vector<RunData> &runs,
     c->cd(i + 1);
     gPad->SetGrid();
 
-    TLegend *leg = new TLegend(0.58, 0.62, 0.88, 0.88);
+    TLegend *leg = new TLegend(0.58, 0.45, 0.88, 0.88);
     bool first = true;
     double maxY = 0.0;
     std::vector<TH1 *> drawn;
 
     for (size_t irun = 0; irun < runs.size(); ++irun) {
-      TH1 *h = loadPedestalHistogram(runs[irun].path, gain, cells[i].cellid);
+      TH1 *h = loadPedestalHistogram(runs[irun].path, gain, cells[i].cellid); 
+      if (runs[irun].path.find("EHN1") != std::string::npos || runs[irun].path.find("TestBeam") != std::string::npos) {
+        h = loadPedestalHistogram(runs[irun].path, gain, mapCellIdForComparisonInverse(cells[i].cellid));
+        // continue;
+      }
       if (!h) continue;
 
       if (h->Integral() > 0) h->Scale(1.0 / h->Integral());
@@ -347,13 +473,18 @@ void drawRepresentativeHistogramSet(const std::vector<RunData> &runs,
       } else {
         h->Draw("HIST SAME");
       }
-      leg->AddEntry(h, Form("Run %d", runs[irun].run), "l");
+      leg->AddEntry(h, runs[irun].label.c_str(), "l");
       drawn.push_back(h);
     }
 
     if (!drawn.empty()) {
       drawn.front()->SetMaximum(maxY * 1.25);
-      leg->SetHeader(Form("cellid=%d, (x,y)=(%.1f, %.1f)", cells[i].cellid, cells[i].x_mm, cells[i].y_mm), "C");
+      bool haveCoords = std::abs(cells[i].x_mm) > 1e-12 || std::abs(cells[i].y_mm) > 1e-12;
+      if (haveCoords) {
+        leg->SetHeader(Form("cellid=%d, (x,y)=(%.1f, %.1f)", cells[i].cellid, cells[i].x_mm, cells[i].y_mm), "C");
+      } else {
+        leg->SetHeader(Form("cellid=%d, coords=N/A", cells[i].cellid), "C");
+      }
       leg->Draw();
     }
   }
@@ -557,7 +688,7 @@ void drawDeltaFromReferenceByRun(const std::vector<RunData> &runs,
       h->Draw("HIST SAME");
     }
     drawn.push_back(h);
-    leg->AddEntry(h, Form("Run %d - %d", runs[i].run, ref.run), "l");
+    leg->AddEntry(h, Form("%s - %s", runs[i].label.c_str(), ref.label.c_str()), "l");
   }
   for (TH1D *hist : drawn) {
     hist->SetMaximum(ymax);
@@ -759,7 +890,7 @@ void drawOverlayHistograms(const std::vector<RunData> &runs, const std::string &
       } else {
         h->Draw("HIST SAME");
       }
-      leg->AddEntry(h, Form("Run %d", runs[i].run), "l");
+      leg->AddEntry(h, runs[i].label.c_str(), "l");
       hists.push_back(h);
     }
 
@@ -840,7 +971,7 @@ void printSummaryTable(const std::vector<RunData> &runs) {
     double fracHg = 100.0 * okHg / std::max(1, static_cast<int>(run.entries.size()));
     double fracLg = 100.0 * okLg / std::max(1, static_cast<int>(run.entries.size()));
 
-    std::cout << run.run << "\t"
+    std::cout << run.label << "\t"
               << run.entries.size() << "\t"
               << sHgPeak.mean << "\t"
               << sLgPeak.mean << "\t"
@@ -853,9 +984,10 @@ void printSummaryTable(const std::vector<RunData> &runs) {
 }
 
 void compare(const char *baseDir = ".",
-             const char *runListCsv = "22074,22140,22160,22168,22206,22249,22287,22324,22334",
+             const char *runListCsv = "all",
              int focusCellId = -1,
-             const char *outDirName = "compare_plots") {
+             const char *outDirName = "compare_plots",
+             const char *testBeamDir = "") {
   gROOT->SetBatch(kTRUE);
   gStyle->SetOptStat(0);
 
@@ -872,9 +1004,23 @@ void compare(const char *baseDir = ".",
   for (int run : runNumbers) {
     RunData data;
     if (loadRun(baseDir, run, data)) {
-      std::cout << "[compare] loaded run " << run << " from " << data.path
+      std::cout << "[compare] loaded run " << data.label << " from " << data.path
                 << " with " << data.entries.size() << " cells" << std::endl;
       runs.push_back(data);
+    }
+  }
+
+  if (testBeamDir && std::string(testBeamDir).size() > 0) {
+    const int pseudoRun = runNumbers.empty()
+                              ? 1
+                              : (*std::max_element(runNumbers.begin(), runNumbers.end()) + 1);
+    RunData tbData;
+    if (loadTestBeamRun(baseDir, testBeamDir, pseudoRun, tbData)) {
+      std::cout << "[compare] loaded TestBeam run " << tbData.label << " from " << tbData.path
+                << " with " << tbData.entries.size() << " cells (cellid mapped)" << std::endl;
+      runs.push_back(tbData);
+    } else {
+      std::cout << "[compare] TestBeam data not loaded from " << testBeamDir << std::endl;
     }
   }
 
@@ -891,7 +1037,16 @@ void compare(const char *baseDir = ".",
                               "highgain_peak", outDir, true);
   drawDeltaFromReferenceByRun(runs, "lowgain_peak", "LG peak shift from first run",
                               "lowgain_peak", outDir, true);
-
+  // The channel need to be monitored
+  CellShiftInfo monitorCell;
+  monitorCell.cellid = 870013;
+  monitorCell.x_mm = 0.0;
+  monitorCell.y_mm = 0.0;
+  monitorCell.refValue = 315.0;
+  monitorCell.meanValue = 315.0;
+  monitorCell.spread = 0.0;
+  std::vector<CellShiftInfo> monitorCells= {monitorCell};
+  drawRepresentativeHistogramSet(runs, monitorCells, "HG", "monitor cell", outDir, "monitor_cell");
   if (focusCellId >= 0) {
     drawCellTrend(runs, focusCellId, outDir);
   }

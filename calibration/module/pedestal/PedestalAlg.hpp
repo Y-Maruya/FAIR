@@ -11,8 +11,10 @@ namespace AHCALRecoAlg{
         std::string in_rawhit_key = "RawHits";
 
         bool pedestal_to_file = true;
-        bool pedestal_to_DB = false; // (未実装)
+        bool pedestal_to_DB = false;
+        bool pedestal_to_json = true;
         std::string out_pedestal_filename = "pedestal.root";
+        std::string out_json_filename = "pedestal.json";
 
         // Histogram / fit config (macro defaults)
         int    nbin = 800;

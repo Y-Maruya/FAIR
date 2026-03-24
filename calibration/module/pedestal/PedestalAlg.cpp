@@ -18,11 +18,19 @@
 
 #include <algorithm>
 #include <cmath>
+#include <ctime>
+#include <fstream>
+#include <iomanip>
 #include <memory>
+#include <sstream>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
+
+#include <nlohmann/json.hpp>
+
+using json = nlohmann::json;
 AHCAL_REGISTER_ALG(AHCALRecoAlg::PedestalAlg, "PedestalAlg")
 namespace AHCALRecoAlg {
 
@@ -130,7 +138,8 @@ static inline void cellid_to_xy(int chip, int channel, double& x, double& y) {
 } // namespace
 
 struct PedestalAlg::Impl {
-  explicit Impl(PedestalAlgCfg cfg) : cfg_(std::move(cfg)) {}
+  explicit Impl(PedestalAlgCfg cfg, const RunContext& ctx) 
+    : cfg_(std::move(cfg)), ctx_(ctx) {}
 
   void fill(const AHCALRawHit& h) {
     if (cfg_.use_hittag) {
@@ -344,6 +353,8 @@ struct PedestalAlg::Impl {
     LOG_INFO("PedestalAlg: wrote {}", cfg_.out_pedestal_filename);
     LOG_INFO("PedestalAlg: HG fit OK/all = {}/{}", nFitOK_HG, nFitAll_HG);
     LOG_INFO("PedestalAlg: LG fit OK/all = {}/{}", nFitOK_LG, nFitAll_LG);
+
+    writeJson();
   }
 
   std::unique_ptr<TH1D> make_hist(int cellid, bool isHG) {
@@ -356,7 +367,128 @@ struct PedestalAlg::Impl {
     return h;
   }
 
+  void writeJson() {
+    if (!cfg_.pedestal_to_json) return;
+
+    // Generate ISO8601 timestamp
+    auto now = std::time(nullptr);
+    auto tm = *std::gmtime(&now);
+    std::ostringstream oss;
+    oss << std::put_time(&tm, "%Y-%m-%dT%H:%M:%SZ");
+    std::string timestamp = oss.str();
+
+    // Build JSON object
+    json j;
+    
+    // Metadata section
+    j["metadata"]["runNumber"] = ctx_.config.runNumber;
+    j["metadata"]["timestamp"] = timestamp;
+    j["metadata"]["algorithm"] = "PedestalAlg";
+    
+    // Config section
+    j["metadata"]["config"]["nbin"] = cfg_.nbin;
+    j["metadata"]["config"]["xmin"] = cfg_.xmin;
+    j["metadata"]["config"]["xmax"] = cfg_.xmax;
+    j["metadata"]["config"]["min_entries"] = cfg_.min_entries;
+    j["metadata"]["config"]["nsigma_win1"] = cfg_.nsigma_win1;
+    j["metadata"]["config"]["nsigma_win2"] = cfg_.nsigma_win2;
+    j["metadata"]["config"]["sigma_min"] = cfg_.sigma_min;
+    j["metadata"]["config"]["sigma_max"] = cfg_.sigma_max;
+    j["metadata"]["config"]["use_hittag"] = cfg_.use_hittag;
+    j["metadata"]["config"]["select_hittag"] = cfg_.select_hittag;
+    
+    j["metadata"]["data_version"] = "1.0";
+
+    // Build pedestals array
+    std::unordered_set<int> keys;
+    keys.reserve(hg_hist_.size() + lg_hist_.size());
+    for (const auto& [k, _] : hg_hist_) keys.insert(k);
+    for (const auto& [k, _] : lg_hist_) keys.insert(k);
+
+    int nFitOK_HG_total = 0, nFitAll_HG_total = 0;
+    int nFitOK_LG_total = 0, nFitAll_LG_total = 0;
+
+    json pedestals_array = json::array();
+
+    for (int cid : keys) {
+      // decode using EDM helpers
+      AHCALRawHit tmp;
+      tmp.cellID = cid;
+      const int L  = tmp.layer();
+      const int C  = tmp.chip();
+      const int ch = tmp.channel();
+
+      double x_mm = -999.0, y_mm = -999.0;
+      cellid_to_xy(C, ch, x_mm, y_mm);
+
+      TH1D* hhg = nullptr;
+      TH1D* hlg = nullptr;
+      if (auto it = hg_hist_.find(cid); it != hg_hist_.end()) hhg = it->second.get();
+      if (auto it = lg_hist_.find(cid); it != lg_hist_.end()) hlg = it->second.get();
+
+      FitOut fr_hg;
+      int entries_hg = hhg ? static_cast<int>(hhg->GetEntries()) : 0;
+      if (hhg) {
+        nFitAll_HG_total++;
+        fr_hg = fitPedestalGaussian(hhg, cfg_.min_entries, cfg_.nsigma_win1, cfg_.nsigma_win2,
+                                    cfg_.sigma_min, cfg_.sigma_max);
+        if (fr_hg.ok) nFitOK_HG_total++;
+      }
+
+      FitOut fr_lg;
+      int entries_lg = hlg ? static_cast<int>(hlg->GetEntries()) : 0;
+      if (hlg) {
+        nFitAll_LG_total++;
+        fr_lg = fitPedestalGaussian(hlg, cfg_.min_entries, cfg_.nsigma_win1, cfg_.nsigma_win2,
+                                    cfg_.sigma_min, cfg_.sigma_max);
+        if (fr_lg.ok) nFitOK_LG_total++;
+      }
+
+      json ped_record;
+      ped_record["cellid"] = cid;
+      ped_record["layer"] = L;
+      ped_record["chip"] = C;
+      ped_record["channel"] = ch;
+      // ped_record["x_mm"] = x_mm;
+      // ped_record["y_mm"] = y_mm;
+      
+      ped_record["highgain"]["peak"] = fr_hg.mean;
+      ped_record["highgain"]["sigma"] = fr_hg.sigma;
+      ped_record["highgain"]["entries"] = entries_hg;
+      ped_record["highgain"]["fitStatus"] = fr_hg.status;
+      ped_record["highgain"]["fitOk"] = fr_hg.ok ? 1 : 0;
+      
+      ped_record["lowgain"]["peak"] = fr_lg.mean;
+      ped_record["lowgain"]["sigma"] = fr_lg.sigma;
+      ped_record["lowgain"]["entries"] = entries_lg;
+      ped_record["lowgain"]["fitStatus"] = fr_lg.status;
+      ped_record["lowgain"]["fitOk"] = fr_lg.ok ? 1 : 0;
+      
+      pedestals_array.push_back(ped_record);
+    }
+
+    // Statistics section
+    j["metadata"]["statistics"]["nFitOK_HG"] = nFitOK_HG_total;
+    j["metadata"]["statistics"]["nFitAll_HG"] = nFitAll_HG_total;
+    j["metadata"]["statistics"]["nFitOK_LG"] = nFitOK_LG_total;
+    j["metadata"]["statistics"]["nFitAll_LG"] = nFitAll_LG_total;
+
+    j["pedestals"] = pedestals_array;
+
+    // Write to file
+    std::ofstream jout(cfg_.out_json_filename);
+    if (!jout.is_open()) {
+      LOG_ERROR("PedestalAlg: cannot create JSON output file: {}", cfg_.out_json_filename);
+      return;
+    }
+    jout << j.dump(2) << std::endl;
+    jout.close();
+
+    LOG_INFO("PedestalAlg: wrote JSON {}", cfg_.out_json_filename);
+  }
+
   PedestalAlgCfg cfg_;
+  const RunContext& ctx_;
   bool written_ = false;
   std::unordered_map<int, std::unique_ptr<TH1D>> hg_hist_;
   std::unordered_map<int, std::unique_ptr<TH1D>> lg_hist_;
@@ -372,7 +504,7 @@ PedestalAlg::~PedestalAlg() {
 }
 
 void PedestalAlg::execute(EventStore& evt) {
-  if (!impl_) impl_.reset(new Impl(cfg_));
+  if (!impl_) impl_.reset(new Impl(cfg_, ctx()));
 
   auto raw_hits = evt.get<std::vector<AHCALRawHit>>(cfg_.in_rawhit_key);
   for (const auto& h : raw_hits) {
@@ -384,7 +516,9 @@ void PedestalAlg::parse_cfg(const YAML::Node& n) {
   cfg_.in_rawhit_key = get_or<std::string>(n, "in_rawhit_key", cfg_.in_rawhit_key);
 
   cfg_.pedestal_to_file = get_or<bool>(n, "pedestal_to_file", cfg_.pedestal_to_file);
+  cfg_.pedestal_to_json = get_or<bool>(n, "pedestal_to_json", cfg_.pedestal_to_json);
   cfg_.out_pedestal_filename = get_or<std::string>(n, "out_pedestal_filename", cfg_.out_pedestal_filename);
+  cfg_.out_json_filename = get_or<std::string>(n, "out_json_filename", cfg_.out_json_filename);
 
   cfg_.nbin = get_or<int>(n, "nbin", cfg_.nbin);
   cfg_.xmin = get_or<double>(n, "xmin", cfg_.xmin);

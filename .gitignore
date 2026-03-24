@@ -6,7 +6,8 @@ out/
 scripts/logs/
 scripts/err/
 scripts/out/
+scripts/*.cc
 scripts/faser-secret.json
 eventdisplay*/*
-out_calibration/pedestal_calib/log
-out_calibration/pedestal_calib/*/*
+out_calibration/*_calib/log
+out_calibration/*_calib/*/*

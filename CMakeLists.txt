@@ -132,6 +132,9 @@ option(FAIR_INSTALL_MUPARSER "Install muparser when running 'cmake --install'" O
 find_package(CURL REQUIRED)
 target_link_libraries(fair_options INTERFACE CURL::libcurl)
 
+# json (for config files, optional)
+find_package(nlohmann_json REQUIRED)
+target_link_libraries(fair_options INTERFACE nlohmann_json::nlohmann_json)
 # ---------------------------
 # Subprojects
 # ---------------------------

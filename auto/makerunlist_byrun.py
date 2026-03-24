@@ -1,11 +1,16 @@
 import glob
 import os
 import re
-
+import argparse
 # output_file = "pedestal_run.txt"
 # NOTE: Use tuples (run_number, output_file). Sets are unordered, and can swap values.
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--runnumber", type=int, help="Run number")
+args = parser.parse_args()
+
 good_run_list = [
-    (22296, "muon_run22296.txt")
+    (args.runnumber, f"ped_{args.runnumber}.txt")
 ]
 
 # search path of raw data from /eos/experiment/faser/raw/2026/0"run_number"/Faser*-Physics-0"run_number"-*.raw
