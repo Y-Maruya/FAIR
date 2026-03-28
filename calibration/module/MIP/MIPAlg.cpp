@@ -21,11 +21,19 @@
 #include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <ctime>
+#include <fstream>
+#include <iomanip>
 #include <memory>
+#include <sstream>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
+
+#include <nlohmann/json.hpp>
+
+using json = nlohmann::json;
 
 AHCAL_REGISTER_ALG(AHCALRecoAlg::MIPAlg, "MIPAlg")
 const double XYMIN = -AHCALGeometry::x_max;
@@ -49,7 +57,8 @@ namespace AHCALRecoAlg{
         double pro_ms = 0.0;
     };
     static FitOut fitLandauGaus(TH1D* h, 
-                                int minEntries)
+                                int minEntries,
+                                bool calculate_fwhm = true)
     {
         using Clock = std::chrono::steady_clock;
         FitOut r;
@@ -75,23 +84,27 @@ namespace AHCALRecoAlg{
         r.fit_ms = std::chrono::duration<double, std::milli>(fit_t1 - fit_t0).count();
         if (!fLandauGaus) return r;
 
-        double maxx=0,fwhm;
-        const auto pro_t0 = Clock::now();
-        langaupro(fps,maxx,fwhm);
-        const auto pro_t1 = Clock::now();
-        r.pro_ms = std::chrono::duration<double, std::milli>(pro_t1 - pro_t0).count();
+        double maxx=0,fwhm=-1.0;
+        if (calculate_fwhm) {
+            const auto pro_t0 = Clock::now();
+            langaupro(fps,maxx,fwhm);
+            const auto pro_t1 = Clock::now();
+            r.pro_ms = std::chrono::duration<double, std::milli>(pro_t1 - pro_t0).count();
+        } else {
+            r.pro_ms = 0.0;
+        }
         r.mpv = fps[1];
         r.width = fps[0];
         r.total_area = fps[2];
         r.gaus_sigma = fps[3];
-        r.max_x = maxx;
+        r.max_x = calculate_fwhm ? maxx : -1.0;
         r.FWHM = fwhm;
         r.entries = h->GetEntries();
         r.chi2 = chisqr;
         r.ndf = ndf;
-        double x = h->FindBin(maxx);
+        double x = calculate_fwhm ? h->FindBin(maxx) : -1.0;
         double chi2_ndf = (ndf > 0) ? (chisqr / double(ndf)) : -1.0;
-        if (chi2_ndf > 30 || x > fr[1] - 40 || r.gaus_sigma < 30 || r.gaus_sigma > 160 || r.width < 15 || r.width > 80)
+        if (chi2_ndf > 30 || (x > 0 && x > fr[1] - 40) || r.gaus_sigma < 30 || r.gaus_sigma > 160 || r.width < 15 || r.width > 80)
         {
             r.fit_status = -3;
             r.fit_ok = false;
@@ -120,7 +133,20 @@ namespace AHCALRecoAlg{
         x = AHCALGeometry::Pos_X(channel, chip);
         y = AHCALGeometry::Pos_Y(channel, chip);
     }
+
     struct MIPAlg::Impl {
+        struct FitResult {
+            int cellid = -1;
+            int layer = -1;
+            int chip = -1;
+            int channel = -1;
+            int channel_index = -1;
+            double x_mm = -999.0;
+            double y_mm = -999.0;
+            int entries = 0;
+            FitOut out;
+        };
+
         explicit Impl(MIPAlgCfg cfg) : cfg_(std::move(cfg)) {}
     
         void fill(const AHCALRawHit& h) {
@@ -132,12 +158,63 @@ namespace AHCALRecoAlg{
                 if (!ptr) ptr = make_hist(cellid);
                 ptr->Fill(hg);
             }
-        } 
-        
-        void write() {
+        }
+
+        void buildFitCache() {
+            if (cache_built_) return;
+            cache_built_ = true;
+
+            fit_cache_.clear();
+            fit_cache_.reserve(hg_hist_.size());
+
+            nFitAll_ = 0;
+            nFitOK_ = 0;
+
+            for (const auto& [cid, hist_ptr] : hg_hist_) {
+                FitResult res;
+                res.cellid = cid;
+                res.layer = cid / 100000;
+                res.chip = (cid / 10000) % 10;
+                res.channel = cid % 10000;
+                res.channel_index = res.layer * (AHCALGeometry::chip_No * AHCALGeometry::channel_No) + 
+                                    res.chip * AHCALGeometry::channel_No + res.channel;
+                cellid_to_xy(res.chip, res.channel, res.x_mm, res.y_mm);
+
+                res.entries = hist_ptr ? static_cast<int>(hist_ptr->GetEntries()) : 0;
+                if (hist_ptr && cfg_.fit) {
+                    nFitAll_++;
+                    res.out = fitLandauGaus(hist_ptr.get(), cfg_.min_entries, cfg_.calculate_fwhm);
+                    if (res.out.fit_ok) nFitOK_++;
+                }
+
+                fit_cache_.emplace(cid, std::move(res));
+            }
+
+            LOG_INFO("MIPAlg: built fit cache with {}/{} successful fits", nFitOK_, nFitAll_);
+        }
+
+        void fillMapsFromCache(std::vector<std::unique_ptr<TH2D>>& hMPV,
+                                std::vector<std::unique_ptr<TH2D>>& hWidth,
+                                std::vector<std::unique_ptr<TH2D>>& hEntries,
+                                std::vector<std::unique_ptr<TH2D>>& hTotal,
+                                std::vector<std::unique_ptr<TH2D>>& hGausSigma) {
+            for (const auto& [cid, res] : fit_cache_) {
+                if (res.out.fit_ok && res.layer >= 0 && res.layer < AHCALGeometry::Layer_No) {
+                    const int binx = hMPV[res.layer]->GetXaxis()->FindBin(res.x_mm);
+                    const int biny = hMPV[res.layer]->GetYaxis()->FindBin(res.y_mm);
+                    if (binx > 0 && binx <= NBIN_XY && biny > 0 && biny <= NBIN_XY) {
+                        hMPV[res.layer]->SetBinContent(binx, biny, res.out.mpv);
+                        hWidth[res.layer]->SetBinContent(binx, biny, res.out.width);
+                        hEntries[res.layer]->SetBinContent(binx, biny, res.entries);
+                        hTotal[res.layer]->SetBinContent(binx, biny, res.out.total_area);
+                        hGausSigma[res.layer]->SetBinContent(binx, biny, res.out.gaus_sigma);
+                    }
+                }
+            }
+        }
+
+        void writeRootOutput() {
             if (!cfg_.mip_to_file) return;
-            if (written_) return;
-            written_ = true;
 
             auto fout = std::unique_ptr<TFile>(TFile::Open(cfg_.out_mip_filename.c_str(), "RECREATE"));
             if (!fout || fout->IsZombie()) {
@@ -156,24 +233,27 @@ namespace AHCALRecoAlg{
             TDirectory* dMap = ensureDir(fout.get(), "Map");
             TDirectory* dCan = ensureDir(fout.get(), "Canvases");
 
-            std::vector<std::pair<int, TH1D*>> items;
-            items.reserve(hg_hist_.size());
-            for (auto& [cid, up] : hg_hist_) {
-                if (up) items.emplace_back(cid, up.get());
-            }
-            if (dHist){
-                for (auto& [cellid, h] : hg_hist_) {
+            // Write histograms
+            if (dHist) {
+                for (const auto& [cellid, h] : hg_hist_) {
                     fout->cd(Form("MIP/Layer%02d/Chip%d", cellid/100000, (cellid/10000)%10));
                     if (h) h->Write();
                 }
             }
+
             fout->cd();
             if (!cfg_.fit) {
-                LOG_INFO("MIPAlg: wrote {} histograms without fitting", items.size());
+                LOG_INFO("MIPAlg: wrote {} histograms without fitting", hg_hist_.size());
                 fout->Close();
                 return;
             }
-            std::vector<std::unique_ptr<TH2D>> hMPV(AHCALGeometry::Layer_No), hEntries(AHCALGeometry::Layer_No), hWidth(AHCALGeometry::Layer_No), hTotal(AHCALGeometry::Layer_No), hGausSigma(AHCALGeometry::Layer_No);
+
+            // Create output maps
+            std::vector<std::unique_ptr<TH2D>> hMPV(AHCALGeometry::Layer_No);
+            std::vector<std::unique_ptr<TH2D>> hWidth(AHCALGeometry::Layer_No);
+            std::vector<std::unique_ptr<TH2D>> hEntries(AHCALGeometry::Layer_No);
+            std::vector<std::unique_ptr<TH2D>> hTotal(AHCALGeometry::Layer_No);
+            std::vector<std::unique_ptr<TH2D>> hGausSigma(AHCALGeometry::Layer_No);
             
             auto makeMap = [&](const char* base, int L, const char* title) {
                 auto h = std::make_unique<TH2D>(
@@ -194,6 +274,10 @@ namespace AHCALRecoAlg{
                 hGausSigma[L] = makeMap("GausSigma", L, "MIP Gaussian Sigma");
             }
 
+            // Fill maps from cache
+            fillMapsFromCache(hMPV, hWidth, hEntries, hTotal, hGausSigma);
+
+            // Build and fill tree
             TTree tp("mip", "MIP fit results");
 
             int cellid=-1;
@@ -222,132 +306,23 @@ namespace AHCALRecoAlg{
             tp.Branch("x_mm", &x_mm);
             tp.Branch("y_mm", &y_mm);
 
-            int nFitAll = 0, nFitOK = 0;
-            constexpr int kTimingLogEvery = 200;
-            struct TimingAgg {
-                double fit_ms = 0.0;
-                double pro_ms = 0.0;
-                double map_ms = 0.0;
-                double tree_ms = 0.0;
-                double total_ms = 0.0;
-                int n = 0;
-            } timing;
-
-            LOG_INFO("MIPAlg: start fitting {} histograms", items.size());
-            int i = 0;
-            for (auto& [cid, hhg] : items) {
-                const auto total_t0 = std::chrono::steady_clock::now();
-                cellid = cid;
-                i++;
-                if (i % 1000 == 0) {
-                    LOG_INFO("MIPAlg: fitting histogram {}/{}", i, items.size());
-                }
-                const int L  = cellid / 100000;
-                const int C  = (cellid / 10000) % 10;
-                const int ch = cellid % 10000;
-
-                cellid_to_xy(C, ch, x_mm, y_mm);
-
-                FitOut fr;
-                double fit_ms = 0.0;
-                double pro_ms = 0.0;
-                entries = hhg ? static_cast<int>(hhg->GetEntries()) : 0;
-                if (hhg) {
-                    nFitAll++;
-                    fr = fitLandauGaus(hhg, cfg_.min_entries);
-                    fit_ms = fr.fit_ms;
-                    pro_ms = fr.pro_ms;
-                    if (fr.fit_ok) nFitOK++;
-                }
-                mpv = fr.mpv;
-                width = fr.width;
-                total_area = fr.total_area;
-                gaus_sigma = fr.gaus_sigma;
-                chi2 = fr.chi2;
-                ndf = fr.ndf;
-                max_x = fr.max_x;
-                FWHM = fr.FWHM;
-                if (ndf > 0) chi2perndf = chi2 / double(ndf);
-                fit_status = fr.fit_status;
-                fit_ok = fr.fit_ok ? 1 : 0;
-
-                const auto map_t0 = std::chrono::steady_clock::now();
-                if (L >= 0 && L < AHCALGeometry::Layer_No){
-                    const int binx = hMPV[L]->GetXaxis()->FindBin(x_mm);
-                    const int biny = hMPV[L]->GetYaxis()->FindBin(y_mm);
-                    if (binx > 0 && binx <= NBIN_XY && biny > 0 && biny <= NBIN_XY){
-                        if (fit_ok) {
-                            hMPV[L]->SetBinContent(binx, biny, mpv);
-                            hWidth[L]->SetBinContent(binx, biny, width);
-                            hEntries[L]->SetBinContent(binx, biny, entries);
-                            hTotal[L]->SetBinContent(binx, biny, total_area);
-                            hGausSigma[L]->SetBinContent(binx, biny, gaus_sigma);
-                        }
-                    }
-                }
-                const auto map_t1 = std::chrono::steady_clock::now();
-                const double map_ms = std::chrono::duration<double, std::milli>(map_t1 - map_t0).count();
-
-                const auto tree_t0 = std::chrono::steady_clock::now();
+            for (const auto& [cid, res] : fit_cache_) {
+                cellid = res.cellid;
+                mpv = res.out.mpv;
+                width = res.out.width;
+                total_area = res.out.total_area;
+                gaus_sigma = res.out.gaus_sigma;
+                chi2 = res.out.chi2;
+                ndf = res.out.ndf;
+                max_x = res.out.max_x;
+                FWHM = res.out.FWHM;
+                if (ndf > 0) chi2perndf = res.out.chi2 / double(ndf);
+                fit_status = res.out.fit_status;
+                fit_ok = res.out.fit_ok ? 1 : 0;
+                entries = res.entries;
+                x_mm = res.x_mm;
+                y_mm = res.y_mm;
                 tp.Fill();
-                const auto tree_t1 = std::chrono::steady_clock::now();
-                const double tree_ms = std::chrono::duration<double, std::milli>(tree_t1 - tree_t0).count();
-
-                const auto total_t1 = std::chrono::steady_clock::now();
-                const double total_ms = std::chrono::duration<double, std::milli>(total_t1 - total_t0).count();
-
-                timing.fit_ms += fit_ms;
-                timing.pro_ms += pro_ms;
-                timing.map_ms += map_ms;
-                timing.tree_ms += tree_ms;
-                timing.total_ms += total_ms;
-                timing.n += 1;
-
-                if (i % kTimingLogEvery == 0) {
-                    const double inv = timing.n > 0 ? 1.0 / timing.n : 0.0;
-                    LOG_DEBUG(
-                        "MIPAlg timing summary n={} fit_avg_ms={:.3f} pro_avg_ms={:.3f} map_avg_ms={:.3f} tree_avg_ms={:.3f} total_avg_ms={:.3f}",
-                        timing.n,
-                        timing.fit_ms * inv,
-                        timing.pro_ms * inv,
-                        timing.map_ms * inv,
-                        timing.tree_ms * inv,
-                        timing.total_ms * inv
-                    );
-                    LOG_DEBUG(
-                        "MIPAlg timing cellid={} entries={} fit_ms={:.3f} pro_ms={:.3f} map_ms={:.3f} tree_ms={:.3f} total_ms={:.3f} fit_ok={}",
-                        cellid,
-                        entries,
-                        fit_ms,
-                        pro_ms,
-                        map_ms,
-                        tree_ms,
-                        total_ms,
-                        fit_ok
-                    );
-                }
-            }
-
-            if (timing.n > 0) {
-                const double total_stage = timing.fit_ms + timing.pro_ms + timing.map_ms + timing.tree_ms;
-                const double fit_frac = total_stage > 0.0 ? 100.0 * timing.fit_ms / total_stage : 0.0;
-                const double pro_frac = total_stage > 0.0 ? 100.0 * timing.pro_ms / total_stage : 0.0;
-                const double map_frac = total_stage > 0.0 ? 100.0 * timing.map_ms / total_stage : 0.0;
-                const double tree_frac = total_stage > 0.0 ? 100.0 * timing.tree_ms / total_stage : 0.0;
-                const double inv = 1.0 / timing.n;
-                LOG_INFO(
-                    "MIPAlg timing final n={} fit_avg_ms={:.3f} ({:.1f}%) pro_avg_ms={:.3f} ({:.1f}%) map_avg_ms={:.3f} ({:.1f}%) tree_avg_ms={:.3f} ({:.1f}%) total_avg_ms={:.3f}",
-                    timing.n,
-                    timing.fit_ms * inv,
-                    fit_frac,
-                    timing.pro_ms * inv,
-                    pro_frac,
-                    timing.map_ms * inv,
-                    map_frac,
-                    timing.tree_ms * inv,
-                    tree_frac,
-                    timing.total_ms * inv
-                );
             }
 
             auto cAllMPV = std::make_unique<TCanvas>("cAllMPV_7x6", "MIP MPV maps (all layers)", 5600, 4200);
@@ -386,7 +361,140 @@ namespace AHCALRecoAlg{
             fout->Close();
 
             LOG_INFO("MIPAlg: wrote {}", cfg_.out_mip_filename);
-            LOG_INFO("MIPAlg: fit {}/{} histograms successfully", nFitOK, nFitAll);
+        }
+
+        void writeJsonOutput() {
+            if (!cfg_.mip_to_json) return;
+
+            // Generate ISO8601 timestamp
+            auto now = std::time(nullptr);
+            auto tm = *std::gmtime(&now);
+            std::ostringstream oss;
+            oss << std::put_time(&tm, "%Y-%m-%dT%H:%M:%SZ");
+            std::string timestamp = oss.str();
+
+            const int n_channels = AHCALGeometry::Layer_No * AHCALGeometry::chip_No * AHCALGeometry::channel_No;
+
+            // Prepare flat arrays indexed by channel_index
+            std::vector<int> cellid_arr(n_channels, -1);
+            std::vector<int> layer_arr(n_channels, -1);
+            std::vector<int> chip_arr(n_channels, -1);
+            std::vector<int> channel_arr(n_channels, -1);
+
+            std::vector<double> mpv_arr(n_channels, -1.0);
+            std::vector<double> width_arr(n_channels, -1.0);
+            std::vector<double> total_area_arr(n_channels, -1.0);
+            std::vector<double> gaus_sigma_arr(n_channels, -1.0);
+            std::vector<double> max_x_arr(n_channels, -1.0);
+            std::vector<double> FWHM_arr(n_channels, -1.0);
+
+            std::vector<int> entries_arr(n_channels, 0);
+            std::vector<double> chi2_arr(n_channels, -1.0);
+            std::vector<int> ndf_arr(n_channels, 0);
+            std::vector<int> fit_status_arr(n_channels, 999);
+            std::vector<int> fit_ok_arr(n_channels, 0);
+
+            // Fill arrays from fitting cache
+            for (const auto& [cid, res] : fit_cache_) {
+                const int idx = res.channel_index;
+                if (idx < 0 || idx >= n_channels) continue;
+
+                cellid_arr[idx] = res.cellid;
+                layer_arr[idx] = res.layer;
+                chip_arr[idx] = res.chip;
+                channel_arr[idx] = res.channel;
+
+                mpv_arr[idx] = res.out.mpv;
+                width_arr[idx] = res.out.width;
+                total_area_arr[idx] = res.out.total_area;
+                gaus_sigma_arr[idx] = res.out.gaus_sigma;
+                max_x_arr[idx] = res.out.max_x;
+                FWHM_arr[idx] = res.out.FWHM;
+                entries_arr[idx] = res.entries;
+                chi2_arr[idx] = res.out.chi2;
+                ndf_arr[idx] = res.out.ndf;
+                fit_status_arr[idx] = res.out.fit_status;
+                fit_ok_arr[idx] = res.out.fit_ok ? 1 : 0;
+            }
+
+            // Fill gaps with computed cellids for all possible channels
+            for (int idx = 0; idx < n_channels; ++idx) {
+                if (cellid_arr[idx] < 0) {
+                    int layer = idx / (AHCALGeometry::chip_No * AHCALGeometry::channel_No);
+                    int rem = idx % (AHCALGeometry::chip_No * AHCALGeometry::channel_No);
+                    int chip = rem / AHCALGeometry::channel_No;
+                    int channel = rem % AHCALGeometry::channel_No;
+                    cellid_arr[idx] = AHCALGeometry::CellID(layer, chip, channel);
+                    layer_arr[idx] = layer;
+                    chip_arr[idx] = chip;
+                    channel_arr[idx] = channel;
+                }
+            }
+
+            // Build JSON object
+            json j;
+
+            j["metadata"]["timestamp"] = timestamp;
+            j["metadata"]["algorithm"] = "MIPAlg";
+            j["metadata"]["data_version"] = "1.0";
+            j["metadata"]["index_definition"] = "channel_index = layer * 9 * 36 + chip * 36 + channel";
+
+            j["metadata"]["config"]["nbin"] = cfg_.nbin;
+            j["metadata"]["config"]["xmin"] = cfg_.xmin;
+            j["metadata"]["config"]["xmax"] = cfg_.xmax;
+            j["metadata"]["config"]["min_entries"] = cfg_.min_entries;
+            j["metadata"]["config"]["calculate_fwhm"] = cfg_.calculate_fwhm;
+            j["metadata"]["config"]["fit"] = cfg_.fit;
+
+            j["metadata"]["statistics"]["nFitOK"] = nFitOK_;
+            j["metadata"]["statistics"]["nFitAll"] = nFitAll_;
+
+            j["n_channels"] = n_channels;
+
+            // Optional mapping arrays
+            j["cellid"] = cellid_arr;
+            j["layer"] = layer_arr;
+            j["chip"] = chip_arr;
+            j["channel"] = channel_arr;
+
+            // Main payload arrays
+            j["mpv"] = mpv_arr;
+            j["width"] = width_arr;
+            j["total_area"] = total_area_arr;
+            j["gaus_sigma"] = gaus_sigma_arr;
+            j["max_x"] = max_x_arr;
+            j["FWHM"] = FWHM_arr;
+            j["entries"] = entries_arr;
+            j["chi2"] = chi2_arr;
+            j["ndf"] = ndf_arr;
+            j["fit_status"] = fit_status_arr;
+            j["fit_ok"] = fit_ok_arr;
+
+            // Write to file
+            std::ofstream jout(cfg_.out_json_filename);
+            if (!jout.is_open()) {
+                LOG_ERROR("MIPAlg: cannot create JSON output file: {}", cfg_.out_json_filename);
+                return;
+            }
+            jout << j.dump(2) << std::endl;
+            jout.close();
+
+            LOG_INFO("MIPAlg: wrote JSON {}", cfg_.out_json_filename);
+        }
+
+        void write() {
+            if (!cfg_.mip_to_file && !cfg_.mip_to_json) return;
+            if (written_) return;
+            written_ = true;
+
+            buildFitCache();
+
+            if (cfg_.mip_to_file) {
+                writeRootOutput();
+            }
+            if (cfg_.mip_to_json) {
+                writeJsonOutput();
+            }
         }
 
         std::unique_ptr<TH1D> make_hist(int cellid){
@@ -398,9 +506,14 @@ namespace AHCALRecoAlg{
             h->SetDirectory(nullptr);
             return h;
         }
+
         MIPAlgCfg cfg_;
         bool written_ = false;
+        bool cache_built_ = false;
+        int nFitAll_ = 0;
+        int nFitOK_ = 0;
         std::unordered_map<int, std::unique_ptr<TH1D>> hg_hist_;
+        std::unordered_map<int, FitResult> fit_cache_;
     };
 
     void MIPAlg::ImplDeleter::operator()(Impl* p) const {
@@ -483,5 +596,8 @@ namespace AHCALRecoAlg{
         cfg_.xmin = get_or<double>(cfg, "xmin", cfg_.xmin);
         cfg_.xmax = get_or<double>(cfg, "xmax", cfg_.xmax);
         cfg_.min_entries = get_or<int>(cfg, "min_entries", cfg_.min_entries);
+        cfg_.mip_to_json = get_or<bool>(cfg, "mip_to_json", cfg_.mip_to_json);
+        cfg_.out_json_filename = get_or<std::string>(cfg, "out_json_filename", cfg_.out_json_filename);
+        cfg_.calculate_fwhm = get_or<bool>(cfg, "calculate_fwhm", cfg_.calculate_fwhm);
     }
 } // namespace AHCALRecoAlg

@@ -75,6 +75,7 @@ target_include_directories(fair_options INTERFACE
   ${CMAKE_CURRENT_SOURCE_DIR}/calibration
   ${CMAKE_CURRENT_SOURCE_DIR}/adc_to_energy
   ${CMAKE_CURRENT_SOURCE_DIR}/reco_alg
+  ${CMAKE_CURRENT_SOURCE_DIR}/CalibDBIO
   ${CMAKE_CURRENT_SOURCE_DIR}/faser-common/EventFormats
   ${CMAKE_CURRENT_SOURCE_DIR}/faser-common/Exceptions
   ${CMAKE_CURRENT_SOURCE_DIR}/faser-common/Logging/include
@@ -186,9 +187,9 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/exe/CMakeLists.txt")
   add_subdirectory(exe)
 endif()
 
-# QA/QC (optional)
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/qaqc/CMakeLists.txt")
-  add_subdirectory(qaqc)
+# Calibration database I/O module
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/CalibDBIO/CMakeLists.txt")
+  add_subdirectory(CalibDBIO)
 endif()
 
 # ---------------------------

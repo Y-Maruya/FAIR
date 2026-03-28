@@ -44,11 +44,11 @@ namespace AHCALRecoAlg {
         std::unique_ptr<TFile> m_in_file;
         int file_cellid_version = 1; 
         TTree* m_in_tree = nullptr;
-        std::map<int, double> mip_map; // cellID to MPV
-        std::map<int, double> hg_ped_map; // cellID to pedestal
-        std::map<int, double> lg_ped_map; // cellID to pedestal
-        std::map<int, double> gainratio_map; // cellID to gain ratio
-        std::map<int, int> gainplat_map; // cellID to gain plat
+        std::unordered_map<int, double> mip_map; // cellID to MPV
+        std::unordered_map<int, double> hg_ped_map; // cellID to pedestal
+        std::unordered_map<int, double> lg_ped_map; // cellID to pedestal
+        std::unordered_map<int, double> gainratio_map; // cellID to gain ratio
+        std::unordered_map<int, int> gainplat_map; // cellID to gain plat
         int cellid_conversion(int input_cellid);
         AdcToEnergyReadTTreeAlgCfg m_cfg;
     };

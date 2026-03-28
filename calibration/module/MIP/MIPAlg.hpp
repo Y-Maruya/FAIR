@@ -29,6 +29,10 @@ namespace AHCALRecoAlg{
 
         int min_entries = 200;
 
+        bool mip_to_json = false;
+        std::string out_json_filename = "mip.json";
+        bool calculate_fwhm = true;
+
     };
 
     class MIPAlg final : public IAlg{

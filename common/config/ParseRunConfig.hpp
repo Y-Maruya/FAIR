@@ -98,7 +98,7 @@ inline double parse_unix_time_from_string(const std::string& input) {
     throw std::runtime_error("Empty timestamp string");
   }
 
-  int tz_offset_seconds = 3600; // default: CET = UTC+1
+  int tz_offset_seconds = 0; // default: CET = UTC+1
 
   if (has_suffix(ts, " CEST")) {
     tz_offset_seconds = 2 * 3600;

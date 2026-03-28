@@ -1,6 +1,7 @@
 add_executable(trackfit_test
   Test.cpp
 )
+add_executable(calib_tester CalibITester.cpp)
 add_executable(EventDisplay2D EventDisplay2D.cpp)
 add_executable(EventDisplay2D_iso EventDisplay2D_iso.cpp)
 add_executable(EventDisplay2D_multi EventDisplay2D_multi.cpp)
@@ -19,6 +20,12 @@ if(TARGET fair_options)
       PedestalAlg
       RmIsolatedHitAlg
       -Wl,--no-whole-archive
+  )
+  target_link_libraries(calib_tester
+    PRIVATE
+      fair_options
+      PedestalReader
+      CalibDBIO
   )
   target_link_libraries(fair_multi 
     PRIVATE
@@ -84,6 +91,11 @@ if(TARGET fair_options)
 endif()
 
 target_include_directories(trackfit_test
+  PRIVATE
+    ${CMAKE_SOURCE_DIR}
+)
+
+target_include_directories(calib_tester
   PRIVATE
     ${CMAKE_SOURCE_DIR}
 )

@@ -98,5 +98,23 @@ namespace AHCALGeometry {
                 cellid_version);
         return input_cellid;
     }
+    inline int channel_index_from_lcc(int layer, int chip, int channel) {
+        // 9 chips/layer, 36 channels/chip
+        return layer * AHCALGeometry::chip_No * AHCALGeometry::channel_No + chip * AHCALGeometry::channel_No + channel;
+    }
+
+    inline int channel_index_from_cellid(int cellid) {
+        int layer,chip,channel;
+        CellIDToLC(cellid, layer, chip, channel);
+        return channel_index_from_lcc(layer, chip, channel);
+    }
+
+    inline int cellid_from_channel_index(int channel_index) {
+        int layer = channel_index / (AHCALGeometry::chip_No * AHCALGeometry::channel_No);
+        int rem = channel_index % (AHCALGeometry::chip_No * AHCALGeometry::channel_No);
+        int chip = rem / AHCALGeometry::channel_No;
+        int channel = rem % AHCALGeometry::channel_No;
+        return CellID(layer, chip, channel);
+    }
 }
 

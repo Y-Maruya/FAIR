@@ -14,7 +14,7 @@ namespace AHCALRecoAlg{
         bool pedestal_to_DB = false;
         bool pedestal_to_json = true;
         std::string out_pedestal_filename = "pedestal.root";
-        std::string out_json_filename = "pedestal.json";
+        std::string out_json_dirname = ".";
 
         // Histogram / fit config (macro defaults)
         int    nbin = 800;

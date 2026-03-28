@@ -19,6 +19,7 @@
 #include <algorithm>
 #include <cmath>
 #include <ctime>
+#include <filesystem>
 #include <fstream>
 #include <iomanip>
 #include <memory>
@@ -141,6 +142,21 @@ struct PedestalAlg::Impl {
   explicit Impl(PedestalAlgCfg cfg, const RunContext& ctx) 
     : cfg_(std::move(cfg)), ctx_(ctx) {}
 
+  struct CellPedestalResult {
+    int cellid = -1;
+    int layer = -1;
+    int chip = -1;
+    int channel = -1;
+    int channel_index = -1;
+    double x_mm = -999.0;
+    double y_mm = -999.0;
+
+    int entries_hg = 0;
+    int entries_lg = 0;
+    FitOut fit_hg;
+    FitOut fit_lg;
+  };
+
   void fill(const AHCALRawHit& h) {
     if (cfg_.use_hittag) {
       if (h.hittag != cfg_.select_hittag) return;
@@ -163,24 +179,9 @@ struct PedestalAlg::Impl {
     }
   }
 
-  void write() {
-    if (!cfg_.pedestal_to_file) return;
-    if (written_) return;
-    written_ = true;
-
-    auto fout = std::unique_ptr<TFile>(TFile::Open(cfg_.out_pedestal_filename.c_str(), "RECREATE"));
-    if (!fout || fout->IsZombie()) {
-      LOG_ERROR("PedestalAlg: cannot create output file: {}", cfg_.out_pedestal_filename);
-      return;
-    }
-
-    // directories
-    TDirectory* dHist = ensureDir(fout.get(), "Pedestal");
-    TDirectory* dHG   = dHist ? ensureDir(dHist, "HG") : nullptr;
-    TDirectory* dLG   = dHist ? ensureDir(dHist, "LG") : nullptr;
-
-    TDirectory* dMap  = ensureDir(fout.get(), "PedMap2D");
-    TDirectory* dCan  = ensureDir(fout.get(), "Canvases");
+  void buildPedestalCache() {
+    if (cache_built_) return;
+    cache_built_ = true;
 
     // union of keys (HG/LG)
     std::unordered_set<int> keys;
@@ -188,173 +189,216 @@ struct PedestalAlg::Impl {
     for (const auto& [k, _] : hg_hist_) keys.insert(k);
     for (const auto& [k, _] : lg_hist_) keys.insert(k);
 
-    // per-layer maps (HG/LG): fixed Layer_No from geometry
-    std::vector<std::unique_ptr<TH2D>> hMeanHG(AHCALGeometry::Layer_No), hSigHG(AHCALGeometry::Layer_No), hEntHG(AHCALGeometry::Layer_No);
-    std::vector<std::unique_ptr<TH2D>> hMeanLG(AHCALGeometry::Layer_No), hSigLG(AHCALGeometry::Layer_No), hEntLG(AHCALGeometry::Layer_No);
+    ped_cache_.clear();
+    ped_cache_.reserve(keys.size());
 
-    auto makeMap = [&](const char* base, int L, const char* title) {
-      auto h = std::make_unique<TH2D>(
-        Form("%s_L%02d", base, L),
-        Form("%s L%d;X [mm];Y [mm]", title, L),
-        NBIN_XY, XYMIN, XYMAX,
-        NBIN_XY, XYMIN, XYMAX
-      );
-      h->SetDirectory(nullptr);
-      return h;
-    };
-
-    for (int L = 0; L < AHCALGeometry::Layer_No; ++L) {
-      hMeanHG[L] = makeMap("hPedMean2_HG", L, "Pedestal mean map (HG)");
-      hSigHG[L]  = makeMap("hPedSigma2_HG", L, "Pedestal sigma map (HG)");
-      hEntHG[L]  = makeMap("hPedEntries2_HG", L, "Pedestal entries map (HG)");
-
-      hMeanLG[L] = makeMap("hPedMean2_LG", L, "Pedestal mean map (LG)");
-      hSigLG[L]  = makeMap("hPedSigma2_LG", L, "Pedestal sigma map (LG)");
-      hEntLG[L]  = makeMap("hPedEntries2_LG", L, "Pedestal entries map (LG)");
-    }
-
-    // tree
-    TTree tp("pedestal", "Pedestal from RawHits (Gaussian fit)");
-
-    int cellid=-1;
-    int entries_hg=0, entries_lg=0;
-    int fitStatus_hg=999, fitStatus_lg=999;
-    int fitOk_hg=0, fitOk_lg=0;
-
-    // For AdcToEnergyReadTTreeAlg::initialize_ped()
-    double highgain_peak=-1.0, lowgain_peak=-1.0;
-
-    // Extra info
-    double highgain_sigma=-1.0, lowgain_sigma=-1.0;
-    double x_mm=-999.0, y_mm=-999.0;
-
-    tp.Branch("cellid", &cellid, "cellid/I");
-    tp.Branch("highgain_peak", &highgain_peak, "highgain_peak/D");
-    tp.Branch("lowgain_peak", &lowgain_peak, "lowgain_peak/D");
-    tp.Branch("highgain_sigma", &highgain_sigma, "highgain_sigma/D");
-    tp.Branch("lowgain_sigma", &lowgain_sigma, "lowgain_sigma/D");
-    tp.Branch("entries_hg", &entries_hg, "entries_hg/I");
-    tp.Branch("entries_lg", &entries_lg, "entries_lg/I");
-    tp.Branch("fitStatus_hg", &fitStatus_hg, "fitStatus_hg/I");
-    tp.Branch("fitStatus_lg", &fitStatus_lg, "fitStatus_lg/I");
-    tp.Branch("fitOk_hg", &fitOk_hg, "fitOk_hg/I");
-    tp.Branch("fitOk_lg", &fitOk_lg, "fitOk_lg/I");
-    tp.Branch("x_mm", &x_mm, "x_mm/D");
-    tp.Branch("y_mm", &y_mm, "y_mm/D");
-
-    int nFitOK_HG = 0, nFitAll_HG = 0;
-    int nFitOK_LG = 0, nFitAll_LG = 0;
+    nFitOK_HG_ = 0;
+    nFitAll_HG_ = 0;
+    nFitOK_LG_ = 0;
+    nFitAll_LG_ = 0;
 
     for (int cid : keys) {
-      cellid = cid;
-
-      // decode using EDM helpers (cellID format is defined in AHCALRawHit)
-      AHCALRawHit tmp;
-      tmp.cellID = cellid;
-      const int L  = tmp.layer();
-      const int C  = tmp.chip();
-      const int ch = tmp.channel();
-
-      cellid_to_xy(C, ch, x_mm, y_mm);
+      CellPedestalResult res;
+      res.cellid = cid;
+      int tmp_layer, tmp_chip, tmp_channel;
+      AHCALGeometry::CellIDToLC(cid, tmp_layer, tmp_chip, tmp_channel);
+      res.layer = tmp_layer;
+      res.chip = tmp_chip;
+      res.channel = tmp_channel;
+      res.channel_index = AHCALGeometry::channel_index_from_lcc(res.layer, res.chip, res.channel);
+      cellid_to_xy(res.chip, res.channel, res.x_mm, res.y_mm);
 
       TH1D* hhg = nullptr;
       TH1D* hlg = nullptr;
-      if (auto it = hg_hist_.find(cellid); it != hg_hist_.end()) hhg = it->second.get();
-      if (auto it = lg_hist_.find(cellid); it != lg_hist_.end()) hlg = it->second.get();
+      if (auto it = hg_hist_.find(cid); it != hg_hist_.end()) hhg = it->second.get();
+      if (auto it = lg_hist_.find(cid); it != lg_hist_.end()) hlg = it->second.get();
 
-      FitOut fr_hg;
-      entries_hg = hhg ? static_cast<int>(hhg->GetEntries()) : 0;
+      res.entries_hg = hhg ? static_cast<int>(hhg->GetEntries()) : 0;
       if (hhg) {
-        nFitAll_HG++;
-        fr_hg = fitPedestalGaussian(hhg, cfg_.min_entries, cfg_.nsigma_win1, cfg_.nsigma_win2,
-                                    cfg_.sigma_min, cfg_.sigma_max);
-        if (fr_hg.ok) nFitOK_HG++;
+        nFitAll_HG_++;
+        res.fit_hg = fitPedestalGaussian(hhg, cfg_.min_entries, cfg_.nsigma_win1, cfg_.nsigma_win2,
+                                         cfg_.sigma_min, cfg_.sigma_max);
+        if (res.fit_hg.ok) nFitOK_HG_++;
       }
-      highgain_peak  = fr_hg.mean;
-      highgain_sigma = fr_hg.sigma;
-      fitStatus_hg   = fr_hg.status;
-      fitOk_hg       = fr_hg.ok ? 1 : 0;
 
-      FitOut fr_lg;
-      entries_lg = hlg ? static_cast<int>(hlg->GetEntries()) : 0;
+      res.entries_lg = hlg ? static_cast<int>(hlg->GetEntries()) : 0;
       if (hlg) {
-        nFitAll_LG++;
-        fr_lg = fitPedestalGaussian(hlg, cfg_.min_entries, cfg_.nsigma_win1, cfg_.nsigma_win2,
-                                    cfg_.sigma_min, cfg_.sigma_max);
-        if (fr_lg.ok) nFitOK_LG++;
+        nFitAll_LG_++;
+        res.fit_lg = fitPedestalGaussian(hlg, cfg_.min_entries, cfg_.nsigma_win1, cfg_.nsigma_win2,
+                                         cfg_.sigma_min, cfg_.sigma_max);
+        if (res.fit_lg.ok) nFitOK_LG_++;
       }
-      lowgain_peak  = fr_lg.mean;
-      lowgain_sigma = fr_lg.sigma;
-      fitStatus_lg  = fr_lg.status;
-      fitOk_lg      = fr_lg.ok ? 1 : 0;
 
-      // fill maps
-      if (L >= 0 && L < AHCALGeometry::Layer_No) {
-        const int bx = hMeanHG[L]->GetXaxis()->FindBin(x_mm);
-        const int by = hMeanHG[L]->GetYaxis()->FindBin(y_mm);
+      ped_cache_.emplace(cid, std::move(res));
+    }
+  }
 
-        if (bx >= 1 && bx <= hMeanHG[L]->GetNbinsX() && by >= 1 && by <= hMeanHG[L]->GetNbinsY()) {
-          if (entries_hg > 0) {
-            hMeanHG[L]->SetBinContent(bx, by, highgain_peak);
-            hSigHG[L]->SetBinContent(bx, by, highgain_sigma);
-            hEntHG[L]->SetBinContent(bx, by, entries_hg);
-          }
-          if (entries_lg > 0) {
-            hMeanLG[L]->SetBinContent(bx, by, lowgain_peak);
-            hSigLG[L]->SetBinContent(bx, by, lowgain_sigma);
-            hEntLG[L]->SetBinContent(bx, by, entries_lg);
-          }
+  void write() {
+    if (!cfg_.pedestal_to_file && !cfg_.pedestal_to_json) return;
+    if (written_) return;
+    written_ = true;
+
+    buildPedestalCache();
+
+    if (cfg_.pedestal_to_file) {
+      auto fout = std::unique_ptr<TFile>(TFile::Open(cfg_.out_pedestal_filename.c_str(), "RECREATE"));
+      if (!fout || fout->IsZombie()) {
+        LOG_ERROR("PedestalAlg: cannot create output file: {}", cfg_.out_pedestal_filename);
+      } else {
+        // directories
+        TDirectory* dHist = ensureDir(fout.get(), "Pedestal");
+        TDirectory* dHG   = dHist ? ensureDir(dHist, "HG") : nullptr;
+        TDirectory* dLG   = dHist ? ensureDir(dHist, "LG") : nullptr;
+
+        TDirectory* dMap  = ensureDir(fout.get(), "PedMap2D");
+        TDirectory* dCan  = ensureDir(fout.get(), "Canvases");
+
+        // per-layer maps (HG/LG): fixed Layer_No from geometry
+        std::vector<std::unique_ptr<TH2D>> hMeanHG(AHCALGeometry::Layer_No), hSigHG(AHCALGeometry::Layer_No), hEntHG(AHCALGeometry::Layer_No);
+        std::vector<std::unique_ptr<TH2D>> hMeanLG(AHCALGeometry::Layer_No), hSigLG(AHCALGeometry::Layer_No), hEntLG(AHCALGeometry::Layer_No);
+
+        auto makeMap = [&](const char* base, int L, const char* title) {
+          auto h = std::make_unique<TH2D>(
+            Form("%s_L%02d", base, L),
+            Form("%s L%d;X [mm];Y [mm]", title, L),
+            NBIN_XY, XYMIN, XYMAX,
+            NBIN_XY, XYMIN, XYMAX
+          );
+          h->SetDirectory(nullptr);
+          return h;
+        };
+
+        for (int L = 0; L < AHCALGeometry::Layer_No; ++L) {
+          hMeanHG[L] = makeMap("hPedMean2_HG", L, "Pedestal mean map (HG)");
+          hSigHG[L]  = makeMap("hPedSigma2_HG", L, "Pedestal sigma map (HG)");
+          hEntHG[L]  = makeMap("hPedEntries2_HG", L, "Pedestal entries map (HG)");
+
+          hMeanLG[L] = makeMap("hPedMean2_LG", L, "Pedestal mean map (LG)");
+          hSigLG[L]  = makeMap("hPedSigma2_LG", L, "Pedestal sigma map (LG)");
+          hEntLG[L]  = makeMap("hPedEntries2_LG", L, "Pedestal entries map (LG)");
         }
+
+        // tree
+        TTree tp("pedestal", "Pedestal from RawHits (Gaussian fit)");
+
+        int cellid=-1;
+        int channel_index=-1;
+        int entries_hg=0, entries_lg=0;
+        int fitStatus_hg=999, fitStatus_lg=999;
+        int fitOk_hg=0, fitOk_lg=0;
+
+        // For AdcToEnergyReadTTreeAlg::initialize_ped()
+        double highgain_peak=-1.0, lowgain_peak=-1.0;
+
+        // Extra info
+        double highgain_sigma=-1.0, lowgain_sigma=-1.0;
+        double x_mm=-999.0, y_mm=-999.0;
+
+        tp.Branch("cellid", &cellid, "cellid/I");
+        tp.Branch("channel_index", &channel_index, "channel_index/I");
+        tp.Branch("highgain_peak", &highgain_peak, "highgain_peak/D");
+        tp.Branch("lowgain_peak", &lowgain_peak, "lowgain_peak/D");
+        tp.Branch("highgain_sigma", &highgain_sigma, "highgain_sigma/D");
+        tp.Branch("lowgain_sigma", &lowgain_sigma, "lowgain_sigma/D");
+        tp.Branch("entries_hg", &entries_hg, "entries_hg/I");
+        tp.Branch("entries_lg", &entries_lg, "entries_lg/I");
+        tp.Branch("fitStatus_hg", &fitStatus_hg, "fitStatus_hg/I");
+        tp.Branch("fitStatus_lg", &fitStatus_lg, "fitStatus_lg/I");
+        tp.Branch("fitOk_hg", &fitOk_hg, "fitOk_hg/I");
+        tp.Branch("fitOk_lg", &fitOk_lg, "fitOk_lg/I");
+        tp.Branch("x_mm", &x_mm, "x_mm/D");
+        tp.Branch("y_mm", &y_mm, "y_mm/D");
+
+        for (const auto& [_, res] : ped_cache_) {
+          cellid = res.cellid;
+          channel_index = res.channel_index;
+          entries_hg = res.entries_hg;
+          entries_lg = res.entries_lg;
+
+          highgain_peak = res.fit_hg.mean;
+          highgain_sigma = res.fit_hg.sigma;
+          fitStatus_hg = res.fit_hg.status;
+          fitOk_hg = res.fit_hg.ok ? 1 : 0;
+
+          lowgain_peak = res.fit_lg.mean;
+          lowgain_sigma = res.fit_lg.sigma;
+          fitStatus_lg = res.fit_lg.status;
+          fitOk_lg = res.fit_lg.ok ? 1 : 0;
+
+          x_mm = res.x_mm;
+          y_mm = res.y_mm;
+
+          // fill maps
+          const int L = res.layer;
+          if (L >= 0 && L < AHCALGeometry::Layer_No) {
+            const int bx = hMeanHG[L]->GetXaxis()->FindBin(x_mm);
+            const int by = hMeanHG[L]->GetYaxis()->FindBin(y_mm);
+
+            if (bx >= 1 && bx <= hMeanHG[L]->GetNbinsX() && by >= 1 && by <= hMeanHG[L]->GetNbinsY()) {
+              if (entries_hg > 0) {
+                hMeanHG[L]->SetBinContent(bx, by, highgain_peak);
+                hSigHG[L]->SetBinContent(bx, by, highgain_sigma);
+                hEntHG[L]->SetBinContent(bx, by, entries_hg);
+              }
+              if (entries_lg > 0) {
+                hMeanLG[L]->SetBinContent(bx, by, lowgain_peak);
+                hSigLG[L]->SetBinContent(bx, by, lowgain_sigma);
+                hEntLG[L]->SetBinContent(bx, by, entries_lg);
+              }
+            }
+          }
+
+          tp.Fill();
+        }
+
+        // canvases (7x6) for 40 layers
+        auto cAllMeanHG = std::make_unique<TCanvas>("cPedMeanHG_all_7x6", "Pedestal mean maps HG (all layers)", 5600, 4200);
+        cAllMeanHG->Divide(7, 6, 0.001, 0.001);
+
+        auto cAllMeanLG = std::make_unique<TCanvas>("cPedMeanLG_all_7x6", "Pedestal mean maps LG (all layers)", 5600, 4200);
+        cAllMeanLG->Divide(7, 6, 0.001, 0.001);
+
+        for (int L = 0; L < AHCALGeometry::Layer_No; ++L) {
+          cAllMeanHG->cd(L + 1);
+          gPad->SetMargin(0.08, 0.14, 0.08, 0.10);
+          hMeanHG[L]->Draw("COLZ");
+          drawLayerLabel(L);
+
+          cAllMeanLG->cd(L + 1);
+          gPad->SetMargin(0.08, 0.14, 0.08, 0.10);
+          hMeanLG[L]->Draw("COLZ");
+          drawLayerLabel(L);
+        }
+
+        // write objects
+        if (dHG) dHG->cd();
+        for (auto& [_, h] : hg_hist_) if (h) h->Write();
+
+        if (dLG) dLG->cd();
+        for (auto& [_, h] : lg_hist_) if (h) h->Write();
+
+        if (dMap) dMap->cd();
+        for (int L = 0; L < AHCALGeometry::Layer_No; ++L) {
+          hMeanHG[L]->Write(); hSigHG[L]->Write(); hEntHG[L]->Write();
+          hMeanLG[L]->Write(); hSigLG[L]->Write(); hEntLG[L]->Write();
+        }
+
+        if (dCan) dCan->cd();
+        cAllMeanHG->Write();
+        cAllMeanLG->Write();
+
+        fout->cd();
+        tp.Write();
+        fout->Close();
+
+        LOG_INFO("PedestalAlg: wrote {}", cfg_.out_pedestal_filename);
       }
-
-      tp.Fill();
     }
 
-    // canvases (7x6) for 40 layers
-    auto cAllMeanHG = std::make_unique<TCanvas>("cPedMeanHG_all_7x6", "Pedestal mean maps HG (all layers)", 5600, 4200);
-    cAllMeanHG->Divide(7, 6, 0.001, 0.001);
+    LOG_INFO("PedestalAlg: HG fit OK/all = {}/{}", nFitOK_HG_, nFitAll_HG_);
+    LOG_INFO("PedestalAlg: LG fit OK/all = {}/{}", nFitOK_LG_, nFitAll_LG_);
 
-    auto cAllMeanLG = std::make_unique<TCanvas>("cPedMeanLG_all_7x6", "Pedestal mean maps LG (all layers)", 5600, 4200);
-    cAllMeanLG->Divide(7, 6, 0.001, 0.001);
-
-    for (int L = 0; L < AHCALGeometry::Layer_No; ++L) {
-      cAllMeanHG->cd(L + 1);
-      gPad->SetMargin(0.08, 0.14, 0.08, 0.10);
-      hMeanHG[L]->Draw("COLZ");
-      drawLayerLabel(L);
-
-      cAllMeanLG->cd(L + 1);
-      gPad->SetMargin(0.08, 0.14, 0.08, 0.10);
-      hMeanLG[L]->Draw("COLZ");
-      drawLayerLabel(L);
-    }
-
-    // write objects
-    if (dHG) dHG->cd();
-    for (auto& [_, h] : hg_hist_) if (h) h->Write();
-
-    if (dLG) dLG->cd();
-    for (auto& [_, h] : lg_hist_) if (h) h->Write();
-
-    if (dMap) dMap->cd();
-    for (int L = 0; L < AHCALGeometry::Layer_No; ++L) {
-      hMeanHG[L]->Write(); hSigHG[L]->Write(); hEntHG[L]->Write();
-      hMeanLG[L]->Write(); hSigLG[L]->Write(); hEntLG[L]->Write();
-    }
-
-    if (dCan) dCan->cd();
-    cAllMeanHG->Write();
-    cAllMeanLG->Write();
-
-    fout->cd();
-    tp.Write();
-    fout->Close();
-
-    LOG_INFO("PedestalAlg: wrote {}", cfg_.out_pedestal_filename);
-    LOG_INFO("PedestalAlg: HG fit OK/all = {}/{}", nFitOK_HG, nFitAll_HG);
-    LOG_INFO("PedestalAlg: LG fit OK/all = {}/{}", nFitOK_LG, nFitAll_LG);
-
-    writeJson();
+    if (cfg_.pedestal_to_json) writeJson(/*cache_ready=*/true);
   }
 
   std::unique_ptr<TH1D> make_hist(int cellid, bool isHG) {
@@ -367,131 +411,127 @@ struct PedestalAlg::Impl {
     return h;
   }
 
-  void writeJson() {
+  void writeJson(bool cache_ready = false) {
     if (!cfg_.pedestal_to_json) return;
 
-    // Generate ISO8601 timestamp
-    auto now = std::time(nullptr);
-    auto tm = *std::gmtime(&now);
-    std::ostringstream oss;
-    oss << std::put_time(&tm, "%Y-%m-%dT%H:%M:%SZ");
-    std::string timestamp = oss.str();
+    if (!cache_ready) buildPedestalCache();
 
-    // Build JSON object
-    json j;
-    
-    // Metadata section
-    j["metadata"]["runNumber"] = ctx_.config.runNumber;
-    j["metadata"]["timestamp"] = timestamp;
-    j["metadata"]["algorithm"] = "PedestalAlg";
-    
-    // Config section
-    j["metadata"]["config"]["nbin"] = cfg_.nbin;
-    j["metadata"]["config"]["xmin"] = cfg_.xmin;
-    j["metadata"]["config"]["xmax"] = cfg_.xmax;
-    j["metadata"]["config"]["min_entries"] = cfg_.min_entries;
-    j["metadata"]["config"]["nsigma_win1"] = cfg_.nsigma_win1;
-    j["metadata"]["config"]["nsigma_win2"] = cfg_.nsigma_win2;
-    j["metadata"]["config"]["sigma_min"] = cfg_.sigma_min;
-    j["metadata"]["config"]["sigma_max"] = cfg_.sigma_max;
-    j["metadata"]["config"]["use_hittag"] = cfg_.use_hittag;
-    j["metadata"]["config"]["select_hittag"] = cfg_.select_hittag;
-    
-    j["metadata"]["data_version"] = "1.0";
-
-    // Build pedestals array
-    std::unordered_set<int> keys;
-    keys.reserve(hg_hist_.size() + lg_hist_.size());
-    for (const auto& [k, _] : hg_hist_) keys.insert(k);
-    for (const auto& [k, _] : lg_hist_) keys.insert(k);
-
-    int nFitOK_HG_total = 0, nFitAll_HG_total = 0;
-    int nFitOK_LG_total = 0, nFitAll_LG_total = 0;
-
-    json pedestals_array = json::array();
-
-    for (int cid : keys) {
-      // decode using EDM helpers
-      AHCALRawHit tmp;
-      tmp.cellID = cid;
-      const int L  = tmp.layer();
-      const int C  = tmp.chip();
-      const int ch = tmp.channel();
-
-      double x_mm = -999.0, y_mm = -999.0;
-      cellid_to_xy(C, ch, x_mm, y_mm);
-
-      TH1D* hhg = nullptr;
-      TH1D* hlg = nullptr;
-      if (auto it = hg_hist_.find(cid); it != hg_hist_.end()) hhg = it->second.get();
-      if (auto it = lg_hist_.find(cid); it != lg_hist_.end()) hlg = it->second.get();
-
-      FitOut fr_hg;
-      int entries_hg = hhg ? static_cast<int>(hhg->GetEntries()) : 0;
-      if (hhg) {
-        nFitAll_HG_total++;
-        fr_hg = fitPedestalGaussian(hhg, cfg_.min_entries, cfg_.nsigma_win1, cfg_.nsigma_win2,
-                                    cfg_.sigma_min, cfg_.sigma_max);
-        if (fr_hg.ok) nFitOK_HG_total++;
-      }
-
-      FitOut fr_lg;
-      int entries_lg = hlg ? static_cast<int>(hlg->GetEntries()) : 0;
-      if (hlg) {
-        nFitAll_LG_total++;
-        fr_lg = fitPedestalGaussian(hlg, cfg_.min_entries, cfg_.nsigma_win1, cfg_.nsigma_win2,
-                                    cfg_.sigma_min, cfg_.sigma_max);
-        if (fr_lg.ok) nFitOK_LG_total++;
-      }
-
-      json ped_record;
-      ped_record["cellid"] = cid;
-      ped_record["layer"] = L;
-      ped_record["chip"] = C;
-      ped_record["channel"] = ch;
-      // ped_record["x_mm"] = x_mm;
-      // ped_record["y_mm"] = y_mm;
-      
-      ped_record["highgain"]["peak"] = fr_hg.mean;
-      ped_record["highgain"]["sigma"] = fr_hg.sigma;
-      ped_record["highgain"]["entries"] = entries_hg;
-      ped_record["highgain"]["fitStatus"] = fr_hg.status;
-      ped_record["highgain"]["fitOk"] = fr_hg.ok ? 1 : 0;
-      
-      ped_record["lowgain"]["peak"] = fr_lg.mean;
-      ped_record["lowgain"]["sigma"] = fr_lg.sigma;
-      ped_record["lowgain"]["entries"] = entries_lg;
-      ped_record["lowgain"]["fitStatus"] = fr_lg.status;
-      ped_record["lowgain"]["fitOk"] = fr_lg.ok ? 1 : 0;
-      
-      pedestals_array.push_back(ped_record);
-    }
-
-    // Statistics section
-    j["metadata"]["statistics"]["nFitOK_HG"] = nFitOK_HG_total;
-    j["metadata"]["statistics"]["nFitAll_HG"] = nFitAll_HG_total;
-    j["metadata"]["statistics"]["nFitOK_LG"] = nFitOK_LG_total;
-    j["metadata"]["statistics"]["nFitAll_LG"] = nFitAll_LG_total;
-
-    j["pedestals"] = pedestals_array;
-
-    // Write to file
-    std::ofstream jout(cfg_.out_json_filename);
-    if (!jout.is_open()) {
-      LOG_ERROR("PedestalAlg: cannot create JSON output file: {}", cfg_.out_json_filename);
+    // Create output directory if it doesn't exist
+    std::filesystem::path out_dir(cfg_.out_json_dirname);
+    try {
+      std::filesystem::create_directories(out_dir);
+    } catch (const std::exception& e) {
+      LOG_ERROR("PedestalAlg: cannot create output directory: {} - {}", cfg_.out_json_dirname, e.what());
       return;
     }
-    jout << j.dump(2) << std::endl;
-    jout.close();
 
-    LOG_INFO("PedestalAlg: wrote JSON {}", cfg_.out_json_filename);
+    // Generate ISO8601 timestamp
+    double start_time = ctx_.conditions.starttime;
+    double end_time = ctx_.conditions.endtime;
+    double ref_time = (start_time > 0.0 && end_time > 0.0) ? (start_time + end_time) / 2.0 : std::time(nullptr);
+    time_t utc_time = static_cast<time_t>(ref_time);
+    std::tm tm = {};
+    gmtime_r(&utc_time, &tm);
+    std::ostringstream oss;
+    oss << std::put_time(&tm, "%Y-%m-%d %H:%M:%S");
+    std::string timestamp = oss.str();
+
+    const int n_channels_per_layer = AHCALGeometry::chip_No * AHCALGeometry::channel_No;
+
+    // Loop over each layer and write separate JSON file
+    for (int layer = 0; layer < AHCALGeometry::Layer_No; ++layer) {
+      // Prepare per-layer arrays (indexed by channel_index = chip*36 + channel)
+      std::vector<int> cellid_arr(n_channels_per_layer, -1);
+      std::vector<double> hg_peak_arr(n_channels_per_layer, -1.0);
+      std::vector<double> hg_sigma_arr(n_channels_per_layer, -1.0);
+      std::vector<int>    hg_fitStatus_arr(n_channels_per_layer, 999);
+      std::vector<double> lg_peak_arr(n_channels_per_layer, -1.0);
+      std::vector<double> lg_sigma_arr(n_channels_per_layer, -1.0);
+      std::vector<int>    lg_fitStatus_arr(n_channels_per_layer, 999);
+
+      // Fill arrays for this layer
+      int fit_failures_hg = 0;
+      int fit_failures_lg = 0;
+      int entries_sum = 0;
+      for (const auto& [_, res] : ped_cache_) {
+        if (res.layer != layer) continue;
+
+        const int layer_idx = res.chip * AHCALGeometry::channel_No + res.channel;
+        if (layer_idx < 0 || layer_idx >= n_channels_per_layer) continue;
+
+        cellid_arr[layer_idx] = res.cellid;
+        hg_peak_arr[layer_idx] = res.fit_hg.mean;
+        hg_sigma_arr[layer_idx] = res.fit_hg.sigma;
+        hg_fitStatus_arr[layer_idx] = res.fit_hg.status;
+        lg_peak_arr[layer_idx] = res.fit_lg.mean;
+        lg_sigma_arr[layer_idx] = res.fit_lg.sigma;
+        lg_fitStatus_arr[layer_idx] = res.fit_lg.status;
+        if (!res.fit_hg.ok) fit_failures_hg++;
+        if (!res.fit_lg.ok) fit_failures_lg++;
+        entries_sum = res.entries_hg;
+      }
+
+      // Fill missing cellids
+      int dead_channels = 0;
+      for (int idx = 0; idx < n_channels_per_layer; ++idx) {
+        if (cellid_arr[idx] < 0) {
+          dead_channels++;
+          int chip = idx / AHCALGeometry::channel_No;
+          int channel = idx % AHCALGeometry::channel_No;
+          cellid_arr[idx] = AHCALGeometry::CellID(layer, chip, channel);
+        }
+      }
+
+      // Build JSON object for this layer
+      json j;
+
+      j["RunNumber"] = ctx_.config.runNumber;
+      j["TimeStamp"] = timestamp;
+      j["Layer"] = layer;
+      j["CalibrationType"] = "Pedestal";
+      j["Summary"]["DeadChannels"] = dead_channels;
+      j["Summary"]["HighGainFitFailures"] = fit_failures_hg;
+      j["Summary"]["LowGainFitFailures"] = fit_failures_lg;
+      j["Summary"]["Entries"] = entries_sum;
+      j["Status"] = (fit_failures_hg == 0 && fit_failures_lg == 0) ? 0 : 1;
+
+      // Per-channel arrays (following Pedestal.schema)
+      // j["PerChannel"]["CellID"] = cellid_arr;
+      j["PerChannel"]["HighGainPeak"] = hg_peak_arr;
+      j["PerChannel"]["HighGainSigma"] = hg_sigma_arr;
+      j["PerChannel"]["HighGainStatus"] = hg_fitStatus_arr;
+      j["PerChannel"]["LowGainPeak"] = lg_peak_arr;
+      j["PerChannel"]["LowGainSigma"] = lg_sigma_arr;
+      j["PerChannel"]["LowGainStatus"] = lg_fitStatus_arr;
+
+      // Write to file
+      std::ostringstream filename;
+      filename << cfg_.out_json_dirname << "/pedestal_Layer" << layer << ".json";
+      std::string out_filename = filename.str();
+
+      std::ofstream jout(out_filename);
+      if (!jout.is_open()) {
+        LOG_ERROR("PedestalAlg: cannot create JSON output file: {}", out_filename);
+        continue;
+      }
+      jout << j.dump(2) << std::endl;
+      jout.close();
+
+      LOG_INFO("PedestalAlg: wrote JSON {}", out_filename);
+    }
   }
 
   PedestalAlgCfg cfg_;
   const RunContext& ctx_;
   bool written_ = false;
+  bool cache_built_ = false;
+  int nFitOK_HG_ = 0;
+  int nFitAll_HG_ = 0;
+  int nFitOK_LG_ = 0;
+  int nFitAll_LG_ = 0;
   std::unordered_map<int, std::unique_ptr<TH1D>> hg_hist_;
   std::unordered_map<int, std::unique_ptr<TH1D>> lg_hist_;
+  std::unordered_map<int, CellPedestalResult> ped_cache_;
 };
 
 // Define deleter *after* Impl is a complete type in this TU.
@@ -518,7 +558,7 @@ void PedestalAlg::parse_cfg(const YAML::Node& n) {
   cfg_.pedestal_to_file = get_or<bool>(n, "pedestal_to_file", cfg_.pedestal_to_file);
   cfg_.pedestal_to_json = get_or<bool>(n, "pedestal_to_json", cfg_.pedestal_to_json);
   cfg_.out_pedestal_filename = get_or<std::string>(n, "out_pedestal_filename", cfg_.out_pedestal_filename);
-  cfg_.out_json_filename = get_or<std::string>(n, "out_json_filename", cfg_.out_json_filename);
+  cfg_.out_json_dirname = get_or<std::string>(n, "out_json_dirname", cfg_.out_json_dirname);
 
   cfg_.nbin = get_or<int>(n, "nbin", cfg_.nbin);
   cfg_.xmin = get_or<double>(n, "xmin", cfg_.xmin);
