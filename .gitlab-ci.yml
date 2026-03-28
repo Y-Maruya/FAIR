@@ -32,6 +32,6 @@ build-job:       # This job runs in the build stage, which runs first.
     - mkdir build
     - cd build
     - cmake ../
-    - make -j16 install
+    - make -j16
     - echo "Compile complete."
 

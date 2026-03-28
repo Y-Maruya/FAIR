@@ -25,7 +25,6 @@ if(TARGET fair_options)
     PRIVATE
       fair_options
       PedestalReader
-      CalibDBIO
   )
   target_link_libraries(fair_multi 
     PRIVATE
