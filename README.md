@@ -37,6 +37,11 @@ Example using an LCG view on CERN LXPLUS:
 source /cvmfs/sft.cern.ch/lcg/views/LCG_105/x86_64-el9-gcc11-opt/setup.sh
 ```
 
+Environment check helper:
+```bash
+./scripts/check_lcg105_env.sh
+```
+
 ## Download & build
 
 ```bash
@@ -118,6 +123,14 @@ The framework uses an event store (`common/EventStore.hpp`) to pass data between
         - [SimpleFittedTrack, FittedTrack]
         - [Track, MuonKFTrack]
       ```
+- `AHCALSimReader` (alias: `Geant4SimReader`) -- Internal simulation reader that generates `vector<AHCALSimHit>` and `SimData` directly into the event store using Geant4. This reader is compiled/available only when Geant4 is found at build time.
+  - Parameters:
+    - `out_simhits_key`, `out_simdata_key`
+    - `max_events`, `seed`
+    - `detector.model`, `detector.birks_constant_mm_per_MeV`, `detector.enable_trigger_component`, `detector.trigger_nplanes`
+    - `generator` block (`mode=sim_reader|particle_gun`, `input_root_file`, `input_tree_name`, `fixed_vertex`, `particle`/`pdg`, `energy_GeV`, `position_mm`, `direction`)
+    - `physics.list`
+    - `decayer.enable_pythia8`
 
 ### Output modules
 - `RootWriterAlg` -- Writes specified data products to ROOT files.
@@ -164,4 +177,3 @@ The framework uses an event store (`common/EventStore.hpp`) to pass data between
     - `threshold_xy` -- The threshold in the XY plane to consider hits in the track (default: 20.0 mm).
 - `MuonKFAlg` -- Kalman filter-based muon track fitting algorithm. Implemented in `reco_alg/module/MuonKFAlg.hpp`.
   - Status: not checked yet.
-

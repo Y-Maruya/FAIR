@@ -1,0 +1,49 @@
+run:
+  input: /path/to/gfaser_input.root
+  MC: true
+  log_file: /tmp/fair_geant4_simtest.log
+  output: /tmp/fair_geant4_simtest.root
+  nEvents: 10
+  log_level: INFO
+  runNumber: 0
+  poolIndex: 0
+
+reader:
+  type: AHCALSimReader
+  cfg:
+    out_simhits_key: SimHits
+    out_simdata_key: SimData
+    max_events: 10
+    seed: 12345
+
+    detector:
+      model: hcal_option3
+      birks_constant_mm_per_MeV: 0.126
+      enable_trigger_component: true
+      trigger_nplanes: 1
+
+    generator:
+      mode: sim_reader
+      input_root_file: /path/to/gfaser_input.root
+      input_tree_name: gFaser
+      fixed_vertex: false
+
+      # particle-gun fallback parameters (used only when mode=particle_gun)
+      particle: "mu-"
+      pdg: 13
+      energy_GeV: 100.0
+      position_mm: [0.0, 0.0, -2000.0]
+      direction: [0.0, 0.0, 1.0]
+
+    physics:
+      list: FTFP_BERT
+
+    decayer:
+      enable_pythia8: true
+
+algs:
+  - type: RootWriterAlg
+    cfg:
+      outputlist:
+        - vector<AHCALSimHit>
+        - SimData
