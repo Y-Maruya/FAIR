@@ -66,6 +66,12 @@ if(TARGET fair_options)
       RateAnaAlg
       -Wl,--no-whole-archive
   )
+  if(FAIR_WITH_GEANT4 AND Geant4_FOUND)
+    target_link_libraries(fair_multi PRIVATE Geant4SimReader)
+    target_link_libraries(fair_single PRIVATE Geant4SimReader)
+    target_compile_definitions(fair_multi PRIVATE FAIR_HAS_GEANT4=1)
+    target_compile_definitions(fair_single PRIVATE FAIR_HAS_GEANT4=1)
+  endif()
   target_link_libraries(EventDisplay2D
     PRIVATE
       fair_options
