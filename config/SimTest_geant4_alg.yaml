@@ -1,0 +1,46 @@
+run:
+  input: "./inputs/injected_particles.root"
+  MC: true
+  log_file: "./outputs/SimTest_geant4_alg.log"
+  output: "./outputs/SimTest_geant4_alg_out.root"
+  nEvents: 100
+  log_level: INFO
+  runNumber: 0
+  poolIndex: 0
+
+reader:
+  type: RootInput
+  cfg:
+    inputlist:
+      - [vector<InjectedParticle>, InjectedParticles]
+
+algs:
+  - type: Geant4Alg
+    cfg:
+      in_injected_particles_key: InjectedParticles
+      out_simhits_key: SimHits
+      out_simdata_key: SimData
+      require_input_particle: true
+      generator_mode: external_inject
+      detector_model: hcal_option3
+      physics_list: FTFP_BERT
+      birks_constant_mm_per_MeV: 0.126
+      enable_trigger_component: true
+      trigger_nplanes: 1
+      hcal_step_time_limit_ns: 150.0
+      passive_side_thickness_mm: 0.065
+      passive_cover_thickness_mm: 0.065
+      attach_thickness_mm: 0.0
+      double_sided_readout: false
+      house_pitch_mm: 40.3
+      sensitive_dig_out_x_mm: 5.5
+      sensitive_dig_out_y_mm: 5.5
+      sensitive_dig_out_z_mm: 1.1
+      enable_pythia8_decayer: false
+
+  - type: RootWriterAlg
+    cfg:
+      outputlist:
+        - vector<InjectedParticle>
+        - vector<AHCALSimHit>
+        - SimData

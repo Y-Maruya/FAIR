@@ -44,6 +44,8 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 # ---------------------------
 # ROOT is optional at top-level (enable when needed in subdirs)
 option(FAIR_WITH_ROOT "Enable ROOT-dependent components" ON)
+option(FAIR_WITH_GEANT4 "Enable Geant4-dependent components" ON)
+option(FAIR_WITH_PYTHIA8 "Enable Pythia8-dependent components" OFF)
 if(FAIR_WITH_ROOT)
   # Prefer ROOT from the current environment (e.g. LCG view) over /usr
   if(DEFINED ENV{ROOTSYS} AND EXISTS "$ENV{ROOTSYS}")
@@ -60,6 +62,37 @@ if(FAIR_WITH_ROOT)
     message(STATUS "ROOT found: ${ROOT_VERSION} (ROOTSYS=$ENV{ROOTSYS})")
   else()
     message(FATAL_ERROR "ROOT not found or wrong ROOT selected. Please 'source' the desired ROOT (e.g. LCG view) and reconfigure.")
+  endif()
+endif()
+
+if(FAIR_WITH_GEANT4)
+  find_package(Geant4 QUIET)
+  if(Geant4_FOUND)
+    message(STATUS "Geant4 found: ${Geant4_VERSION}")
+  else()
+    message(WARNING "Geant4 not found. Geant4SimReader will not be built.")
+  endif()
+endif()
+
+if(FAIR_WITH_PYTHIA8)
+  if(DEFINED ENV{PYTHIA8} AND EXISTS "$ENV{PYTHIA8}/bin/pythia8-config")
+    execute_process(
+      COMMAND $ENV{PYTHIA8}/bin/pythia8-config --cxxflags
+      OUTPUT_VARIABLE FAIR_PYTHIA8_CXX_FLAGS
+      OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+    execute_process(
+      COMMAND $ENV{PYTHIA8}/bin/pythia8-config --libs
+      OUTPUT_VARIABLE FAIR_PYTHIA8_LIBS
+      OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
+    set(FAIR_PYTHIA8_INCLUDE_DIR "$ENV{PYTHIA8}/include")
+    set(FAIR_PYTHIA8_LIBRARY "$ENV{PYTHIA8}/lib/libpythia8.so")
+    set(FAIR_PYTHIA8_FOUND TRUE)
+    message(STATUS "PYTHIA8 Include Dir: ${FAIR_PYTHIA8_INCLUDE_DIR}")
+    message(STATUS "PYTHIA8 Library: ${FAIR_PYTHIA8_LIBRARY}")
+  else()
+    message(WARNING "FAIR_WITH_PYTHIA8=ON but PYTHIA8 environment is not set. Build proceeds without pythia8 linkage.")
   endif()
 endif()
 # ---------------------------
@@ -80,6 +113,14 @@ target_include_directories(fair_options INTERFACE
   ${CMAKE_CURRENT_SOURCE_DIR}/faser-common/Exceptions
   ${CMAKE_CURRENT_SOURCE_DIR}/faser-common/Logging/include
 )
+
+if(FAIR_WITH_PYTHIA8 AND DEFINED FAIR_PYTHIA8_INCLUDE_DIR)
+  target_include_directories(fair_options INTERFACE ${FAIR_PYTHIA8_INCLUDE_DIR})
+  if(EXISTS "${FAIR_PYTHIA8_LIBRARY}")
+    target_link_libraries(fair_options INTERFACE ${FAIR_PYTHIA8_LIBRARY})
+  endif()
+  target_compile_definitions(fair_options INTERFACE FAIR_HAS_PYTHIA8=1)
+endif()
 
 # If ROOT exists, expose include dirs via interface as well (optional)
 if(FAIR_WITH_ROOT AND ROOT_FOUND)
