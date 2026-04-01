@@ -32,6 +32,9 @@ algs: # Define the sequence of algorithms to be executed. The order matters.
       pedestal_to_file: true
       pedestal_to_DB: true
       out_pedestal_filename: out_calibration/pedestal_calib/###run-number###/pedestal.root
-      out_json_dirname: out_calibration/pedestal_calib/###run-number###/test/
+      out_json_dirname: out_calibration/pedestal_calib/###run-number###/json/
       use_hittag: false
       select_hittag: 0
+      nbin: 800
+      xmin: 0
+      xmax: 800

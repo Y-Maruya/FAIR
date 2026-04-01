@@ -16,7 +16,7 @@ struct RunConfig {
 
 struct ConditionStore {
   // Placeholder for condition data
-  std::vector<int> skipLayers = {0,2,14,24};
+  std::vector<int> skipLayers = {0,2,14,28};
   int nTriggerLayers = 4;
   std::vector<int> triggerLayers = {9,19,29,38};
   double starttime = 0;

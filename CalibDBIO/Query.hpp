@@ -8,7 +8,7 @@
 
 using json = nlohmann::json;
 namespace CalibDBIO {
-    std::string db_url = "https://faser-calibrationdb.app.cern.ch/";
+    std::string db_url = "https://ahcalib-calibrationdb.app.cern.ch/";
     
     static size_t WriteCallback(void* contents, size_t size, size_t nmemb, void* userp) {
         size_t totalSize = size * nmemb;

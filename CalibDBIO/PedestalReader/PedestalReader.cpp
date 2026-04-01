@@ -45,36 +45,41 @@ void PedestalReader::readPedestals(int runNumber) {
 
         // Parse the response and fill the pedestalMap_
         try {
-            if (!response.contains("PerChannel") || !response["PerChannel"].is_array()) {
-                LOG_ERROR("Invalid pedestal data format: 'PerChannel' field missing or not an array");
-                throw std::runtime_error("Invalid pedestal data format: 'PerChannel' field missing or not an array");
+            // Response can be either an object or an array with one object
+            nlohmann::json data = response.is_array() && response.size() > 0 ? response[0] : response;
+            
+            if (!data.contains("PerChannel") || !data["PerChannel"].is_object()) {
+                LOG_ERROR("Invalid pedestal data format: 'PerChannel' field missing or not an object");
+                throw std::runtime_error("Invalid pedestal data format: 'PerChannel' field missing or not an object");
             }
-            if (response["Layer"] != layer) {
-                LOG_ERROR("Pedestal data layer mismatch: expected {}, got {}", layer, response["Layer"].get<int>());
-                throw std::runtime_error("Pedestal data layer mismatch: expected " + std::to_string(layer) + ", got " + std::to_string(response["Layer"].get<int>()));
+            if (data["Layer"] != layer) {
+                LOG_ERROR("Pedestal data layer mismatch: expected {}, got {}", layer, data["Layer"].get<int>());
+                throw std::runtime_error("Pedestal data layer mismatch: expected " + std::to_string(layer) + ", got " + std::to_string(data["Layer"].get<int>()));
             }
-            for (const auto& entry : response["PerChannel"]) {
+            
+            const auto& perChannel = data["PerChannel"];
+            int totalChannels = perChannel["HighGainPeak"].size();
+            
+            for (int chch = 0; chch < totalChannels; ++chch) {
                 Pedestal ped;
-                for (int chch = 0; chch < AHCALGeometry::chip_No*AHCALGeometry::channel_No; ++chch) {
-                    int cellid = AHCALGeometry::CellID(layer, chch / AHCALGeometry::channel_No, chch % AHCALGeometry::channel_No);
-                    ped.HighGainPeak = entry["HighGainPeak"][chch].get<double>();
-                    ped.HighGainSigma = entry["HighGainSigma"][chch].get<double>();
-                    ped.HighGainStatus = entry["HighGainStatus"][chch].get<int>();
-                    ped.LowGainPeak = entry["LowGainPeak"][chch].get<double>();
-                    ped.LowGainSigma = entry["LowGainSigma"][chch].get<double>();
-                    ped.LowGainStatus = entry["LowGainStatus"][chch].get<int>();
-                    if ((ped.HighGainStatus != 0 && ped.HighGainStatus != 999) || (ped.LowGainStatus != 0 && ped.LowGainStatus != 999)) {
-                        LOG_WARN("Pedestal fit status not OK for cellID {}: HG status {}, LG status {}", cellid, ped.HighGainStatus, ped.LowGainStatus);
-                    }
-                    pedestalMap_[cellid] = ped;
+                int cellid = AHCALGeometry::CellID(layer, chch / AHCALGeometry::channel_No, chch % AHCALGeometry::channel_No);
+                ped.HighGainPeak = perChannel["HighGainPeak"][chch].get<double>();
+                ped.HighGainSigma = perChannel["HighGainSigma"][chch].get<double>();
+                ped.HighGainStatus = perChannel["HighGainStatus"][chch].get<int>();
+                ped.LowGainPeak = perChannel["LowGainPeak"][chch].get<double>();
+                ped.LowGainSigma = perChannel["LowGainSigma"][chch].get<double>();
+                ped.LowGainStatus = perChannel["LowGainStatus"][chch].get<int>();
+                if ((ped.HighGainStatus != 0 && ped.HighGainStatus != 999) || (ped.LowGainStatus != 0 && ped.LowGainStatus != 999)) {
+                    LOG_WARN("Pedestal fit status not OK for cellID {}: HG status {}, LG status {}", cellid, ped.HighGainStatus, ped.LowGainStatus);
                 }
+                pedestalMap_[cellid] = ped;
             }
-            LOG_INFO("Successfully read {} pedestal entries for run {}", pedestalMap_.size(), pedestalRun);
         } catch (const std::exception& e) {
             LOG_ERROR("Error parsing pedestal data: {}", e.what());
             throw std::runtime_error("Error parsing pedestal data: " + std::string(e.what()));
         }
     }
+    LOG_INFO("Successfully read {} pedestal entries for run {}", pedestalMap_.size(), pedestalRun);
 }
 
 int PedestalReader::selectNearestPedestalRun(int runNumber) {
@@ -100,17 +105,26 @@ int PedestalReader::selectNearestPedestalRun(int runNumber) {
     }
     if (pedestalRuns.empty() || pedestalRuns.back().first < runNumber) {
         //load pedestal run info from the runinfo
-        for (int r = runNumber - 1; r >= 0; --r) {
+        for (int r = runNumber - 1; r >= 20000; --r) {
             if (std::find_if(pedestalRuns.begin(), pedestalRuns.end(), [r](const auto& p){ return p.first == r; }) != pedestalRuns.end()) {
                 break; // already have this run in the table
             }
             try {
-                auto response = CalibDBIO::QueryRun(r, "Pedestal", 0, false, false);
+                auto response = CalibDBIO::QueryRun(r, "Pedestal", 0, true, false);
+                LOG_DEBUG("Queried pedestal run {}: response size {}", r, response.size());
+                LOG_DEBUG("Response content: {}", response.dump());
                 if (!response.empty()) {
-                    std::time_t timestamp = response["TimeStamp"].get<std::time_t>();
-                    pedestalRuns.emplace_back(r, timestamp);
-                    LOG_INFO("Found pedestal run {} with timestamp {} for physics run {}", r, timestamp, runNumber);
-                    break;
+                    // Response can be either an object or an array with one object
+                    nlohmann::json data = response.is_array() && response.size() > 0 ? response[0] : response;
+                    if (data.is_object() && data.contains("TimeStamp")) {
+                        std::string timestamp_string = data["TimeStamp"].get<std::string>();
+                        struct std::tm tm = {};
+                        strptime(timestamp_string.c_str(), "%Y-%m-%d %H:%M:%S", &tm);
+                        std::time_t timestamp = mktime(&tm);
+                        pedestalRuns.emplace_back(r, timestamp);
+                        LOG_INFO("Found pedestal run {} with timestamp {} for physics run {}", r, timestamp, runNumber);
+                        // break;
+                    }
                 }
             } catch (const std::exception& e) {
                 LOG_ERROR("Error querying pedestal run {}: {}", r, e.what());

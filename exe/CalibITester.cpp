@@ -7,12 +7,12 @@
 
 int main(int argc, char* argv[]) {
     // Initialize logger
-    FAIR::init_logger("CalibITester", "calib_tester.log", spdlog::level::info);
+    FAIR::init_logger("CalibITester", "calib_tester.log", spdlog::level::debug);
     LOG_INFO("=== PedestalReader Integration Test ===");
     LOG_INFO("Test Type: Integration test with real calibration database");
     
     // Test run number
-    int testRunNumber = 22140;
+    int testRunNumber = 22249;
     if (argc > 1) {
         testRunNumber = std::stoi(argv[1]);
     }
@@ -30,9 +30,9 @@ int main(int argc, char* argv[]) {
         // Sample cell IDs to test (assuming reasonable geometry values)
         // Format: Layer, Chip, Channel
         std::vector<std::tuple<int, int, int>> testCells = {
-            {0, 0, 0},      // Layer 0, Chip 0, Channel 0
-            {0, 0, 1},      // Layer 0, Chip 0, Channel 1
-            {0, 1, 0},      // Layer 0, Chip 1, Channel 0
+            {1, 0, 0},      // Layer 0, Chip 0, Channel 0
+            {1, 0, 1},      // Layer 0, Chip 0, Channel 1
+            {1, 1, 0},      // Layer 0, Chip 1, Channel 0
         };
         
         int successCount = 0;

@@ -984,9 +984,9 @@ void printSummaryTable(const std::vector<RunData> &runs) {
 }
 
 void compare(const char *baseDir = ".",
-             const char *runListCsv = "all",
+             const char *runListCsv = "22458,22461",
              int focusCellId = -1,
-             const char *outDirName = "compare_plots",
+             const char *outDirName = "compare_plots_limited",
              const char *testBeamDir = "") {
   gROOT->SetBatch(kTRUE);
   gStyle->SetOptStat(0);

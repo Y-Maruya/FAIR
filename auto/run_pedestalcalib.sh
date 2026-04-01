@@ -8,6 +8,7 @@ python3 changepath.py ped_${runnumber}.yaml --run-number $runnumber
 python3 makerunlist_byrun.py --runnumber $runnumber
 cd ../
 mkdir -p out_calibration/pedestal_calib/${runnumber}
+mkdir -p out_calibration/pedestal_calib/${runnumber}/json
 ./bin/fair_single auto/ped_${runnumber}.yaml -i auto/ped_${runnumber}.txt
 
 cd auto/
