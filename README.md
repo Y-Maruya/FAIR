@@ -37,6 +37,11 @@ Example using an LCG view on CERN LXPLUS:
 source /cvmfs/sft.cern.ch/lcg/views/LCG_105/x86_64-el9-gcc11-opt/setup.sh
 ```
 
+Environment check helper:
+```bash
+./scripts/check_lcg105_env.sh
+```
+
 ## Download & build
 
 ```bash
@@ -118,6 +123,15 @@ The framework uses an event store (`common/EventStore.hpp`) to pass data between
         - [SimpleFittedTrack, FittedTrack]
         - [Track, MuonKFTrack]
       ```
+- `AHCALSimReader` (alias: `Geant4SimReader`) -- Internal simulation reader that generates `vector<AHCALSimHit>` and `SimData` directly into the event store using Geant4. This reader is compiled/available only when Geant4 is found at build time.
+- `RootInput` + `Geant4Alg` -- Alternative design path: read `vector<InjectedParticle>` from an input source (e.g. ParticleInjectReader-compatible output), then run Geant4 as a normal algorithm step to produce `vector<AHCALSimHit>` + `SimData`.
+  - Parameters:
+    - `out_simhits_key`, `out_simdata_key`
+    - `max_events`, `seed`
+    - `detector.model`, `detector.birks_constant_mm_per_MeV`, `detector.enable_trigger_component`, `detector.trigger_nplanes`, `detector.hcal_step_time_limit_ns`, `detector.passive_side_thickness_mm`, `detector.passive_cover_thickness_mm`, `detector.attach_thickness_mm`, `detector.double_sided_readout`, `detector.house_pitch_mm`, `detector.sensitive_dig_out_x_mm`, `detector.sensitive_dig_out_y_mm`, `detector.sensitive_dig_out_z_mm`
+    - `generator` block (`mode=sim_reader|particle_gun`, `input_root_file`, `input_tree_name`, `fixed_vertex`, `particle`/`pdg`, `energy_GeV`, `position_mm`, `direction`)
+    - `physics.list`
+    - `decayer.enable_pythia8`
 
 ### Output modules
 - `RootWriterAlg` -- Writes specified data products to ROOT files.
@@ -132,6 +146,8 @@ The framework uses an event store (`common/EventStore.hpp`) to pass data between
       ```
 
 ### Algorithms
+- `Geant4Alg` -- Geant4 simulation as a pipeline algorithm. It consumes `vector<InjectedParticle>` from the EventStore and writes `vector<AHCALSimHit>` and `SimData`.
+  - Typical use: `reader: RootInput` + `inputlist: [[vector<InjectedParticle>, InjectedParticles]]`, then `Geant4Alg` in `algs:`.
 - `PedestalAlg` -- Pedestal calculation algorithm. Implemented in `calibration/module/pedestal/PedestalAlg.hpp`.
   - Parameters:
     - `in_rawhits_key` -- Key for the input RawHits collection.
@@ -164,4 +180,3 @@ The framework uses an event store (`common/EventStore.hpp`) to pass data between
     - `threshold_xy` -- The threshold in the XY plane to consider hits in the track (default: 20.0 mm).
 - `MuonKFAlg` -- Kalman filter-based muon track fitting algorithm. Implemented in `reco_alg/module/MuonKFAlg.hpp`.
   - Status: not checked yet.
-

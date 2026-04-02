@@ -8,8 +8,12 @@
 #include "common/RunContext.hpp"
 #include "common/AlgFactory.hpp"
 #include "common/config/ParseRunConfig.hpp"
+#include "common/config/YAMLUtil.hpp"
 #include "IO/reader/RootRawHitReader.hpp"
 #include "IO/reader/BinaryRawHitReader.hpp"
+#if FAIR_HAS_GEANT4
+#include "IO/reader/Geant4SimReader.hpp"
+#endif
 #include "IO/writer/RootWriterAlg.hpp"
 #include "IO/writer/WriterRegistry.hpp"
 #include <iostream>
@@ -221,7 +225,39 @@ int main(int argc, char* argv[]) {
                 }
                 eventStore.clear();
             }
-        }else if (type == "RootInput") {
+        }
+#if FAIR_HAS_GEANT4
+        else if (type == "Geant4SimReader" || type == "AHCALSimReader") {
+            int nEvent = 0;
+            std::string input_key_simhits = get_or<std::string>(cfg, "out_simhits_key", "SimHits");
+            std::string input_key_simdata = get_or<std::string>(cfg, "out_simdata_key", "SimData");
+            Geant4SimReader simReader(cfg);
+            LOG_INFO("Geant4SimReader created successfully.");
+            while (true) {
+                std::vector<AHCALSimHit> simHits;
+                SimData simData;
+                if (!simReader.next(simHits, simData)) {
+                    break;
+                }
+                if (ctx_i.config.nEvents > 0 && nEvent >= ctx_i.config.nEvents) {
+                    break;
+                }
+                EventStore eventStore;
+                eventStore.set_event_counter(nEvent);
+                eventStore.put(input_key_simhits, std::move(simHits));
+                eventStore.put(input_key_simdata, std::move(simData));
+                for (auto& alg : algs) {
+                    alg->execute(eventStore);
+                }
+                nEvent++;
+                if (nEvent % 10000 == 0) {
+                    LOG_INFO("Processed {}", nEvent);
+                }
+                eventStore.clear();
+            }
+        }
+#endif
+        else if (type == "RootInput") {
             // Initialize RootInput reader
             RootInput in(ctx_i.config.input, "events");
             LOG_INFO("RootInput reader created successfully.");

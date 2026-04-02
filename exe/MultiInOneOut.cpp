@@ -8,9 +8,13 @@
 #include "common/RunContext.hpp"
 #include "common/AlgFactory.hpp"
 #include "common/config/ParseRunConfig.hpp"
+#include "common/config/YAMLUtil.hpp"
 #include "IO/reader/RootRawHitReader.hpp"
 #include "IO/reader/BinaryRawHitReader.hpp"
 #include "IO/reader/SimHitReader.hpp"
+#if FAIR_HAS_GEANT4
+#include "IO/reader/Geant4SimReader.hpp"
+#endif
 #include "IO/writer/RootWriterAlg.hpp"
 #include "IO/writer/WriterRegistry.hpp"
 #include <iostream>
@@ -223,7 +227,41 @@ int main(int argc, char* argv[]) {
             LOG_INFO("Finished processing input file: {} (RunNumber: {}, PoolIndex: {})", ctx.config.input, ctx.config.runNumber, ctx.config.poolIndex);
             LOG_INFO("Total events processed so far: {}", nEvent);
         }
-    }else if (type == "RootInput") {
+    }
+#if FAIR_HAS_GEANT4
+    else if (type == "Geant4SimReader" || type == "AHCALSimReader") {
+        int nEvent = 0;
+        std::string input_key_simhits = get_or<std::string>(cfg, "out_simhits_key", "SimHits");
+        std::string input_key_simdata = get_or<std::string>(cfg, "out_simdata_key", "SimData");
+        Geant4SimReader simReader(cfg);
+        LOG_INFO("Geant4SimReader created successfully.");
+
+        while (true) {
+            std::vector<AHCALSimHit> simHits;
+            SimData simData;
+            if (!simReader.next(simHits, simData)) {
+                break;
+            }
+            if (ctx.config.nEvents > 0 && nEvent >= ctx.config.nEvents) {
+                break;
+            }
+            EventStore eventStore;
+            eventStore.set_event_counter(nEvent);
+            eventStore.put(input_key_simhits, std::move(simHits));
+            eventStore.put(input_key_simdata, std::move(simData));
+            for (auto& alg : algs) {
+                alg->execute(eventStore);
+            }
+            nEvent++;
+            if (nEvent % 10000 == 0) {
+                LOG_INFO("Processed {}", nEvent);
+            }
+            eventStore.clear();
+        }
+        LOG_INFO("Finished Geant4 simulation events: {}", nEvent);
+    }
+#endif
+    else if (type == "RootInput") {
         int nEvent = 0;
         for (int iinput = 0; iinput < ninputs; ++iinput) {
             ctx.config.input = input_files[iinput];

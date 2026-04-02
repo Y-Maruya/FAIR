@@ -7,3 +7,4 @@
 #include "common/edm/SimpleFittedTrack.hpp"
 #include "common/edm/SimHit.hpp"
 #include "common/edm/SimData.hpp"
+#include "common/edm/InjectedParticle.hpp"
