@@ -79,7 +79,9 @@ private:
     }
 
     if (!same_run_context(m_active_context, ctx())) {
-      m_out.write_run_context(m_active_context, m_context_start_event, event_counter - 1);
+      const long long end_event =
+        (m_last_event < m_context_start_event) ? m_context_start_event : m_last_event;
+      m_out.write_run_context(m_active_context, m_context_start_event, end_event);
       m_active_context = ctx();
       m_context_start_event = event_counter;
     }
