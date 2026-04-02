@@ -18,6 +18,8 @@ reader:
 
     detector:
       model: hcal_option3
+      use_ahcal_exact_geometry: false
+      ahcal_geometry_gdml_file: ""
       birks_constant_mm_per_MeV: 0.126
       enable_trigger_component: true
       trigger_nplanes: 1

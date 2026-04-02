@@ -23,6 +23,8 @@ algs:
       require_input_particle: true
       generator_mode: external_inject
       detector_model: hcal_option3
+      use_ahcal_exact_geometry: false
+      ahcal_geometry_gdml_file: ""
       physics_list: FTFP_BERT
       birks_constant_mm_per_MeV: 0.126
       enable_trigger_component: true

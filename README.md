@@ -128,7 +128,7 @@ The framework uses an event store (`common/EventStore.hpp`) to pass data between
   - Parameters:
     - `out_simhits_key`, `out_simdata_key`
     - `max_events`, `seed`
-    - `detector.model`, `detector.birks_constant_mm_per_MeV`, `detector.enable_trigger_component`, `detector.trigger_nplanes`, `detector.hcal_step_time_limit_ns`, `detector.passive_side_thickness_mm`, `detector.passive_cover_thickness_mm`, `detector.attach_thickness_mm`, `detector.double_sided_readout`, `detector.house_pitch_mm`, `detector.sensitive_dig_out_x_mm`, `detector.sensitive_dig_out_y_mm`, `detector.sensitive_dig_out_z_mm`
+    - `detector.model`, `detector.use_ahcal_exact_geometry`, `detector.ahcal_geometry_gdml_file`, `detector.birks_constant_mm_per_MeV`, `detector.enable_trigger_component`, `detector.trigger_nplanes`, `detector.hcal_step_time_limit_ns`, `detector.passive_side_thickness_mm`, `detector.passive_cover_thickness_mm`, `detector.attach_thickness_mm`, `detector.double_sided_readout`, `detector.house_pitch_mm`, `detector.sensitive_dig_out_x_mm`, `detector.sensitive_dig_out_y_mm`, `detector.sensitive_dig_out_z_mm`
     - `generator` block (`mode=sim_reader|particle_gun`, `input_root_file`, `input_tree_name`, `fixed_vertex`, `particle`/`pdg`, `energy_GeV`, `position_mm`, `direction`)
     - `physics.list`
     - `decayer.enable_pythia8`

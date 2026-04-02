@@ -5,6 +5,7 @@
 #include "simulation/geant4/HcalSD.hpp"
 
 #include "G4Box.hh"
+#include "G4GDMLParser.hh"
 #include "G4LogicalVolume.hh"
 #include "G4NistManager.hh"
 #include "G4PVPlacement.hh"
@@ -13,6 +14,9 @@
 #include "G4ThreeVector.hh"
 
 #include <algorithm>
+#include <functional>
+#include <stdexcept>
+#include <string>
 
 namespace AHCALRecoAlg::Sim {
 
@@ -28,6 +32,37 @@ G4VPhysicalVolume* DetectorConstruction::Construct() {
   auto* passiveMat = nist->FindOrBuildMaterial("G4_MYLAR");
   auto* attachMat = nist->FindOrBuildMaterial("G4_POLYETHYLENE");
   auto* galactic = nist->FindOrBuildMaterial("G4_Galactic");
+
+  if (m_cfg.use_ahcal_exact_geometry && !m_cfg.ahcal_geometry_gdml_file.empty()) {
+    G4GDMLParser parser;
+    parser.Read(m_cfg.ahcal_geometry_gdml_file, false);
+    auto* worldPV = parser.GetWorldVolume();
+    if (!worldPV) {
+      throw std::runtime_error("DetectorConstruction: failed to load world from GDML: " + m_cfg.ahcal_geometry_gdml_file);
+    }
+
+    auto* sdManager = G4SDManager::GetSDMpointer();
+    auto* sd = new HcalSD(m_hitMap, m_cfg.hcal_step_time_limit_ns);
+    sdManager->AddNewDetector(sd);
+
+    std::function<void(G4LogicalVolume*)> attach_sd = [&](G4LogicalVolume* lv) {
+      if (!lv) return;
+      const auto& n = lv->GetName();
+      if ((n.find("SensitiveLogical") != std::string::npos || n.find("HcalUnitSensitive") != std::string::npos) &&
+          n.find("dig_out") == std::string::npos && n.find("DigOut") == std::string::npos) {
+        lv->SetSensitiveDetector(sd);
+      }
+      const int nd = lv->GetNoDaughters();
+      for (int i = 0; i < nd; ++i) {
+        auto* d = lv->GetDaughter(i);
+        if (d) attach_sd(d->GetLogicalVolume());
+      }
+    };
+    attach_sd(worldPV->GetLogicalVolume());
+
+    LOG_INFO("Loaded exact AHCAL GDML geometry from {}", m_cfg.ahcal_geometry_gdml_file);
+    return worldPV;
+  }
 
   const double worldXY = 2600.0 * mm;
   const double worldZ = 6000.0 * mm;

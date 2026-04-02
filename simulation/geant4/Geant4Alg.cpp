@@ -25,6 +25,8 @@ void Geant4Alg::parse_cfg(const YAML::Node& n) {
   m_cfg.require_input_particle = get_or<bool>(n, "require_input_particle", m_cfg.require_input_particle);
 
   m_cfg.g4.detector_model = get_or<std::string>(n, "detector_model", m_cfg.g4.detector_model);
+  m_cfg.g4.use_ahcal_exact_geometry = get_or<bool>(n, "use_ahcal_exact_geometry", m_cfg.g4.use_ahcal_exact_geometry);
+  m_cfg.g4.ahcal_geometry_gdml_file = get_or<std::string>(n, "ahcal_geometry_gdml_file", m_cfg.g4.ahcal_geometry_gdml_file);
   m_cfg.g4.generator_mode = get_or<std::string>(n, "generator_mode", "external_inject");
   m_cfg.g4.physics_list = get_or<std::string>(n, "physics_list", m_cfg.g4.physics_list);
   m_cfg.g4.birks_constant_mm_per_MeV = get_or<double>(n, "birks_constant_mm_per_MeV", m_cfg.g4.birks_constant_mm_per_MeV);

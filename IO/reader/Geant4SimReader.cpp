@@ -15,6 +15,8 @@ Geant4SimReader::Geant4SimReader(const YAML::Node& cfg) {
 
   if (cfg["detector"]) {
     m_cfg.g4.detector_model = get_or<std::string>(cfg["detector"], "model", m_cfg.g4.detector_model);
+    m_cfg.g4.use_ahcal_exact_geometry = get_or<bool>(cfg["detector"], "use_ahcal_exact_geometry", m_cfg.g4.use_ahcal_exact_geometry);
+    m_cfg.g4.ahcal_geometry_gdml_file = get_or<std::string>(cfg["detector"], "ahcal_geometry_gdml_file", m_cfg.g4.ahcal_geometry_gdml_file);
   }
   if (cfg["decayer"]) {
     m_cfg.g4.enable_pythia8_decayer = get_or<bool>(cfg["decayer"], "enable_pythia8", m_cfg.g4.enable_pythia8_decayer);
