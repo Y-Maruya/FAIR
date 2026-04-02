@@ -10,7 +10,6 @@
 #include <type_traits>
 #include <cstddef>
 #include "common/RunContext.hpp"
-#include "common/edm/RunContextData.hpp"
 
 
 class RootOutput {
