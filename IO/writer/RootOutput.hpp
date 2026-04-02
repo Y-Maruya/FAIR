@@ -12,6 +12,23 @@
 #include "common/RunContext.hpp"
 #include "common/edm/RunContextData.hpp"
 
+namespace detail {
+    // C++17-compatible type-detection helpers used by RootOutput::Holder
+    template <class X, class = void>
+    struct has_clear : std::false_type {};
+    template <class X>
+    struct has_clear<X, std::void_t<decltype(std::declval<X&>().clear())>> : std::true_type {};
+
+    template <class X, class = void>
+    struct has_capacity : std::false_type {};
+    template <class X>
+    struct has_capacity<X, std::void_t<decltype(std::declval<const X&>().capacity())>> : std::true_type {};
+
+    template <class X, class = void>
+    struct has_shrink_to_fit : std::false_type {};
+    template <class X>
+    struct has_shrink_to_fit<X, std::void_t<decltype(std::declval<X&>().shrink_to_fit())>> : std::true_type {};
+} // namespace detail
 
 class RootOutput {
 public:
@@ -156,19 +173,13 @@ public:
 
         private:
             template <class X>
-            static constexpr bool has_clear_v = requires(X& x) {
-                x.clear();
-            };
+            static constexpr bool has_clear_v = detail::has_clear<X>::value;
 
             template <class X>
-            static constexpr bool has_capacity_v = requires(const X& x) {
-                x.capacity();
-            };
+            static constexpr bool has_capacity_v = detail::has_capacity<X>::value;
 
             template <class X>
-            static constexpr bool has_shrink_to_fit_v = requires(X& x) {
-                x.shrink_to_fit();
-            };
+            static constexpr bool has_shrink_to_fit_v = detail::has_shrink_to_fit<X>::value;
 
             static void reset_value(T& v, bool allow_shrink) {
                 if constexpr (has_clear_v<T>) {
