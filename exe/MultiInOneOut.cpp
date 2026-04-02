@@ -246,8 +246,15 @@ int main(int argc, char* argv[]) {
                 if (ctx.config.nEvents > 0 && nEvent >= ctx.config.nEvents) {
                     break; // Reached the maximum number of events to process
                 }
+                long long event_counter = nEvent;
+                if (in.has_branch("EventMeta.event_counter")) {
+                    event_counter = *in.get_or_make_address<long long>("EventMeta.event_counter");
+                }
+                if (in.has_run_context()) {
+                    in.apply_run_context_for_event(event_counter, ctx);
+                }
                 EventStore eventStore;
-                eventStore.set_event_counter(nEvent);
+                eventStore.set_event_counter(event_counter);
                 readandput(cfg, eventStore, rr, in);
                 for (auto& alg : algs) {
                     alg->execute(eventStore);
