@@ -5,8 +5,6 @@
 namespace AHCALRecoAlg::Sim {
 struct Geant4Config {
   std::string detector_model = "hcal_option3";
-  bool use_ahcal_exact_geometry = false;
-  std::string ahcal_geometry_gdml_file;
   std::string generator_mode = "sim_reader"; // sim_reader | particle_gun | external_inject
   std::string physics_list = "FTFP_BERT";
 

@@ -69,8 +69,3 @@ Reference checked:
 4. Reproduce trigger physical naming/hierarchy exactly.
 5. Add parity validation: per-layer Edep/time and secondary distributions under
    same input/seed conditions.
-
-
-## Additional note
-
-- FAIR now supports an exact-geometry path via GDML (`use_ahcal_exact_geometry`, `ahcal_geometry_gdml_file`) to load the same geometry definition file used in AHCAL-simulation workflows.

@@ -5,7 +5,6 @@
 #include "simulation/geant4/HcalSD.hpp"
 
 #include "G4Box.hh"
-#include "G4GDMLParser.hh"
 #include "G4LogicalVolume.hh"
 #include "G4NistManager.hh"
 #include "G4PVPlacement.hh"
@@ -14,8 +13,6 @@
 #include "G4ThreeVector.hh"
 
 #include <algorithm>
-#include <functional>
-#include <stdexcept>
 #include <string>
 
 namespace AHCALRecoAlg::Sim {
@@ -32,37 +29,6 @@ G4VPhysicalVolume* DetectorConstruction::Construct() {
   auto* passiveMat = nist->FindOrBuildMaterial("G4_MYLAR");
   auto* attachMat = nist->FindOrBuildMaterial("G4_POLYETHYLENE");
   auto* galactic = nist->FindOrBuildMaterial("G4_Galactic");
-
-  if (m_cfg.use_ahcal_exact_geometry && !m_cfg.ahcal_geometry_gdml_file.empty()) {
-    G4GDMLParser parser;
-    parser.Read(m_cfg.ahcal_geometry_gdml_file, false);
-    auto* worldPV = parser.GetWorldVolume();
-    if (!worldPV) {
-      throw std::runtime_error("DetectorConstruction: failed to load world from GDML: " + m_cfg.ahcal_geometry_gdml_file);
-    }
-
-    auto* sdManager = G4SDManager::GetSDMpointer();
-    auto* sd = new HcalSD(m_hitMap, m_cfg.hcal_step_time_limit_ns);
-    sdManager->AddNewDetector(sd);
-
-    std::function<void(G4LogicalVolume*)> attach_sd = [&](G4LogicalVolume* lv) {
-      if (!lv) return;
-      const auto& n = lv->GetName();
-      if ((n.find("SensitiveLogical") != std::string::npos || n.find("HcalUnitSensitive") != std::string::npos) &&
-          n.find("dig_out") == std::string::npos && n.find("DigOut") == std::string::npos) {
-        lv->SetSensitiveDetector(sd);
-      }
-      const int nd = lv->GetNoDaughters();
-      for (int i = 0; i < nd; ++i) {
-        auto* d = lv->GetDaughter(i);
-        if (d) attach_sd(d->GetLogicalVolume());
-      }
-    };
-    attach_sd(worldPV->GetLogicalVolume());
-
-    LOG_INFO("Loaded exact AHCAL GDML geometry from {}", m_cfg.ahcal_geometry_gdml_file);
-    return worldPV;
-  }
 
   const double worldXY = 2600.0 * mm;
   const double worldZ = 6000.0 * mm;
@@ -92,43 +58,43 @@ G4VPhysicalVolume* DetectorConstruction::Construct() {
   const double sensitiveDigOutY = std::max(0.0, m_cfg.sensitive_dig_out_y_mm) * mm;
   const double sensitiveDigOutZ = std::max(0.0, m_cfg.sensitive_dig_out_z_mm) * mm;
 
-  auto* unitHousingSolid = new G4Box("HcalUnitHousing", housingX, housingY, housingZ);
-  auto* unitHousingLV = new G4LogicalVolume(unitHousingSolid, galactic, "HcalUnitHousingLV");
+  auto* unitHousingSolid = new G4Box("SolidHousing", housingX, housingY, housingZ);
+  auto* unitHousingLV = new G4LogicalVolume(unitHousingSolid, galactic, "HousingLogical");
 
-  auto* passiveSolid = new G4Box("HcalUnitPassive", passiveX, passiveY, passiveZ);
-  auto* passiveLV = new G4LogicalVolume(passiveSolid, passiveMat, "HcalUnitPassiveLV");
+  auto* passiveSolid = new G4Box("SolidPassive", passiveX, passiveY, passiveZ);
+  auto* passiveLV = new G4LogicalVolume(passiveSolid, passiveMat, "PassiveLogical");
   const double passiveZOffset = (!doubleSided) ? attachThick / 2.0 : 0.0;
-  new G4PVPlacement(nullptr, G4ThreeVector(0, 0, passiveZOffset), passiveLV, "HcalUnitPassivePV", unitHousingLV, false, 0, false);
+  new G4PVPlacement(nullptr, G4ThreeVector(0, 0, passiveZOffset), passiveLV, "PassivePhysical", unitHousingLV, false, 0, false);
 
-  auto* sensitiveSolid = new G4Box("HcalUnitSensitive", sensitiveXY / 2.0, sensitiveXY / 2.0, sensitiveZ / 2.0);
-  auto* sensitiveLV = new G4LogicalVolume(sensitiveSolid, sciMat, "HcalUnitSensitiveLV");
-  new G4PVPlacement(nullptr, G4ThreeVector(), sensitiveLV, "HcalUnitSensitivePV", passiveLV, false, 0, false);
+  auto* sensitiveSolid = new G4Box("SolidSensitive", sensitiveXY / 2.0, sensitiveXY / 2.0, sensitiveZ / 2.0);
+  auto* sensitiveLV = new G4LogicalVolume(sensitiveSolid, sciMat, "SensitiveLogical");
+  new G4PVPlacement(nullptr, G4ThreeVector(), sensitiveLV, "SensitivePhysical", passiveLV, false, 0, false);
 
   if (sensitiveDigOutX > 0.0 && sensitiveDigOutY > 0.0 && sensitiveDigOutZ > 0.0) {
-    auto* digOutSolid = new G4Box("HcalUnitSensitiveDigOut", sensitiveDigOutX / 2.0, sensitiveDigOutY / 2.0, sensitiveDigOutZ / 2.0);
-    auto* digOutLV = new G4LogicalVolume(digOutSolid, worldMat, "HcalUnitSensitiveDigOutLV");
+    auto* digOutSolid = new G4Box("SolidSensitive_dig_out", sensitiveDigOutX / 2.0, sensitiveDigOutY / 2.0, sensitiveDigOutZ / 2.0);
+    auto* digOutLV = new G4LogicalVolume(digOutSolid, worldMat, "Sensitive_dig_out_Logical");
     new G4PVPlacement(nullptr, G4ThreeVector(0.0, 0.0, -sensitiveZ / 2.0 + sensitiveDigOutZ / 2.0), digOutLV,
-                      "HcalUnitSensitiveDigOutPV", sensitiveLV, false, 0, false);
+                      "Sensitive_dig_out_Physical", sensitiveLV, false, 0, false);
   }
 
   if (sensitiveDigOutX > 0.0 && sensitiveDigOutY > 0.0 && passiveCover > 0.0) {
-    auto* digOutEsrSolid = new G4Box("HcalUnitSensitiveDigOutESR", sensitiveDigOutX / 2.0, sensitiveDigOutY / 2.0, passiveCover / 2.0);
-    auto* digOutEsrLV = new G4LogicalVolume(digOutEsrSolid, worldMat, "HcalUnitSensitiveDigOutESRLV");
+    auto* digOutEsrSolid = new G4Box("SolidSensitive_dig_out_ESR", sensitiveDigOutX / 2.0, sensitiveDigOutY / 2.0, passiveCover / 2.0);
+    auto* digOutEsrLV = new G4LogicalVolume(digOutEsrSolid, worldMat, "Sensitive_dig_out_Logical_ESR");
     new G4PVPlacement(nullptr, G4ThreeVector(0.0, 0.0, -sensitiveZ / 2.0 - passiveCover / 2.0), digOutEsrLV,
-                      "HcalUnitSensitiveDigOutESRPV", passiveLV, false, 0, false);
+                      "Sensitive_dig_out_Physical_ESR", passiveLV, false, 0, false);
   }
 
   if (attachThick > 0.0) {
-    auto* attachSolid = new G4Box("HcalUnitAttach", passiveX, passiveY, attachThick / 2.0);
-    auto* attachLV = new G4LogicalVolume(attachSolid, attachMat, "HcalUnitAttachLV");
+    auto* attachSolid = new G4Box("SolidAttach", passiveX, passiveY, attachThick / 2.0);
+    auto* attachLV = new G4LogicalVolume(attachSolid, attachMat, "AttachLogical");
     if (doubleSided) {
       new G4PVPlacement(nullptr, G4ThreeVector(0, 0, -(passiveZ + attachThick / 2.0)), attachLV,
-                        "HcalUnitAttachPV", unitHousingLV, false, 0, false);
+                        "AttachPhysical", unitHousingLV, false, 0, false);
       new G4PVPlacement(nullptr, G4ThreeVector(0, 0, +(passiveZ + attachThick / 2.0)), attachLV,
-                        "HcalUnitAttachPV", unitHousingLV, false, 1, false);
+                        "AttachPhysical", unitHousingLV, false, 1, false);
     } else {
       new G4PVPlacement(nullptr, G4ThreeVector(0, 0, -(passiveZ)), attachLV,
-                        "HcalUnitAttachPV", unitHousingLV, false, 0, false);
+                        "AttachPhysical", unitHousingLV, false, 0, false);
     }
   }
 
@@ -138,7 +104,7 @@ G4VPhysicalVolume* DetectorConstruction::Construct() {
   for (int layer = 0; layer < AHCALGeometry::Layer_No; ++layer) {
     const double z_act = AHCALGeometry::Pos_Z(layer) * mm;
     const double z_abs = z_act + (sensitiveZ + absorberThick) / 2.0;
-    new G4PVPlacement(nullptr, G4ThreeVector(0, 0, z_act), unitHousingLV, "HcalUnitHousingPV", worldLV, false, layer, false);
+    new G4PVPlacement(nullptr, G4ThreeVector(0, 0, z_act), unitHousingLV, "HCALPhysical", worldLV, false, layer, false);
     new G4PVPlacement(nullptr, G4ThreeVector(0, 0, z_abs), absLV, "HcalAbsPV", worldLV, false, layer, false);
   }
 
@@ -148,7 +114,8 @@ G4VPhysicalVolume* DetectorConstruction::Construct() {
     auto* trgLV = new G4LogicalVolume(trgSolid, sciMat, "HcalTriggerLV");
     for (int i = 0; i < m_cfg.trigger_nplanes; ++i) {
       const double z = AHCALGeometry::Pos_Z(AHCALGeometry::Layer_No - 1) * mm + (i + 1) * 40.0 * mm;
-      new G4PVPlacement(nullptr, G4ThreeVector(0, 0, z), trgLV, "HcalTriggerPV", worldLV, false, i, false);
+      new G4PVPlacement(nullptr, G4ThreeVector(0, 0, z), trgLV,
+                        (i == 0 ? "HCALtriggerPhysicalFront" : "HCALDownstreamPhysical"), worldLV, false, i, false);
     }
   }
 
