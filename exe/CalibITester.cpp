@@ -21,7 +21,7 @@ int main(int argc, char* argv[]) {
     try {
         // Create PedestalReader and trigger readPedestals() + selectNearestPedestalRun()
         LOG_INFO("Creating PedestalReader for run {}...", testRunNumber);
-        PedestalReader reader(testRunNumber);
+        CalibDBIO::PedestalReader reader(testRunNumber);
         LOG_INFO("PedestalReader created successfully!");
         
         // Test 1: Retrieve pedestals for sample cells across different layers and chips
@@ -45,7 +45,7 @@ int main(int argc, char* argv[]) {
                 int cellID = AHCALGeometry::CellID(layer, chip, channel);
                 
                 // Retrieve pedestal for this cell
-                Pedestal ped = reader.getPedestal(cellID);
+                CalibDBIO::Pedestal ped = reader.getPedestal(cellID);
                 
                 // Display results
                 LOG_INFO("Cell ID {}: Layer={}, Chip={}, Channel={}", cellID, layer, chip, channel);

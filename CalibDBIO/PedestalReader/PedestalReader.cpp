@@ -12,7 +12,7 @@
 #include "CalibDBIO/Query.hpp"
 #include "common/config/ParseRunConfig.hpp"
 #include "common/AHCALGeometry.hpp"
-
+namespace CalibDBIO {
 PedestalReader::PedestalReader(int runNumber) {
     // Constructor  
     readPedestals(runNumber);
@@ -165,6 +165,8 @@ int PedestalReader::selectNearestPedestalRun(int runNumber) {
         targetTime = static_cast<std::time_t>(std::floor((startTime + endTime) / 2.0));
     } else {
         targetTime = std::time(nullptr);
+        LOG_ERROR("Invalid start/end time for run {}, using current time {} as target time for pedestal run selection", runNumber, targetTime);
+        throw std::runtime_error("Invalid start/end time for run " + std::to_string(runNumber) + ", cannot select pedestal run");
     }
     auto it = std::min_element(pedestalRuns.begin(), pedestalRuns.end(), [targetTime](const auto& a, const auto& b){
         return std::abs(a.second - targetTime) < std::abs(b.second - targetTime);
@@ -178,3 +180,4 @@ int PedestalReader::selectNearestPedestalRun(int runNumber) {
     }
     return -1; // should never reach here
 }
+} // namespace CalibDBIO

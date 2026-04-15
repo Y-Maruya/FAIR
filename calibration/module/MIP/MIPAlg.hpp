@@ -33,6 +33,11 @@ namespace AHCALRecoAlg{
         std::string out_json_filename = "mip.json";
         bool calculate_fwhm = true;
 
+        bool substrate_pedestal = true;
+        bool read_pedestal_from_ROOT = false;
+        std::string in_pedestal_file = "pedestal.root";
+        bool read_pedestal_from_DB = true; 
+
     };
 
     class MIPAlg final : public IAlg{

@@ -1,3 +1,5 @@
+#pragma once
+
 #include <iostream>
 #include <string>
 #include <sstream>
@@ -8,7 +10,7 @@
 
 using json = nlohmann::json;
 namespace CalibDBIO {
-    std::string db_url = "https://ahcalib-calibrationdb.app.cern.ch/";
+    inline std::string db_url = "https://ahcalib-calibrationdb.app.cern.ch/";
     
     static size_t WriteCallback(void* contents, size_t size, size_t nmemb, void* userp) {
         size_t totalSize = size * nmemb;
@@ -17,7 +19,7 @@ namespace CalibDBIO {
         return totalSize;
     }
 
-    json QueryTime(std::string StartTime, std::string EndTime, std::string CalibrationType, int Layer, bool PerChannel = true, bool PerChip = false) {
+    inline json QueryTime(std::string StartTime, std::string EndTime, std::string CalibrationType, int Layer, bool PerChannel = true, bool PerChip = false) {
 
         CURL* curl = curl_easy_init();
         if (!curl) {
@@ -76,7 +78,7 @@ namespace CalibDBIO {
         }
     }
 
-    json QueryRun(int RunNumber, std::string CalibrationType, int Layer, bool PerChannel = true, bool PerChip = false) {
+    inline json QueryRun(int RunNumber, std::string CalibrationType, int Layer, bool PerChannel = true, bool PerChip = false) {
         CURL* curl = curl_easy_init();
         if (!curl) {
             throw std::runtime_error("Failed to initialize CURL");

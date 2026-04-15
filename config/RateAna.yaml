@@ -1,0 +1,170 @@
+run:
+  input: /eos/experiment/faser/raw/2026/0###run-number###/FaserAHCAL-Physics-0###run-number###-*.raw
+  MC: false
+  log_file: /afs/cern.ch/user/y/ymaruya/private/FASERlink/AHCAL/FAIR/out/RateAna/run###run-number###/log
+  output: /afs/cern.ch/user/y/ymaruya/private/FASERlink/AHCAL/FAIR/out/RateAna/run###run-number###/out.root
+  nEvents: -1
+  log_level: INFO
+  runNumber: ###run-number### #22509
+  poolIndex: 0
+reader: 
+  type: BinaryRawHitReader
+  cfg:
+    out_rawhits_key: RawHits
+    out_tlu_key: TLURawData
+  # type: RootRawHitReader
+  # cfg:
+  #   out_rawhits_key: RawHits
+  #   out_tlu_key: TLURawData
+  # type: RootInput
+  # cfg:
+  #   inputlist: 
+  #     - [vector<AHCALRawHit>, RawHits]
+  #     - [AHCALTLURawData, TLURawData]
+  #     - [vector<AHCALRecoHit>, RecoHits]
+  #     - [SimpleFittedTrack, FittedTrack]
+  #     - [Track, MuonKFTrack]
+
+algs: # Define the sequence of algorithms to be executed. The order matters.
+  # - type: PedestalAlg
+  #   cfg:
+  #     in_rawhit_key: RawHits
+  #     pedestal_to_file: true
+  #     pedestal_to_DB: false
+  #     out_pedestal_filename: out/run21659/ped.root
+  #     use_hittag: false
+  #     select_hittag: 0
+  # - type: AdcToEnergyReadTTreeAlg
+  #   cfg:
+  #     in_rawhit_key: RawHits
+  #     out_recohit_key: RecoHits
+  #     mip:
+  #       file: /afs/cern.ch/user/y/ymaruya/private/FASERlink/AHCAL/FAIR/calibration/reffiles/mip.root
+  #       cut: (gaus_sigma>20)
+  #       cellid_version: 0
+  #     pedestal:
+  #       file: /afs/cern.ch/user/y/ymaruya/private/FASERlink/AHCAL/FAIR/calibration/pedestal_calib/run21722/pedestal.root
+  #       cut: (1)
+  #       cellid_version: 1
+  #     dac:
+  #       file: /afs/cern.ch/user/y/ymaruya/private/FASERlink/AHCAL/FAIR/calibration/reffiles/dac.root
+  #       cut: (1)
+  #       cellid_version: 0
+  # - type: RmIsolatedHitAlg
+  #   cfg:
+  #     in_recohit_key: RecoHits
+  #     out_recohit_key: RmIsolatedHits
+  #     useNmipWindow: false
+  #     xy_cone: 42.0
+  #     maxMissingLayers: 0
+  # - type: TrackFitAlg
+  #   cfg:
+  #     in_recohit_key: RmIsolatedHits
+  #     out_track_key: FittedTrack
+  #     use_mip_window: true
+  #     nmipMin: 0.5
+  #     nmipMax: 3.0
+  #     threshold_xy: 20.0
+  # - type: MuonKFAlg
+  #   cfg:
+  #     in_recohit_key: RmIsolatedHits
+  #     out_track_key: MuonKFTrack
+  #     lastNLayers: 40
+  #     minUsedLayers: 10
+  #     maxConsecutiveSkips: 5
+  #     useNmipWindow: true
+  #     nmipMin: 0.2
+  #     nmipMax: 3.0
+  #     measSigmaXY_mm: 0.0
+  #     sigmaTheta: 0.003 
+  #     gateD2: 9.0
+  #     seedLayerGap: 2
+  #     maxSeedHitsPerLayer: 10
+  #     skipLayers: [0,2,14,24]
+  # - type: MIPAlg
+  #   cfg:
+  #     in_rawhit_key: RawHits
+  #     in_track_key: FittedTrack
+  #     string_track_struct: SimpleFittedTrack
+  #     track_selection_string: (valid>0)
+  #     mip_to_file: true
+  #     mip_to_DB: false
+  #     out_mip_filename: /afs/cern.ch/user/y/ymaruya/private/FASERlink/AHCAL/FAIR/out/run22193/mip.root
+  #     output_to_png: true
+  #     out_png_dir: /afs/cern.ch/user/y/ymaruya/private/FASERlink/AHCAL/FAIR/out/run22193/mip_png/
+  #     fit: false
+  # - type: MuonEffAlg
+  #   cfg:
+  #     in_hit_key: RawHits
+  #     in_track_key: FittedTrack
+  #     in_rawdata_key: TLURawData
+  #     string_track_struct: SimpleFittedTrack
+  #     track_selection_string: (valid>0)*(chi2xperndf<5)*(chi2xperndf>0)*(chi2yperndf<5)*(chi2yperndf>0)*(nInTrackHits>8)*(direction_y<0.1)*(direction_y>-0.1)*(direction_x<0.1)*(direction_x>-0.1)
+  #     out_filename: /afs/cern.ch/user/y/ymaruya/private/FASERlink/AHCAL/FAIR/out/run22193/eff.root
+  #     write_to_png: true
+  #     out_png_dir: /afs/cern.ch/user/y/ymaruya/private/FASERlink/AHCAL/FAIR/out/run22193/png/
+  #     write_to_txt: true
+  #     out_txt_filename: /afs/cern.ch/user/y/ymaruya/private/FASERlink/AHCAL/FAIR/out/run22193/eff.txt
+  #     hittag_or_MIP_cut: true
+  #     xy_size_threshold: 17.0
+  #     ntrigger_layer: 4
+  #     trigger_layer: {0: 9, 1: 19, 2: 29, 3: 38}
+  # - type: VetoEffAlg
+  #   cfg:
+  #     in_data_key: TLURawData
+  #     in_track_key: FittedTrack
+  #     string_track_struct: SimpleFittedTrack
+  #     track_selection_string: (valid>0)*(chi2xperndf<5)*(chi2xperndf>0)*(chi2yperndf<5)*(chi2yperndf>0)*(nInTrackHits>8)
+  #     out_filename: /afs/cern.ch/user/y/ymaruya/private/FASERlink/AHCAL/FAIR/out/run22193/veto_eff.root
+  #     write_to_png: true
+  #     out_png_dir: /afs/cern.ch/user/y/ymaruya/private/FASERlink/AHCAL/FAIR/out/run22193/veto_eff_png/
+  #     write_to_txt: true
+  #     out_txt_name: /afs/cern.ch/user/y/ymaruya/private/FASERlink/AHCAL/FAIR/out/run22193/veto_eff.txt
+  #     xy_size_threshold: 200.0
+  #     x_center: 0.0
+  #     y_center: 0.0
+  #     z_pos_input4: -300
+  #     z_pos_input5: -300
+  #     threshold_input4: 75
+  #     threshold_input5: 75
+  # - type: InputEffAlg
+  #   cfg:
+  #     in_data_key: TLURawData
+  #     in_raw_hit_key: RawHits
+  #     ntrigger_layer: 4
+  #     trigger_layer: {0: 9, 1: 19, 2: 29, 3: 38}
+  #     out_filename: /afs/cern.ch/user/y/ymaruya/private/FASERlink/AHCAL/FAIR/out/run22193/input_eff.root
+  #     write_to_png: true
+  #     out_png_dir: /afs/cern.ch/user/y/ymaruya/private/FASERlink/AHCAL/FAIR/out/run22193/input_eff_png/
+  #     write_to_txt: true
+  #     out_txt_name: /afs/cern.ch/user/y/ymaruya/private/FASERlink/AHCAL/FAIR/out/run22193/input_eff.txt
+  # - type: NoiseHitAlg
+  #   cfg:
+  #     in_rawhit_key: RawHits
+  #     in_track_hit_key: FittedTrack
+  #     nhits_threshold: 8
+  #     string_track_struct: SimpleFittedTrack
+  #     track_selection_string: (valid>0)*(chi2xperndf<5)*(chi2xperndf>0)*(chi2yperndf<5)*(chi2yperndf>0)*(nInTrackHits>8)
+  #     out_filename: /afs/cern.ch/user/y/ymaruya/private/FASERlink/AHCAL/FAIR/out/run22193/noise_hits.root
+  #     write_to_png: true
+  #     out_png_dir: /afs/cern.ch/user/y/ymaruya/private/FASERlink/AHCAL/FAIR/out/run22193/noise_hit_png/
+  - type: RateAnaAlg
+    cfg:
+      in_data_key: TLURawData
+      time_window_s: 20
+      ntrigger_layer: 4
+      trigger_layer: {0: 9, 1: 19, 2: 29, 3: 38}
+      out_filename: /afs/cern.ch/user/y/ymaruya/private/FASERlink/AHCAL/FAIR/out/RateAna/run###run-number###/rate_ana.root
+      write_to_txt: true
+      out_txt_name: /afs/cern.ch/user/y/ymaruya/private/FASERlink/AHCAL/FAIR/out/RateAna/run###run-number###/rate_ana.txt
+      write_to_png: true
+      out_png_dir: /afs/cern.ch/user/y/ymaruya/private/FASERlink/AHCAL/FAIR/out/RateAna/run###run-number###/rate_ana_png/
+
+  # - type: RootWriterAlg
+  #   cfg: 
+  #     outputlist:
+  #       - AHCALTLURawData
+  #       - vector<AHCALRecoHit>
+  #       - vector<AHCALRawHit>
+  #       - SimpleFittedTrack
+  #       - Track

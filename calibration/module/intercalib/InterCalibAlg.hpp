@@ -10,8 +10,9 @@
 namespace AHCALRecoAlg {
     struct InterCalibAlgCfg {
         std::string in_rawhit_key = "RawHits";
+        bool read_pedestal_from_ROOT = false;
         std::string in_pedestal_file = "pedestal.root";
-
+        bool read_pedestal_from_DB = true;
         bool intercalib_to_file = true;
         bool intercalib_to_json = true;
         std::string out_intercalib_filename = "intercalib.root";
@@ -45,9 +46,11 @@ namespace AHCALRecoAlg {
         ~InterCalibAlg() override;
         void execute(EventStore& evt) override;
         void parse_cfg(const YAML::Node& cfg) override;
-
+        void init_by_run() override;
     private:
         InterCalibAlgCfg cfg_;
+
+        void ensure_impl();
 
         struct Impl;
 
@@ -55,7 +58,6 @@ namespace AHCALRecoAlg {
         struct ImplDeleter {
             void operator()(Impl* p) const;
         };
-
         std::unique_ptr<Impl, ImplDeleter> impl_;
     };
 }

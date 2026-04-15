@@ -8,6 +8,7 @@ struct RunConfig {
   std::string output = "out.root";
   std::string log_file = "app.log";
   int runNumber = 0;
+  double luminosity = 0;              // in fb^-1
   int poolIndex = 0;          // for multiple pooling writers
   bool MC = false;                  // is MC data?
   long long nEvents = -1;            // -1 = until EOF (if Reader supports)

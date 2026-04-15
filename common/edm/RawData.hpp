@@ -4,6 +4,8 @@
 
 
 struct AHCALTLURawData{
+    int EventCounter;
+    int EventID;
     int Timestamp;
     int BCID_TLU;
     std::vector<int> Inputs = std::vector<int>(6,0);
@@ -16,6 +18,8 @@ struct AHCALTLURawData{
 
 inline std::vector<FieldDesc> describe(const AHCALTLURawData*){
     return {
+        field("EventCounter", &AHCALTLURawData::EventCounter),
+        field("EventID", &AHCALTLURawData::EventID),
         field("Timestamp", &AHCALTLURawData::Timestamp),
         field("BCID_TLU", &AHCALTLURawData::BCID_TLU),
         field("Inputs", &AHCALTLURawData::Inputs),

@@ -9,8 +9,10 @@ public:
     virtual ~IAlg() = default;
 
     virtual void initialize() {}   // optional
+    virtual void init_by_run() {} // optional, called at the beginning of each run
     virtual void execute(EventStore& evt) = 0;
     virtual void finalize() {}     // optional
+    virtual void finish_by_run() {} // optional, called at the end of each run
     virtual void  parse_cfg(const YAML::Node& n) = 0;
 protected:
     RunContext& ctx() { return m_ctx; }

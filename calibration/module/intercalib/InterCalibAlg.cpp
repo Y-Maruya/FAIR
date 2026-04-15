@@ -4,7 +4,7 @@
 #include "common/Logger.hpp"
 #include "common/config/YAMLUtil.hpp"
 #include "common/AlgRegistry.hpp"
-
+#include "CalibDBIO/PedestalReader/PedestalReader.hpp"
 #include <TFile.h>
 #include <TTree.h>
 #include <TH1D.h>
@@ -38,11 +38,6 @@ namespace AHCALRecoAlg {
 
 namespace {
 
-// Pedestals from file
-struct Ped {
-    double hg = 0.0;
-    double lg = 0.0;
-};
 
 // Accumulation data for linear regression
 struct Acc {
@@ -105,6 +100,7 @@ struct InterCalibAlg::Impl {
     explicit Impl(InterCalibAlgCfg cfg, const RunContext& ctx)
         : cfg_(std::move(cfg)), ctx_(ctx) {
         loadPedestals();
+        run_contexts_.push_back(ctx);
     }
 
     struct CellInterCalibResult {
@@ -125,8 +121,16 @@ struct InterCalibAlg::Impl {
         int fit_status = 999;
         bool fit_ok = false;
     };
-
     void loadPedestals() {
+        if (cfg_.read_pedestal_from_ROOT) {
+            loadPedestals_fromROOT();
+        } else if (cfg_.read_pedestal_from_DB) {
+            loadPedestals_fromDB();
+        } else {
+            LOG_ERROR("InterCalibAlg: no pedestal source specified");
+        }
+    }
+    void loadPedestals_fromROOT() {
         std::unique_ptr<TFile> fped(TFile::Open(cfg_.in_pedestal_file.c_str(), "READ"));
         if (!fped || fped->IsZombie()) {
             LOG_ERROR("InterCalibAlg: cannot open pedestal file: {}", cfg_.in_pedestal_file);
@@ -156,12 +160,19 @@ struct InterCalibAlg::Impl {
 
         for (Long64_t i = 0; i < tp->GetEntries(); ++i) {
             tp->GetEntry(i);
-            ped_map_[p_cellid] = {p_hgped, has_lg_ped ? p_lgped : 0.0};
+            ped_map_[p_cellid].HighGainPeak = p_hgped;
+            if (has_lg_ped) {
+                ped_map_[p_cellid].LowGainPeak = p_lgped;
+            }
         }
 
         LOG_INFO("InterCalibAlg: loaded {} pedestal entries", ped_map_.size());
     }
-
+    void loadPedestals_fromDB() {
+        CalibDBIO::PedestalReader reader(ctx_.config.runNumber);
+        ped_map_ = reader.getPedestalMap();
+        LOG_INFO("InterCalibAlg: loaded {} pedestal entries from DB", ped_map_.size());
+    }
     void fill(const AHCALRawHit& h) {
         int cellid = h.cellID;
 
@@ -176,8 +187,8 @@ struct InterCalibAlg::Impl {
         int lg = h.lg_adc;
 
         // Pedestal subtraction
-        double hg_sub = hg - itp->second.hg;
-        double lg_sub = lg - itp->second.lg;
+        double hg_sub = hg - itp->second.HighGainPeak;
+        double lg_sub = lg - itp->second.LowGainPeak;
 
         // Keep macro-compatible fit domain.
         // This avoids bias from negative/zero pedestal-subtracted points.
@@ -195,7 +206,7 @@ struct InterCalibAlg::Impl {
             }
         }
         if (lg_sub >200 && hg_sub < cfg_.hg_fit_max){
-            LOG_WARN("InterCalibAlg: detected hit with large LG and small HG, likely saturation: cellid={}, hg={}, lg={}, hg_sub={}, lg_sub={}", cellid, hg, lg, hg_sub, lg_sub);
+            // LOG_WARN("InterCalibAlg: detected hit with large LG and small HG, likely saturation: cellid={}, hg={}, lg={}, hg_sub={}, lg_sub={}", cellid, hg, lg, hg_sub, lg_sub);
             int tmp_layer, tmp_chip, tmp_channel;
             AHCALGeometry::CellIDToLC(cellid, tmp_layer, tmp_chip, tmp_channel);
             if (cfg_.output_bad_cells_json) {
@@ -347,7 +358,8 @@ struct InterCalibAlg::Impl {
         int o_fit_status = 999;
         int o_fit_ok = 0;
         double o_x_mm = -999.0, o_y_mm = -999.0;
-
+        std::vector<int> o_same_data_runs;
+        tIC.Branch("same_data_runs", &o_same_data_runs);
         tIC.Branch("cellid", &o_cellid, "cellid/I");
         tIC.Branch("channel_index", &o_channel_index, "channel_index/I");
         tIC.Branch("layer", &o_layer, "layer/I");
@@ -364,6 +376,10 @@ struct InterCalibAlg::Impl {
         tIC.Branch("x_mm", &o_x_mm, "x_mm/D");
         tIC.Branch("y_mm", &o_y_mm, "y_mm/D");
 
+        o_same_data_runs.clear();
+        for (const auto& rc : run_contexts_) {
+            o_same_data_runs.push_back(rc.config.runNumber);
+        }
         for (const auto& [_, res] : ic_cache_) {
             o_cellid = res.cellid;
             o_channel_index = res.channel_index;
@@ -487,8 +503,9 @@ struct InterCalibAlg::Impl {
         }
 
         // Generate ISO8601 timestamp
-        double start_time = ctx_.conditions.starttime;
-        double end_time = ctx_.conditions.endtime;
+        
+        double start_time = run_contexts_.front().conditions.starttime;
+        double end_time = run_contexts_.back().conditions.endtime;
         double ref_time = (start_time > 0.0 && end_time > 0.0) ?
                           (start_time + end_time) / 2.0 : std::time(nullptr);
         time_t utc_time = static_cast<time_t>(ref_time);
@@ -500,6 +517,11 @@ struct InterCalibAlg::Impl {
 
         const int n_channels_per_layer = AHCALGeometry::chip_No * AHCALGeometry::channel_No;
 
+        std::vector<int> same_data_runs;
+        for (const auto& rc : run_contexts_) {
+            same_data_runs.push_back(rc.config.runNumber);
+        }
+        
         // Loop over each layer and write separate JSON file
         for (int layer = 0; layer < AHCALGeometry::Layer_No; ++layer) {
             // Prepare per-layer arrays (indexed by channel_index = chip*36 + channel)
@@ -526,38 +548,40 @@ struct InterCalibAlg::Impl {
 
                 if (!res.fit_ok) fit_failures++;
             }
-
             // Build JSON object for this layer
-            json j;
+            for (const auto& rc : run_contexts_) {
+                json j;
+                j["RunNumber"] = rc.config.runNumber;
+                j["TimeStamp"] = timestamp;
+                j["Layer"] = layer;
+                j["CalibrationType"] = "HGLGIntercalib";
+                j["Summary"]["FitFailures"] = fit_failures;
+                j["Summary"]["Entries"] = total_entries;
+                j["Summary"]["NumUsedRun"] = run_contexts_.size();
+                j["Summary"]["SameDataRuns"] = same_data_runs;
+                j["Status"] = (fit_failures == 0) ? 0 : 1;
 
-            j["RunNumber"] = ctx_.config.runNumber;
-            j["TimeStamp"] = timestamp;
-            j["Layer"] = layer;
-            j["CalibrationType"] = "HGLGIntercalib";
-            j["Summary"]["FitFailures"] = fit_failures;
-            j["Summary"]["Entries"] = total_entries;
-            j["Status"] = (fit_failures == 0) ? 0 : 1;
+                // Per-channel arrays
+                j["PerChannel"]["Intercept"] = p0_arr;
+                j["PerChannel"]["Slope"] = p1_arr;
+                j["PerChannel"]["FitStatus"] = fit_status_arr;
+                j["PerChannel"]["NPoints"] = n_points_arr;
 
-            // Per-channel arrays
-            j["PerChannel"]["Intercept"] = p0_arr;
-            j["PerChannel"]["Slope"] = p1_arr;
-            j["PerChannel"]["FitStatus"] = fit_status_arr;
-            j["PerChannel"]["NPoints"] = n_points_arr;
+                // Write to file
+                std::ostringstream filename;
+                filename << cfg_.out_json_dirname << "/run" << rc.config.runNumber << "_intercalib_Layer" << layer << ".json";
+                std::string out_filename = filename.str();
 
-            // Write to file
-            std::ostringstream filename;
-            filename << cfg_.out_json_dirname << "/intercalib_Layer" << layer << ".json";
-            std::string out_filename = filename.str();
+                std::ofstream jout(out_filename);
+                if (!jout.is_open()) {
+                    LOG_ERROR("InterCalibAlg: cannot write JSON {}", out_filename);
+                    continue;
+                }
+                jout << j.dump(2) << std::endl;
+                jout.close();
 
-            std::ofstream jout(out_filename);
-            if (!jout.is_open()) {
-                LOG_ERROR("InterCalibAlg: cannot write JSON {}", out_filename);
-                continue;
+                LOG_INFO("InterCalibAlg: wrote JSON {}", out_filename);
             }
-            jout << j.dump(2) << std::endl;
-            jout.close();
-
-            LOG_INFO("InterCalibAlg: wrote JSON {}", out_filename);
         }
         if (cfg_.output_bad_cells_json) {
             json j_bad;
@@ -603,17 +627,21 @@ struct InterCalibAlg::Impl {
             example_fit_lines_.push_back(std::make_unique<TLine>());
         }
     }
-
+    void change_run(const RunContext& new_ctx) {
+        ctx_ = new_ctx;
+        run_contexts_.push_back(new_ctx);
+    }
     InterCalibAlgCfg cfg_;
-    const RunContext& ctx_;
+    RunContext ctx_;
     bool written_ = false;
     bool cache_built_ = false;
     long long n_used_ = 0;
     long long n_missing_ped_ = 0;
     int n_fit_ok_ = 0;
     int n_fit_all_ = 0;
+    std::vector<RunContext> run_contexts_; // for storing contexts of all runs, for later use in writing JSON with run info
 
-    std::unordered_map<int, Ped> ped_map_;
+    std::unordered_map<int, CalibDBIO::Pedestal> ped_map_;
     std::unordered_map<int, Acc> acc_;
     std::unordered_map<int, CellInterCalibResult> ic_cache_;
     std::vector<std::unique_ptr<TH2D>> h_example_;
@@ -626,16 +654,20 @@ void InterCalibAlg::ImplDeleter::operator()(InterCalibAlg::Impl* p) const {
     delete p;
 }
 
+void InterCalibAlg::ensure_impl() {
+    if (!impl_) {
+        impl_.reset(new Impl(cfg_, ctx()));
+        impl_->initialize_histogram();
+    }
+}
+
 InterCalibAlg::~InterCalibAlg() {
     if (impl_) impl_->write();
 }
 
 
 void InterCalibAlg::execute(EventStore& evt) {
-    if (!impl_) {
-        impl_.reset(new Impl(cfg_, ctx()));
-        impl_->initialize_histogram();
-    }
+    ensure_impl();
 
     auto raw_hits = evt.get<std::vector<AHCALRawHit>>(cfg_.in_rawhit_key);
     for (const auto& h : raw_hits) {
@@ -671,5 +703,15 @@ void InterCalibAlg::parse_cfg(const YAML::Node& n) {
     cfg_.use_specific_fit_range_toL39C8 = get_or<bool>(n, "use_specific_fit_range_toL39C8", cfg_.use_specific_fit_range_toL39C8);
     cfg_.hg_fit_max_L39C8 = get_or<double>(n, "hg_fit_max_L39C8", cfg_.hg_fit_max_L39C8);
 }
-
+void InterCalibAlg::init_by_run() {
+    LOG_INFO("InterCalibAlg: init_by_run called, runNumber={}, starttime={}, endtime={}",
+             ctx().config.runNumber, ctx().conditions.starttime, ctx().conditions.endtime);
+    const bool was_uninitialized = !impl_;
+    ensure_impl();
+    if (!was_uninitialized) {
+        impl_->change_run(ctx());
+        impl_->loadPedestals();
+        LOG_INFO("InterCalibAlg: re-loaded pedestals for new run");
+    }
+}
 } // namespace AHCALRecoAlg

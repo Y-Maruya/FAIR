@@ -20,6 +20,8 @@
 #include "reco_alg/module/RmIsolatedHitAlg/RmIsolatedHitAlg.hpp"
 // analysis algs
 #include "analysis/MuonEffAlg/MuonEffAlg.hpp"
+#include "analysis/RateAnaAlg/RateAnaAlg.hpp"
+#include "analysis/VetoAnaAlg/VetoAnaAlg.hpp"
 // -------------------------------------
 // reader algs
 #include "IO/reader/ReaderRegistry.hpp"

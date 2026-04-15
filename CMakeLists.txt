@@ -182,14 +182,14 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/analysis/CMakeLists.txt")
   add_subdirectory(analysis)
 endif()
 
-# Executables (driver programs)
-if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/exe/CMakeLists.txt")
-  add_subdirectory(exe)
-endif()
-
 # Calibration database I/O module
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/CalibDBIO/CMakeLists.txt")
   add_subdirectory(CalibDBIO)
+endif()
+
+# Executables (driver programs)
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/exe/CMakeLists.txt")
+  add_subdirectory(exe)
 endif()
 
 # ---------------------------

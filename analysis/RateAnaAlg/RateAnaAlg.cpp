@@ -31,7 +31,7 @@
 #include <unordered_set>
 #include <vector>
 #include <fstream>
-
+#include <filesystem>
 AHCAL_REGISTER_ALG(AHCALRecoAlg::RateAnaAlg, "RateAnaAlg")
 const double XYMIN = -500;
 const double XYMAX = +500;
@@ -47,7 +47,12 @@ namespace AHCALRecoAlg{
         void write(int calibRate) {
             if (written_) return;
             written_ = true;
-
+            if (gSystem->AccessPathName(cfg_.out_filename.c_str())) {
+                if (gSystem->mkdir(std::filesystem::path(cfg_.out_filename).parent_path().c_str(), true) != 0) {
+                    LOG_ERROR("RateAnaAlg: cannot create output directory for file: {}", cfg_.out_filename);
+                    return;
+                }
+            }
             auto fout = std::unique_ptr<TFile>(TFile::Open(cfg_.out_filename.c_str(), "RECREATE"));
             if (!fout || fout->IsZombie()) {
                 LOG_ERROR("RateAnaAlg: cannot create output file: {}", cfg_.out_filename);
@@ -130,7 +135,7 @@ namespace AHCALRecoAlg{
         NoVeto = 1,
         Veto = 2
     };
-    TriggerType getTriggerType(const std::vector<int>& Inputs){
+    static TriggerType getTriggerType(const std::vector<int>& Inputs){
         if (Inputs[4] == 1 || Inputs[5] == 1){
             return TriggerType::Veto;
         } else {
@@ -162,7 +167,10 @@ namespace AHCALRecoAlg{
             int delta_timestamp = current_TLU_timestamp - last_TLU_timestamp;
             int delta_trigger_id = current_trigger_id - last_trigger_id;
             impl_->h_deltaCycleID->Fill(delta_cycle_id);
-            impl_->h_deltaTimestamp->Fill(delta_timestamp);
+            if (delta_trigger_id == 1) {
+                impl_->h_deltaTimestamp->Fill(delta_timestamp);
+            }
+            // impl_->h_deltaTimestamp->Fill(delta_timestamp);
             impl_->h_deltaTriggerID->Fill(delta_trigger_id);
         }
         last_cycle_id = current_cycle_id;
