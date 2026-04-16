@@ -163,51 +163,21 @@ For an analysis algorithm in `analysis/`, edit `analysis/CMakeLists.txt` the sam
 
 ---
 
-## Step 5 – Include the header in `AlgFactory.hpp`
+## Step 5 – Add the algorithm to a YAML configuration
 
-Open `common/AlgFactory.hpp` and add an include near the other algorithm headers:
-
-```cpp
-// ---- your alg headers ----
-#include "reco_alg/module/MyAlg/MyAlg.hpp"   // <-- add this
-```
-
-This is necessary so the linker sees the static `AHCAL_REGISTER_ALG` object that registers the factory function.
-
----
-
-## Step 6 – Write a YAML configuration
-
-`run.input` には生データ（`.raw`）ファイルへのパスまたはglobパターンを指定します。`log_file`・`runNumber`・`poolIndex` も必須フィールドです。
+`algs` セクションに `MyAlg` を追加します。アルゴリズムは **YAML に記述した順番で実行される**ため、`cfg` で指定する `in_*_key` などの入力キーは、必ず**それより前に並んでいる**アルゴリズムが EventStore に出力済みである必要があります。
 
 ```yaml
-# config/my_alg_test.yaml
-run:
-  input: /eos/experiment/faser/raw/2026/021723/FaserAHCAL-Physics-021723-*.raw
-  output: /path/to/output/my_alg_out.root
-  log_file: /path/to/output/log
-  nEvents: -1
-  log_level: INFO
-  MC: false
-  runNumber: 21723
-  poolIndex: 0
-
-reader:
-  type: BinaryRawHitReader
-  cfg:
-    out_rawhits_key: RawHits
-    out_tlu_key: TLURawData
-
 algs:
-  - type: AdcToEnergyReadTTreeAlg
+  - type: AdcToEnergyReadTTreeAlg   # RecoHits を出力する
     cfg:
       in_rawhit_key: RawHits
       out_recohit_key: RecoHits
       # ... calibration file paths ...
 
-  - type: MyAlg               # matches the string in AHCAL_REGISTER_ALG
+  - type: MyAlg                     # matches the string in AHCAL_REGISTER_ALG
     cfg:
-      in_recohit_key: RecoHits
+      in_recohit_key: RecoHits      # AdcToEnergyReadTTreeAlg が先に出力していること
       out_key: MyOutput
       some_threshold: 15.0
 
@@ -215,16 +185,6 @@ algs:
     cfg:
       outputlist:
         - SimpleFittedTrack
-```
-
-Run it with:
-
-```bash
-# 単一設定ファイルで実行（fair_single）
-./fair_single config/my_alg_test.yaml
-
-# 複数ランをまとめて処理する場合（fair_run）
-./fair_run config/my_alg_test.yaml -r 21723,21724,21725
 ```
 
 ---
@@ -237,5 +197,4 @@ Run it with:
 | 2 | Create `reco_alg/module/MyAlg/MyAlg.cpp` – implement `execute()`, `parse_cfg()`, add `AHCAL_REGISTER_ALG` |
 | 3 | Create `reco_alg/module/MyAlg/CMakeLists.txt` – build as a STATIC library |
 | 4 | Add `add_subdirectory(MyAlg)` and link in `reco_alg/module/CMakeLists.txt` |
-| 5 | `#include` the header in `common/AlgFactory.hpp` |
-| 6 | Add the algorithm to a YAML config and run |
+| 5 | Add `MyAlg` to the `algs` list in the YAML config (after any alg that produces its input keys) |
