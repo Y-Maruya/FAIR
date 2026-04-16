@@ -64,13 +64,15 @@ Multi input, multi output:
 
 Run-by-run processing:
 ```bash
-./bin/fair_run config/first.yaml -i config/Input/Input_test.txt
+./bin/fair_run config/first.yaml -r 21723,21724,21725
 ```
+`-r` には処理対象のラン番号をカンマ区切りで指定します。オプションで `-m <max_pool_size>` でファイル数の上限を指定できます。
 
 Calibration flow:
 ```bash
-./bin/fair_calib config/pedestal_calib.yaml -i config/Input/pedestal.txt
+./bin/fair_calib config/pedestal_calib.yaml -r 21723
 ```
+`-r` には開始ラン番号を指定します。オプションで `-n <num_veto_events>`（集計するベトーイベント数）、`-e <excluded_runs_file>`（除外ランのリストファイル）を指定できます。
 
 ## Configuration
 ```yaml
