@@ -95,7 +95,19 @@ The framework will create a branch per field under a TTree named after the type 
 
 ### 1-e Reading back with `RootInput`
 
+前の処理で書き出したROOTファイルを後続の処理で読み込む場合、`run.input` にROOTファイルのパス（またはglobパターン）を、`reader.type` に `RootInput` を指定します。
+
 ```yaml
+run:
+  input: /path/to/output/my_alg_out.root
+  output: /path/to/downstream_out.root
+  log_file: /path/to/log
+  nEvents: -1
+  log_level: INFO
+  MC: false
+  runNumber: 21723
+  poolIndex: 0
+
 reader:
   type: RootInput
   cfg:
@@ -279,11 +291,31 @@ target_link_libraries(analysis_algs INTERFACE
 
 ### 2-f YAML configuration
 
+`run.input` には生データ（`.raw`）へのパスまたはglobパターンを指定します。
+
 ```yaml
+run:
+  input: /eos/experiment/faser/raw/2026/021723/FaserAHCAL-Physics-021723-*.raw
+  output: /path/to/output/my_run_out.root
+  log_file: /path/to/output/log
+  nEvents: -1
+  log_level: INFO
+  MC: false
+  runNumber: 21723
+  poolIndex: 0
+
+reader:
+  type: BinaryRawHitReader
+  cfg:
+    out_rawhits_key: RawHits
+    out_tlu_key: TLURawData
+
 algs:
   - type: AdcToEnergyReadTTreeAlg
     cfg:
-      # ...
+      in_rawhit_key: RawHits
+      out_recohit_key: RecoHits
+      # ... calibration file paths ...
 
   - type: TrackFitAlg
     cfg:
@@ -293,7 +325,7 @@ algs:
   - type: MyAnaAlg
     cfg:
       in_track_key: FittedTrack
-      out_filename: output/my_ana_out.root
+      out_filename: /path/to/output/my_ana_out.root
 ```
 
 ---

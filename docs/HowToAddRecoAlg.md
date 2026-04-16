@@ -178,26 +178,31 @@ This is necessary so the linker sees the static `AHCAL_REGISTER_ALG` object that
 
 ## Step 6 – Write a YAML configuration
 
+`run.input` には生データ（`.raw`）ファイルへのパスまたはglobパターンを指定します。`log_file`・`runNumber`・`poolIndex` も必須フィールドです。
+
 ```yaml
 # config/my_alg_test.yaml
 run:
-  input: config/Input/Input_test.txt
-  output: output/my_alg_out.root
+  input: /eos/experiment/faser/raw/2026/021723/FaserAHCAL-Physics-021723-*.raw
+  output: /path/to/output/my_alg_out.root
+  log_file: /path/to/output/log
   nEvents: -1
   log_level: INFO
   MC: false
+  runNumber: 21723
+  poolIndex: 0
 
 reader:
   type: BinaryRawHitReader
   cfg:
     out_rawhits_key: RawHits
-    out_tlu_key: TLUData
+    out_tlu_key: TLURawData
 
 algs:
   - type: AdcToEnergyReadTTreeAlg
     cfg:
-      in_rawhits_key: RawHits
-      out_recohits_key: RecoHits
+      in_rawhit_key: RawHits
+      out_recohit_key: RecoHits
       # ... calibration file paths ...
 
   - type: MyAlg               # matches the string in AHCAL_REGISTER_ALG
@@ -215,7 +220,11 @@ algs:
 Run it with:
 
 ```bash
-./bin/fair_single config/my_alg_test.yaml
+# 単一設定ファイルで実行（fair_single）
+./fair_single config/my_alg_test.yaml
+
+# 複数ランをまとめて処理する場合（fair_run）
+./fair_run config/my_alg_test.yaml -r 21723,21724,21725
 ```
 
 ---
