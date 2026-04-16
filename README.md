@@ -23,16 +23,18 @@ FAIR is designed to be flexible and modular, allowing users to configure and run
 | `faser-common/` | Raw-file decoding utilities. |
 
 **Key executables**
-- `exe/MultiInOut.cpp` -- Main driver that sets up the pipeline based on a YAML config with multiple input files and multiple outputs.
-- `exe/MultiInOneOut.cpp` -- Similar to `MultiInOut`, but with a single output file from several input files.
-- `exe/EventDisplay.cpp` -- Simple event display application from RecoHits.
+- `fair_multi` (`exe/MultiInOut.cpp`) -- Main driver for multiple input files and multiple output files.
+- `fair_single` (`exe/MultiInOneOut.cpp`) -- Driver for multiple input files and a single output file.
+- `fair_run` (`exe/ExecRunbyRun.cpp`) -- Run-by-run processing driver.
+- `fair_calib` (`exe/ExecCalib.cpp`) -- Calibration-focused processing driver.
+- `EventDisplay2D` (`exe/EventDisplay2D.cpp`) -- 2D event display from reconstructed hits.
 
 **Example configuration**
 - `config/first.yaml` -- Example configuration file demonstrating a full reconstruction chain.
 
 ## Setup
 
-Example using an LCG view on CERN LXPLUS:
+Example using an LCG view on CERN LXPLUS (required for ROOT and related HEP dependencies):
 ```bash
 source /cvmfs/sft.cern.ch/lcg/views/LCG_105/x86_64-el9-gcc11-opt/setup.sh
 ```
@@ -42,25 +44,35 @@ source /cvmfs/sft.cern.ch/lcg/views/LCG_105/x86_64-el9-gcc11-opt/setup.sh
 ```bash
 git clone --recursive <repository_url>
 cd FAIR
-```
-
-```bash
 source /cvmfs/sft.cern.ch/lcg/views/LCG_105/x86_64-el9-gcc11-opt/setup.sh
-mkdir build && cd build
-cmake ../
-make -j16
+cmake -S . -B build
+cmake --build build -j16
 ```
 
 ## Run
+Run from the repository root after build (`bin/` is generated under the source tree).
+
 Multi input, single output:
 ```bash
-./bin/fair_single config/first.yaml -i <INPUT_FILE.txt>
+./bin/fair_single config/first.yaml -i config/Input/Input_test.txt
 ```
 
 Multi input, multi output:
 ```bash
-./bin/fair_multi config/first.yaml -i <INPUT_FILE.txt>
+./bin/fair_multi config/first.yaml -i config/Input/Input_test.txt
 ```
+
+Run-by-run processing:
+```bash
+./bin/fair_run config/first.yaml -r 21723,21724,21725
+```
+`-r` specifies the run numbers to process as a comma-separated list. Optionally, use `-m <max_pool_size>` to limit the number of files.
+
+Calibration flow:
+```bash
+./bin/fair_calib config/pedestal_calib.yaml -r 21723
+```
+`-r` specifies the starting run number. Optionally, use `-n <num_veto_events>` to set the number of veto events to aggregate, and `-e <excluded_runs_file>` to provide a file listing runs to exclude.
 
 ## Configuration
 ```yaml
@@ -164,4 +176,3 @@ The framework uses an event store (`common/EventStore.hpp`) to pass data between
     - `threshold_xy` -- The threshold in the XY plane to consider hits in the track (default: 20.0 mm).
 - `MuonKFAlg` -- Kalman filter-based muon track fitting algorithm. Implemented in `reco_alg/module/MuonKFAlg.hpp`.
   - Status: not checked yet.
-
