@@ -66,13 +66,13 @@ Run-by-run processing:
 ```bash
 ./bin/fair_run config/first.yaml -r 21723,21724,21725
 ```
-`-r` には処理対象のラン番号をカンマ区切りで指定します。オプションで `-m <max_pool_size>` でファイル数の上限を指定できます。
+`-r` specifies the run numbers to process as a comma-separated list. Optionally, use `-m <max_pool_size>` to limit the number of files.
 
 Calibration flow:
 ```bash
 ./bin/fair_calib config/pedestal_calib.yaml -r 21723
 ```
-`-r` には開始ラン番号を指定します。オプションで `-n <num_veto_events>`（集計するベトーイベント数）、`-e <excluded_runs_file>`（除外ランのリストファイル）を指定できます。
+`-r` specifies the starting run number. Optionally, use `-n <num_veto_events>` to set the number of veto events to aggregate, and `-e <excluded_runs_file>` to provide a file listing runs to exclude.
 
 ## Configuration
 ```yaml

@@ -95,7 +95,7 @@ The framework will create a branch per field under a TTree named after the type 
 
 ### 1-e Reading back with `RootInput`
 
-前の処理で書き出したROOTファイルを後続の処理で読み込む場合、`run.input` にROOTファイルのパス（またはglobパターン）を、`reader.type` に `RootInput` を指定します。
+To read a ROOT file produced by a previous processing step, set `run.input` to the ROOT file path (or a glob pattern) and set `reader.type` to `RootInput`.
 
 ```yaml
 run:
@@ -282,34 +282,11 @@ target_link_libraries(analysis_algs INTERFACE
 )
 ```
 
-### 2-e Include in `AlgFactory.hpp`
+### 2-e YAML configuration
 
-```cpp
-// common/AlgFactory.hpp
-#include "analysis/MyAnaAlg/MyAnaAlg.hpp"   // <-- add
-```
-
-### 2-f YAML configuration
-
-`run.input` には生データ（`.raw`）へのパスまたはglobパターンを指定します。
+Add `MyAnaAlg` to the `algs` list. Algorithms run in the order they are listed in the YAML, so any key read by `MyAnaAlg` must be produced by an earlier algorithm in the list.
 
 ```yaml
-run:
-  input: /eos/experiment/faser/raw/2026/021723/FaserAHCAL-Physics-021723-*.raw
-  output: /path/to/output/my_run_out.root
-  log_file: /path/to/output/log
-  nEvents: -1
-  log_level: INFO
-  MC: false
-  runNumber: 21723
-  poolIndex: 0
-
-reader:
-  type: BinaryRawHitReader
-  cfg:
-    out_rawhits_key: RawHits
-    out_tlu_key: TLURawData
-
 algs:
   - type: AdcToEnergyReadTTreeAlg
     cfg:
@@ -319,12 +296,12 @@ algs:
 
   - type: TrackFitAlg
     cfg:
-      in_recohit_key: RecoHits
+      in_recohit_key: RecoHits      # must be produced by AdcToEnergyReadTTreeAlg above
       out_track_key: FittedTrack
 
   - type: MyAnaAlg
     cfg:
-      in_track_key: FittedTrack
+      in_track_key: FittedTrack     # must be produced by TrackFitAlg above
       out_filename: /path/to/output/my_ana_out.root
 ```
 

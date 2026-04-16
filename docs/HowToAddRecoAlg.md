@@ -165,11 +165,11 @@ For an analysis algorithm in `analysis/`, edit `analysis/CMakeLists.txt` the sam
 
 ## Step 5 – Add the algorithm to a YAML configuration
 
-`algs` セクションに `MyAlg` を追加します。アルゴリズムは **YAML に記述した順番で実行される**ため、`cfg` で指定する `in_*_key` などの入力キーは、必ず**それより前に並んでいる**アルゴリズムが EventStore に出力済みである必要があります。
+Add `MyAlg` to the `algs` section. Algorithms run in the order they are listed in the YAML, so any key used as input (e.g. `in_*_key`) must have been written to the EventStore by an earlier algorithm in the list.
 
 ```yaml
 algs:
-  - type: AdcToEnergyReadTTreeAlg   # RecoHits を出力する
+  - type: AdcToEnergyReadTTreeAlg   # outputs RecoHits
     cfg:
       in_rawhit_key: RawHits
       out_recohit_key: RecoHits
@@ -177,7 +177,7 @@ algs:
 
   - type: MyAlg                     # matches the string in AHCAL_REGISTER_ALG
     cfg:
-      in_recohit_key: RecoHits      # AdcToEnergyReadTTreeAlg が先に出力していること
+      in_recohit_key: RecoHits      # must be produced by AdcToEnergyReadTTreeAlg above
       out_key: MyOutput
       some_threshold: 15.0
 
