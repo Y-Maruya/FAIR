@@ -41,10 +41,9 @@ namespace {
 
 // Accumulation data for linear regression
 struct Acc {
-    double sumx  = 0.0;  // sum of LG
-    double sumy  = 0.0;  // sum of HG
-    double sumx2 = 0.0;  // sum of LG^2
-    double sumxy = 0.0;  // sum of LG*HG
+    // Store points for HG-binned profile fit:
+    // fit LG = c*HG + d with sigma from RMS(LG) in each HG bin.
+    std::vector<std::pair<double, double>> points_hg_lg; // (HG, LG)
     long long n  = 0;
 };
 
@@ -73,21 +72,70 @@ static void drawLayerLabel(int layer, double x=0.10, double y=0.92) {
     l.DrawLatex(x, y, Form("L%d", layer));
 }
 
-static FitResult fitLinearLeastSquares(const Acc& a, int minPoints) {
+static FitResult fitLinearFromHGBinnedProfile(const Acc& a, int minPoints, double hgBinWidth, int minBins) {
     FitResult r;
-    if (a.n < minPoints) return r;
+    if (a.n < minPoints || a.points_hg_lg.empty() || hgBinWidth <= 0.0) return r;
 
-    const double denom = (double)a.n * a.sumx2 - a.sumx * a.sumx;
-    if (denom <= 0) {
+    struct BinStats { int n = 0; double sum_lg = 0.0; double sum_lg2 = 0.0; double sum_hg = 0.0; };
+    std::unordered_map<int, BinStats> bins;
+    bins.reserve(a.points_hg_lg.size() / 8 + 1);
+    for (const auto& p : a.points_hg_lg) {
+        const double hg = p.first;
+        const double lg = p.second;
+        const int ibin = static_cast<int>(std::floor(hg / hgBinWidth));
+        auto& b = bins[ibin];
+        b.n++;
+        b.sum_hg += hg;
+        b.sum_lg += lg;
+        b.sum_lg2 += lg * lg;
+    }
+    if (static_cast<int>(bins.size()) < minBins) return r;
+
+    // Weighted fit of LG = c*HG + d
+    double S = 0.0, SX = 0.0, SY = 0.0, SXX = 0.0, SXY = 0.0;
+    int used_bins = 0;
+    for (const auto& [_, b] : bins) {
+        if (b.n < 3) continue;
+        const double mean_hg = b.sum_hg / b.n;
+        const double mean_lg = b.sum_lg / b.n;
+        const double var_lg = std::max(0.0, b.sum_lg2 / b.n - mean_lg * mean_lg);
+        const double sigma_lg = std::sqrt(var_lg);
+        const double sigma_eff = std::max(sigma_lg, 1.0); // avoid overweighting tiny-RMS bins
+        const double w = 1.0 / (sigma_eff * sigma_eff);
+        S += w;
+        SX += w * mean_hg;
+        SY += w * mean_lg;
+        SXX += w * mean_hg * mean_hg;
+        SXY += w * mean_hg * mean_lg;
+        used_bins++;
+    }
+    if (used_bins < minBins) return r;
+    const double denom = S * SXX - SX * SX;
+    if (denom <= 0.0) {
         r.status = 1;
         return r;
     }
-
-    r.p1 = ((double)a.n * a.sumxy - a.sumx * a.sumy) / denom;
-    r.p0 = (a.sumy - r.p1 * a.sumx) / (double)a.n;
-    r.ndf = a.n - 2;
-    r.chi2 = a.sumy * a.sumy + r.p1 * r.p1 * a.sumx2 + a.n * r.p0 * r.p0 + 2 * r.p0 * r.p1 * a.sumx - 2 * r.p0 * a.sumy - 2 * r.p1 * a.sumxy;
-    r.chi2 /= 10000*10000; // scale down to avoid large values
+    const double c = (S * SXY - SX * SY) / denom;
+    const double d = (SY * SXX - SX * SXY) / denom;
+    if (std::abs(c) < 1e-9) {
+        r.status = 2;
+        return r;
+    }
+    // Convert LG=c*HG+d -> HG=(1/c)*LG + (-d/c)
+    r.p1 = 1.0 / c;
+    r.p0 = -d / c;
+    r.ndf = used_bins - 2;
+    if (r.ndf <= 0) return r;
+    r.chi2 = 0.0;
+    for (const auto& [_, b] : bins) {
+        if (b.n < 3) continue;
+        const double mean_hg = b.sum_hg / b.n;
+        const double mean_lg = b.sum_lg / b.n;
+        const double var_lg = std::max(0.0, b.sum_lg2 / b.n - mean_lg * mean_lg);
+        const double sigma_lg = std::max(std::sqrt(var_lg), 1.0);
+        const double resid = mean_lg - (c * mean_hg + d);
+        r.chi2 += (resid * resid) / (sigma_lg * sigma_lg);
+    }
     r.chi2_ndf = r.chi2 / r.ndf;
     r.status = 0;
     r.ok = true;
@@ -230,10 +278,7 @@ struct InterCalibAlg::Impl {
 
         // Accumulate for linear regression
         Acc& a = acc_[cellid];
-        a.sumx += lg_sub;
-        a.sumy += hg_sub;
-        a.sumx2 += lg_sub * lg_sub;
-        a.sumxy += lg_sub * hg_sub;
+        a.points_hg_lg.emplace_back(hg_sub, lg_sub);
         a.n++;
 
         n_used_++;
@@ -265,7 +310,7 @@ struct InterCalibAlg::Impl {
             res.n_points = a.n;
             if (a.n >= cfg_.min_points) {
                 n_fit_all_++;
-                FitResult fr = fitLinearLeastSquares(a, cfg_.min_points);
+                FitResult fr = fitLinearFromHGBinnedProfile(a, cfg_.min_points, cfg_.hg_bin_width, cfg_.min_hg_bins_for_fit);
                 res.p0 = fr.p0;
                 res.p1 = fr.p1;
                 res.chi2 = fr.chi2;
@@ -690,6 +735,8 @@ void InterCalibAlg::parse_cfg(const YAML::Node& n) {
     cfg_.hg_fit_min = get_or<double>(n, "hg_fit_min", cfg_.hg_fit_min);
     cfg_.lg_fit_min = get_or<double>(n, "lg_fit_min", cfg_.lg_fit_min);
     cfg_.min_points = get_or<int>(n, "min_points", cfg_.min_points);
+    cfg_.hg_bin_width = get_or<double>(n, "hg_bin_width", cfg_.hg_bin_width);
+    cfg_.min_hg_bins_for_fit = get_or<int>(n, "min_hg_bins_for_fit", cfg_.min_hg_bins_for_fit);
 
     cfg_.example_layers = get_or<std::vector<int> >(n, "example_layers", cfg_.example_layers);
     cfg_.example_chips = get_or<std::vector<int> >(n, "example_chips", cfg_.example_chips);
