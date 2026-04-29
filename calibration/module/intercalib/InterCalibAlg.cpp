@@ -11,6 +11,7 @@
 #include <TH2D.h>
 #include <TDirectory.h>
 #include <TCanvas.h>
+#include <TGraphErrors.h>
 #include <TPad.h>
 #include <TLatex.h>
 #include <TString.h>
@@ -41,10 +42,9 @@ namespace {
 
 // Accumulation data for linear regression
 struct Acc {
-    double sumx  = 0.0;  // sum of LG
-    double sumy  = 0.0;  // sum of HG
-    double sumx2 = 0.0;  // sum of LG^2
-    double sumxy = 0.0;  // sum of LG*HG
+    // Store points for HG-binned profile fit:
+    // fit LG = c*HG + d with sigma from RMS(LG) in each HG bin.
+    std::vector<std::pair<double, double>> points_hg_lg; // (HG, LG)
     long long n  = 0;
 };
 
@@ -58,6 +58,38 @@ struct FitResult {
     int status = 999;
     bool ok = false;
 };
+
+struct ProfilePoint {
+    double hg = 0.0;
+    double lg = 0.0;
+    double lg_err = 0.0;
+};
+
+static std::vector<ProfilePoint> buildHGProfilePoints(const Acc& a, double hgBinWidth) {
+    std::vector<ProfilePoint> pts;
+    if (a.points_hg_lg.empty() || hgBinWidth <= 0.0) return pts;
+    struct BinStats { int n = 0; double sum_lg = 0.0; double sum_lg2 = 0.0; double sum_hg = 0.0; };
+    std::unordered_map<int, BinStats> bins;
+    bins.reserve(a.points_hg_lg.size() / 8 + 1);
+    for (const auto& p : a.points_hg_lg) {
+        const int ibin = static_cast<int>(std::floor(p.first / hgBinWidth));
+        auto& b = bins[ibin];
+        b.n++;
+        b.sum_hg += p.first;
+        b.sum_lg += p.second;
+        b.sum_lg2 += p.second * p.second;
+    }
+    pts.reserve(bins.size());
+    for (const auto& [_, b] : bins) {
+        if (b.n < 3) continue;
+        const double mean_hg = b.sum_hg / b.n;
+        const double mean_lg = b.sum_lg / b.n;
+        const double var_lg = std::max(0.0, b.sum_lg2 / b.n - mean_lg * mean_lg);
+        pts.push_back(ProfilePoint{mean_hg, mean_lg, std::max(std::sqrt(var_lg), 1.0)});
+    }
+    std::sort(pts.begin(), pts.end(), [](const ProfilePoint& l, const ProfilePoint& r) { return l.hg < r.hg; });
+    return pts;
+}
 
 static TDirectory* ensureDir(TDirectory* top, const char* name) {
     if (!top) return nullptr;
@@ -73,21 +105,53 @@ static void drawLayerLabel(int layer, double x=0.10, double y=0.92) {
     l.DrawLatex(x, y, Form("L%d", layer));
 }
 
-static FitResult fitLinearLeastSquares(const Acc& a, int minPoints) {
+static FitResult fitLinearFromHGBinnedProfile(const Acc& a, int minPoints, double hgBinWidth, int minBins) {
     FitResult r;
-    if (a.n < minPoints) return r;
+    if (a.n < minPoints || a.points_hg_lg.empty() || hgBinWidth <= 0.0) return r;
 
-    const double denom = (double)a.n * a.sumx2 - a.sumx * a.sumx;
-    if (denom <= 0) {
+    const auto profile_pts = buildHGProfilePoints(a, hgBinWidth);
+    if (static_cast<int>(profile_pts.size()) < minBins) return r;
+
+    // Weighted fit of LG = c*HG + d
+    double S = 0.0, SX = 0.0, SY = 0.0, SXX = 0.0, SXY = 0.0;
+    int used_bins = 0;
+    for (const auto& p : profile_pts) {
+        const double mean_hg = p.hg;
+        const double mean_lg = p.lg;
+        const double sigma_eff = p.lg_err;
+        const double w = 1.0 / (sigma_eff * sigma_eff);
+        S += w;
+        SX += w * mean_hg;
+        SY += w * mean_lg;
+        SXX += w * mean_hg * mean_hg;
+        SXY += w * mean_hg * mean_lg;
+        used_bins++;
+    }
+    if (used_bins < minBins) return r;
+    const double denom = S * SXX - SX * SX;
+    if (denom <= 0.0) {
         r.status = 1;
         return r;
     }
-
-    r.p1 = ((double)a.n * a.sumxy - a.sumx * a.sumy) / denom;
-    r.p0 = (a.sumy - r.p1 * a.sumx) / (double)a.n;
-    r.ndf = a.n - 2;
-    r.chi2 = a.sumy * a.sumy + r.p1 * r.p1 * a.sumx2 + a.n * r.p0 * r.p0 + 2 * r.p0 * r.p1 * a.sumx - 2 * r.p0 * a.sumy - 2 * r.p1 * a.sumxy;
-    r.chi2 /= 10000*10000; // scale down to avoid large values
+    const double c = (S * SXY - SX * SY) / denom;
+    const double d = (SY * SXX - SX * SXY) / denom;
+    if (std::abs(c) < 1e-9) {
+        r.status = 2;
+        return r;
+    }
+    // Convert LG=c*HG+d -> HG=(1/c)*LG + (-d/c)
+    r.p1 = 1.0 / c;
+    r.p0 = -d / c;
+    r.ndf = used_bins - 2;
+    if (r.ndf <= 0) return r;
+    r.chi2 = 0.0;
+    for (const auto& p : profile_pts) {
+        const double mean_hg = p.hg;
+        const double mean_lg = p.lg;
+        const double sigma_lg = p.lg_err;
+        const double resid = mean_lg - (c * mean_hg + d);
+        r.chi2 += (resid * resid) / (sigma_lg * sigma_lg);
+    }
     r.chi2_ndf = r.chi2 / r.ndf;
     r.status = 0;
     r.ok = true;
@@ -230,10 +294,7 @@ struct InterCalibAlg::Impl {
 
         // Accumulate for linear regression
         Acc& a = acc_[cellid];
-        a.sumx += lg_sub;
-        a.sumy += hg_sub;
-        a.sumx2 += lg_sub * lg_sub;
-        a.sumxy += lg_sub * hg_sub;
+        a.points_hg_lg.emplace_back(hg_sub, lg_sub);
         a.n++;
 
         n_used_++;
@@ -265,7 +326,7 @@ struct InterCalibAlg::Impl {
             res.n_points = a.n;
             if (a.n >= cfg_.min_points) {
                 n_fit_all_++;
-                FitResult fr = fitLinearLeastSquares(a, cfg_.min_points);
+                FitResult fr = fitLinearFromHGBinnedProfile(a, cfg_.min_points, cfg_.hg_bin_width, cfg_.min_hg_bins_for_fit);
                 res.p0 = fr.p0;
                 res.p1 = fr.p1;
                 res.chi2 = fr.chi2;
@@ -345,6 +406,7 @@ struct InterCalibAlg::Impl {
             hLayerP1[L]->SetDirectory(nullptr);
         }
         std::vector<FitResult> fit_results_example(h_example_.size());
+        std::vector<std::unique_ptr<TGraphErrors>> g_example_profile(h_example_.size());
         // Output tree
         TTree tIC("intercalib", "HG/LG intercalibration (HG = p0 + p1*LG, pedestal-subtracted)");
 
@@ -416,6 +478,21 @@ struct InterCalibAlg::Impl {
                     fit_results_example[i].chi2 = res.chi2;
                     fit_results_example[i].ndf = res.ndf;
                     fit_results_example[i].chi2_ndf = res.chi2_ndf;
+                    auto itacc = acc_.find(res.cellid);
+                    if (itacc != acc_.end()) {
+                        const auto prof_pts = buildHGProfilePoints(itacc->second, cfg_.hg_bin_width);
+                        if (!prof_pts.empty()) {
+                            auto g = std::make_unique<TGraphErrors>(static_cast<int>(prof_pts.size()));
+                            g->SetName(Form("gExample_profileFitPoints_L%02d_C%02d_ch%02d",
+                                        cfg_.example_layers[i], cfg_.example_chips[i], cfg_.example_chs[i]));
+                            g->SetTitle(Form("Profile points used for fit; HG (ped-sub) [ADC]; LG (ped-sub) [ADC]"));
+                            for (size_t ip = 0; ip < prof_pts.size(); ++ip) {
+                                g->SetPoint(ip, prof_pts[ip].hg, prof_pts[ip].lg);
+                                g->SetPointError(ip, 0.0, prof_pts[ip].lg_err);
+                            }
+                            g_example_profile[i] = std::move(g);
+                        }
+                    }
                     break;
                 }
             }
@@ -469,6 +546,13 @@ struct InterCalibAlg::Impl {
                     example_fit_lines_[i]->SetX2(200); // extend to large LG
                     example_fit_lines_[i]->SetY2(fit_results_example[i].p0 + fit_results_example[i].p1 * 200);
                     example_fit_lines_[i]->Draw("SAME");
+                }
+                if (i < g_example_profile.size() && g_example_profile[i]) {
+                    g_example_profile[i]->SetMarkerStyle(20);
+                    g_example_profile[i]->SetMarkerColor(kBlack);
+                    g_example_profile[i]->SetLineColor(kBlack);
+                    g_example_profile[i]->Draw("P SAME");
+                    g_example_profile[i]->Write();
                 }
                 TLatex t;
                 t.SetNDC(true);
@@ -690,6 +774,8 @@ void InterCalibAlg::parse_cfg(const YAML::Node& n) {
     cfg_.hg_fit_min = get_or<double>(n, "hg_fit_min", cfg_.hg_fit_min);
     cfg_.lg_fit_min = get_or<double>(n, "lg_fit_min", cfg_.lg_fit_min);
     cfg_.min_points = get_or<int>(n, "min_points", cfg_.min_points);
+    cfg_.hg_bin_width = get_or<double>(n, "hg_bin_width", cfg_.hg_bin_width);
+    cfg_.min_hg_bins_for_fit = get_or<int>(n, "min_hg_bins_for_fit", cfg_.min_hg_bins_for_fit);
 
     cfg_.example_layers = get_or<std::vector<int> >(n, "example_layers", cfg_.example_layers);
     cfg_.example_chips = get_or<std::vector<int> >(n, "example_chips", cfg_.example_chips);
