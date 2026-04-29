@@ -11,6 +11,7 @@
 #include <TH2D.h>
 #include <TDirectory.h>
 #include <TCanvas.h>
+#include <TGraphErrors.h>
 #include <TPad.h>
 #include <TLatex.h>
 #include <TString.h>
@@ -58,6 +59,38 @@ struct FitResult {
     bool ok = false;
 };
 
+struct ProfilePoint {
+    double hg = 0.0;
+    double lg = 0.0;
+    double lg_err = 0.0;
+};
+
+static std::vector<ProfilePoint> buildHGProfilePoints(const Acc& a, double hgBinWidth) {
+    std::vector<ProfilePoint> pts;
+    if (a.points_hg_lg.empty() || hgBinWidth <= 0.0) return pts;
+    struct BinStats { int n = 0; double sum_lg = 0.0; double sum_lg2 = 0.0; double sum_hg = 0.0; };
+    std::unordered_map<int, BinStats> bins;
+    bins.reserve(a.points_hg_lg.size() / 8 + 1);
+    for (const auto& p : a.points_hg_lg) {
+        const int ibin = static_cast<int>(std::floor(p.first / hgBinWidth));
+        auto& b = bins[ibin];
+        b.n++;
+        b.sum_hg += p.first;
+        b.sum_lg += p.second;
+        b.sum_lg2 += p.second * p.second;
+    }
+    pts.reserve(bins.size());
+    for (const auto& [_, b] : bins) {
+        if (b.n < 3) continue;
+        const double mean_hg = b.sum_hg / b.n;
+        const double mean_lg = b.sum_lg / b.n;
+        const double var_lg = std::max(0.0, b.sum_lg2 / b.n - mean_lg * mean_lg);
+        pts.push_back(ProfilePoint{mean_hg, mean_lg, std::max(std::sqrt(var_lg), 1.0)});
+    }
+    std::sort(pts.begin(), pts.end(), [](const ProfilePoint& l, const ProfilePoint& r) { return l.hg < r.hg; });
+    return pts;
+}
+
 static TDirectory* ensureDir(TDirectory* top, const char* name) {
     if (!top) return nullptr;
     auto* d = dynamic_cast<TDirectory*>(top->Get(name));
@@ -76,31 +109,16 @@ static FitResult fitLinearFromHGBinnedProfile(const Acc& a, int minPoints, doubl
     FitResult r;
     if (a.n < minPoints || a.points_hg_lg.empty() || hgBinWidth <= 0.0) return r;
 
-    struct BinStats { int n = 0; double sum_lg = 0.0; double sum_lg2 = 0.0; double sum_hg = 0.0; };
-    std::unordered_map<int, BinStats> bins;
-    bins.reserve(a.points_hg_lg.size() / 8 + 1);
-    for (const auto& p : a.points_hg_lg) {
-        const double hg = p.first;
-        const double lg = p.second;
-        const int ibin = static_cast<int>(std::floor(hg / hgBinWidth));
-        auto& b = bins[ibin];
-        b.n++;
-        b.sum_hg += hg;
-        b.sum_lg += lg;
-        b.sum_lg2 += lg * lg;
-    }
-    if (static_cast<int>(bins.size()) < minBins) return r;
+    const auto profile_pts = buildHGProfilePoints(a, hgBinWidth);
+    if (static_cast<int>(profile_pts.size()) < minBins) return r;
 
     // Weighted fit of LG = c*HG + d
     double S = 0.0, SX = 0.0, SY = 0.0, SXX = 0.0, SXY = 0.0;
     int used_bins = 0;
-    for (const auto& [_, b] : bins) {
-        if (b.n < 3) continue;
-        const double mean_hg = b.sum_hg / b.n;
-        const double mean_lg = b.sum_lg / b.n;
-        const double var_lg = std::max(0.0, b.sum_lg2 / b.n - mean_lg * mean_lg);
-        const double sigma_lg = std::sqrt(var_lg);
-        const double sigma_eff = std::max(sigma_lg, 1.0); // avoid overweighting tiny-RMS bins
+    for (const auto& p : profile_pts) {
+        const double mean_hg = p.hg;
+        const double mean_lg = p.lg;
+        const double sigma_eff = p.lg_err;
         const double w = 1.0 / (sigma_eff * sigma_eff);
         S += w;
         SX += w * mean_hg;
@@ -127,12 +145,10 @@ static FitResult fitLinearFromHGBinnedProfile(const Acc& a, int minPoints, doubl
     r.ndf = used_bins - 2;
     if (r.ndf <= 0) return r;
     r.chi2 = 0.0;
-    for (const auto& [_, b] : bins) {
-        if (b.n < 3) continue;
-        const double mean_hg = b.sum_hg / b.n;
-        const double mean_lg = b.sum_lg / b.n;
-        const double var_lg = std::max(0.0, b.sum_lg2 / b.n - mean_lg * mean_lg);
-        const double sigma_lg = std::max(std::sqrt(var_lg), 1.0);
+    for (const auto& p : profile_pts) {
+        const double mean_hg = p.hg;
+        const double mean_lg = p.lg;
+        const double sigma_lg = p.lg_err;
         const double resid = mean_lg - (c * mean_hg + d);
         r.chi2 += (resid * resid) / (sigma_lg * sigma_lg);
     }
@@ -390,6 +406,7 @@ struct InterCalibAlg::Impl {
             hLayerP1[L]->SetDirectory(nullptr);
         }
         std::vector<FitResult> fit_results_example(h_example_.size());
+        std::vector<std::unique_ptr<TGraphErrors>> g_example_profile(h_example_.size());
         // Output tree
         TTree tIC("intercalib", "HG/LG intercalibration (HG = p0 + p1*LG, pedestal-subtracted)");
 
@@ -461,6 +478,21 @@ struct InterCalibAlg::Impl {
                     fit_results_example[i].chi2 = res.chi2;
                     fit_results_example[i].ndf = res.ndf;
                     fit_results_example[i].chi2_ndf = res.chi2_ndf;
+                    auto itacc = acc_.find(res.cellid);
+                    if (itacc != acc_.end()) {
+                        const auto prof_pts = buildHGProfilePoints(itacc->second, cfg_.hg_bin_width);
+                        if (!prof_pts.empty()) {
+                            auto g = std::make_unique<TGraphErrors>(static_cast<int>(prof_pts.size()));
+                            g->SetName(Form("gExample_profileFitPoints_L%02d_C%02d_ch%02d",
+                                        cfg_.example_layers[i], cfg_.example_chips[i], cfg_.example_chs[i]));
+                            g->SetTitle(Form("Profile points used for fit; HG (ped-sub) [ADC]; LG (ped-sub) [ADC]"));
+                            for (size_t ip = 0; ip < prof_pts.size(); ++ip) {
+                                g->SetPoint(ip, prof_pts[ip].hg, prof_pts[ip].lg);
+                                g->SetPointError(ip, 0.0, prof_pts[ip].lg_err);
+                            }
+                            g_example_profile[i] = std::move(g);
+                        }
+                    }
                     break;
                 }
             }
@@ -514,6 +546,13 @@ struct InterCalibAlg::Impl {
                     example_fit_lines_[i]->SetX2(200); // extend to large LG
                     example_fit_lines_[i]->SetY2(fit_results_example[i].p0 + fit_results_example[i].p1 * 200);
                     example_fit_lines_[i]->Draw("SAME");
+                }
+                if (i < g_example_profile.size() && g_example_profile[i]) {
+                    g_example_profile[i]->SetMarkerStyle(20);
+                    g_example_profile[i]->SetMarkerColor(kBlack);
+                    g_example_profile[i]->SetLineColor(kBlack);
+                    g_example_profile[i]->Draw("P SAME");
+                    g_example_profile[i]->Write();
                 }
                 TLatex t;
                 t.SetNDC(true);
