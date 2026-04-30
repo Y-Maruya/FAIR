@@ -25,6 +25,7 @@ namespace AHCALRecoAlg {
         int    min_points = 200;
         double hg_bin_width = 25.0;
         int    min_hg_bins_for_fit = 8;
+        double outlier_sigma_threshold = 5.0;
 
         // Example channel for visualization
         std::vector<int> example_layers = {13};

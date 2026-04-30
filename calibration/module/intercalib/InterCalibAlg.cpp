@@ -24,6 +24,7 @@
 #include <fstream>
 #include <iomanip>
 #include <memory>
+#include <numeric>
 #include <sstream>
 #include <string>
 #include <unordered_map>
@@ -158,6 +159,73 @@ static FitResult fitLinearFromHGBinnedProfile(const Acc& a, int minPoints, doubl
     return r;
 }
 
+static int countAndMarkOutliers(
+    const std::vector<ProfilePoint>& pts, double c, double d, double sigmaThr, std::vector<bool>& is_outlier) {
+    is_outlier.assign(pts.size(), false);
+    int n_outlier = 0;
+    if (sigmaThr <= 0.0) return 0;
+    for (size_t i = 0; i < pts.size(); ++i) {
+        const double sigma = std::max(pts[i].lg_err, 1.0);
+        const double pull = std::abs(pts[i].lg - (c * pts[i].hg + d)) / sigma;
+        if (pull > sigmaThr) {
+            is_outlier[i] = true;
+            n_outlier++;
+        }
+    }
+    return n_outlier;
+}
+
+static FitResult fitLinearFromHGBinnedProfileRejectOutliers(
+    const Acc& a, int minPoints, double hgBinWidth, int minBins, double sigmaThr, int& n_outlier_bins) {
+    n_outlier_bins = 0;
+    FitResult r;
+    if (a.n < minPoints || a.points_hg_lg.empty() || hgBinWidth <= 0.0) return r;
+    const auto profile_pts = buildHGProfilePoints(a, hgBinWidth);
+    if (static_cast<int>(profile_pts.size()) < minBins) return r;
+
+    // First pass
+    auto first = fitLinearFromHGBinnedProfile(a, minPoints, hgBinWidth, minBins);
+    if (!first.ok) return first;
+    const double c1 = 1.0 / first.p1;
+    const double d1 = -first.p0 / first.p1;
+    std::vector<bool> is_outlier;
+    n_outlier_bins = countAndMarkOutliers(profile_pts, c1, d1, sigmaThr, is_outlier);
+    if (n_outlier_bins == 0) return first;
+
+    // Second pass excluding outliers
+    double S = 0.0, SX = 0.0, SY = 0.0, SXX = 0.0, SXY = 0.0;
+    int used_bins = 0;
+    for (size_t i = 0; i < profile_pts.size(); ++i) {
+        if (is_outlier[i]) continue;
+        const auto& p = profile_pts[i];
+        const double w = 1.0 / (p.lg_err * p.lg_err);
+        S += w; SX += w * p.hg; SY += w * p.lg; SXX += w * p.hg * p.hg; SXY += w * p.hg * p.lg;
+        used_bins++;
+    }
+    if (used_bins < minBins) return first;
+    const double denom = S * SXX - SX * SX;
+    if (denom <= 0.0) return first;
+    const double c = (S * SXY - SX * SY) / denom;
+    const double d = (SY * SXX - SX * SXY) / denom;
+    if (std::abs(c) < 1e-9) return first;
+
+    r.p1 = 1.0 / c;
+    r.p0 = -d / c;
+    r.ndf = used_bins - 2;
+    if (r.ndf <= 0) return first;
+    r.chi2 = 0.0;
+    for (size_t i = 0; i < profile_pts.size(); ++i) {
+        if (is_outlier[i]) continue;
+        const auto& p = profile_pts[i];
+        const double resid = p.lg - (c * p.hg + d);
+        r.chi2 += (resid * resid) / (p.lg_err * p.lg_err);
+    }
+    r.chi2_ndf = r.chi2 / r.ndf;
+    r.status = 0;
+    r.ok = true;
+    return r;
+}
+
 } // namespace
 
 struct InterCalibAlg::Impl {
@@ -184,6 +252,7 @@ struct InterCalibAlg::Impl {
         double chi2_ndf = -1.0;
         int fit_status = 999;
         bool fit_ok = false;
+        int n_outlier_bins = 0;
     };
     void loadPedestals() {
         if (cfg_.read_pedestal_from_ROOT) {
@@ -326,7 +395,9 @@ struct InterCalibAlg::Impl {
             res.n_points = a.n;
             if (a.n >= cfg_.min_points) {
                 n_fit_all_++;
-                FitResult fr = fitLinearFromHGBinnedProfile(a, cfg_.min_points, cfg_.hg_bin_width, cfg_.min_hg_bins_for_fit);
+                int n_outlier_bins = 0;
+                FitResult fr = fitLinearFromHGBinnedProfileRejectOutliers(
+                    a, cfg_.min_points, cfg_.hg_bin_width, cfg_.min_hg_bins_for_fit, cfg_.outlier_sigma_threshold, n_outlier_bins);
                 res.p0 = fr.p0;
                 res.p1 = fr.p1;
                 res.chi2 = fr.chi2;
@@ -334,6 +405,7 @@ struct InterCalibAlg::Impl {
                 res.chi2_ndf = fr.chi2_ndf;
                 res.fit_status = fr.status;
                 res.fit_ok = fr.ok;
+                res.n_outlier_bins = n_outlier_bins;
                 if (fr.ok) n_fit_ok_++;
             }
 
@@ -419,6 +491,7 @@ struct InterCalibAlg::Impl {
         double o_chi2_ndf = -1.0;
         int o_fit_status = 999;
         int o_fit_ok = 0;
+        int o_n_outlier_bins = 0;
         double o_x_mm = -999.0, o_y_mm = -999.0;
         std::vector<int> o_same_data_runs;
         tIC.Branch("same_data_runs", &o_same_data_runs);
@@ -435,6 +508,7 @@ struct InterCalibAlg::Impl {
         tIC.Branch("chi2_ndf", &o_chi2_ndf, "chi2_ndf/D");
         tIC.Branch("fit_status", &o_fit_status, "fit_status/I");
         tIC.Branch("fit_ok", &o_fit_ok, "fit_ok/I");
+        tIC.Branch("n_outlier_bins", &o_n_outlier_bins, "n_outlier_bins/I");
         tIC.Branch("x_mm", &o_x_mm, "x_mm/D");
         tIC.Branch("y_mm", &o_y_mm, "y_mm/D");
 
@@ -456,6 +530,7 @@ struct InterCalibAlg::Impl {
             o_chi2_ndf = res.chi2_ndf;
             o_fit_status = res.fit_status;
             o_fit_ok = res.fit_ok ? 1 : 0;
+            o_n_outlier_bins = res.n_outlier_bins;
             o_x_mm = res.x_mm;
             o_y_mm = res.y_mm;
 
@@ -487,8 +562,8 @@ struct InterCalibAlg::Impl {
                                         cfg_.example_layers[i], cfg_.example_chips[i], cfg_.example_chs[i]));
                             g->SetTitle(Form("Profile points used for fit; HG (ped-sub) [ADC]; LG (ped-sub) [ADC]"));
                             for (size_t ip = 0; ip < prof_pts.size(); ++ip) {
-                                g->SetPoint(ip, prof_pts[ip].lg, prof_pts[ip].hg);
-                                g->SetPointError(ip, prof_pts[ip].lg_err, 0.0);
+                                g->SetPoint(ip, prof_pts[ip].hg, prof_pts[ip].lg);
+                                g->SetPointError(ip, 0.0, prof_pts[ip].lg_err);
                             }
                             g_example_profile[i] = std::move(g);
                         }
@@ -613,6 +688,7 @@ struct InterCalibAlg::Impl {
             std::vector<double> p1_arr(n_channels_per_layer, -999.0);
             std::vector<int> fit_status_arr(n_channels_per_layer, 999);
             std::vector<long long> n_points_arr(n_channels_per_layer, 0);
+            std::vector<int> n_outlier_bins_arr(n_channels_per_layer, 0);
 
             // Fill arrays for this layer
             int fit_failures = 0;
@@ -628,6 +704,7 @@ struct InterCalibAlg::Impl {
                 p1_arr[idx] = res.p1;
                 fit_status_arr[idx] = res.fit_status;
                 n_points_arr[idx] = res.n_points;
+                n_outlier_bins_arr[idx] = res.n_outlier_bins;
                 total_entries += res.n_points;
 
                 if (!res.fit_ok) fit_failures++;
@@ -641,6 +718,7 @@ struct InterCalibAlg::Impl {
                 j["CalibrationType"] = "HGLGIntercalib";
                 j["Summary"]["FitFailures"] = fit_failures;
                 j["Summary"]["Entries"] = total_entries;
+                j["Summary"]["TotalOutlierBins"] = std::accumulate(n_outlier_bins_arr.begin(), n_outlier_bins_arr.end(), 0LL);
                 j["Summary"]["NumUsedRun"] = run_contexts_.size();
                 j["Summary"]["SameDataRuns"] = same_data_runs;
                 j["Status"] = (fit_failures == 0) ? 0 : 1;
@@ -650,6 +728,7 @@ struct InterCalibAlg::Impl {
                 j["PerChannel"]["Slope"] = p1_arr;
                 j["PerChannel"]["FitStatus"] = fit_status_arr;
                 j["PerChannel"]["NPoints"] = n_points_arr;
+                j["PerChannel"]["NOutlierBins"] = n_outlier_bins_arr;
 
                 // Write to file
                 std::ostringstream filename;
@@ -776,6 +855,7 @@ void InterCalibAlg::parse_cfg(const YAML::Node& n) {
     cfg_.min_points = get_or<int>(n, "min_points", cfg_.min_points);
     cfg_.hg_bin_width = get_or<double>(n, "hg_bin_width", cfg_.hg_bin_width);
     cfg_.min_hg_bins_for_fit = get_or<int>(n, "min_hg_bins_for_fit", cfg_.min_hg_bins_for_fit);
+    cfg_.outlier_sigma_threshold = get_or<double>(n, "outlier_sigma_threshold", cfg_.outlier_sigma_threshold);
 
     cfg_.example_layers = get_or<std::vector<int> >(n, "example_layers", cfg_.example_layers);
     cfg_.example_chips = get_or<std::vector<int> >(n, "example_chips", cfg_.example_chips);
