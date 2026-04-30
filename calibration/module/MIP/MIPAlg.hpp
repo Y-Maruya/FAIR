@@ -18,7 +18,7 @@ namespace AHCALRecoAlg{
         std::string string_track_struct = "SimpleFittedTrack"; // or "Track"
         std::string track_selection_string = "";
         bool mip_to_file = true;
-        bool mip_to_DB = false;  // Not implemented yet
+        // bool mip_to_DB = false;  // Not implemented yet
         std::string out_mip_filename = "mip.root";
         bool output_to_png = false;
         std::string out_png_dir = "png/";
@@ -30,7 +30,7 @@ namespace AHCALRecoAlg{
         int min_entries = 200;
 
         bool mip_to_json = false;
-        std::string out_json_filename = "mip.json";
+        std::string out_json_dirname = ".";
         bool calculate_fwhm = true;
 
         bool substrate_pedestal = true;
@@ -48,9 +48,12 @@ namespace AHCALRecoAlg{
 
         void execute(EventStore& evt) override;
         void parse_cfg(const YAML::Node& cfg) override;
-    
+        void init_by_run() override;
     private:
         MIPAlgCfg cfg_;
+
+        void ensure_impl();
+        
         struct Impl;
         struct ImplDeleter {
             void operator()(Impl* p) const;
