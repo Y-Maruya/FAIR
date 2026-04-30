@@ -153,6 +153,7 @@ static FitResult fitLinearFromHGBinnedProfile(const Acc& a, int minPoints, doubl
         const double resid = mean_lg - (c * mean_hg + d);
         r.chi2 += (resid * resid) / (sigma_lg * sigma_lg);
     }
+
     r.chi2_ndf = r.chi2 / r.ndf;
     r.status = 0;
     r.ok = true;
