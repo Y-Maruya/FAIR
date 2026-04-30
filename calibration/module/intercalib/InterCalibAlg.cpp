@@ -562,8 +562,8 @@ struct InterCalibAlg::Impl {
                                         cfg_.example_layers[i], cfg_.example_chips[i], cfg_.example_chs[i]));
                             g->SetTitle(Form("Profile points used for fit; HG (ped-sub) [ADC]; LG (ped-sub) [ADC]"));
                             for (size_t ip = 0; ip < prof_pts.size(); ++ip) {
-                                g->SetPoint(ip, prof_pts[ip].hg, prof_pts[ip].lg);
-                                g->SetPointError(ip, 0.0, prof_pts[ip].lg_err);
+                                g->SetPoint(ip, prof_pts[ip].lg, prof_pts[ip].hg);
+                                g->SetPointError(ip, prof_pts[ip].lg_err, 0.0);
                             }
                             g_example_profile[i] = std::move(g);
                         }
