@@ -78,6 +78,14 @@ std::vector<int> parseRunList(const char *csv) {
     while (std::getline(ifs, line)) {
       line.erase(std::remove_if(line.begin(), line.end(), ::isspace), line.end());
       if (line.empty()) continue;
+      if (line.find("EHN1") != std::string::npos || line.find("TestBeam") != std::string::npos) {
+        // skip test beam runs for "all" since they don't have numeric run numbers
+        continue;
+      }
+      if (line.find("muon") != std::string::npos) {
+        // skip muon runs for "all" since they are not pedestal runs
+        continue;
+      }
       runs.push_back(std::atoi(line.c_str()));
     }
     return runs;
@@ -984,9 +992,9 @@ void printSummaryTable(const std::vector<RunData> &runs) {
 }
 
 void compare(const char *baseDir = ".",
-             const char *runListCsv = "22458,22461",
+             const char *runListCsv = "all",
              int focusCellId = -1,
-             const char *outDirName = "compare_plots_limited",
+             const char *outDirName = "compare_plots",
              const char *testBeamDir = "") {
   gROOT->SetBatch(kTRUE);
   gStyle->SetOptStat(0);

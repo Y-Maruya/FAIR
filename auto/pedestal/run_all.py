@@ -58,7 +58,7 @@ if __name__ == "__main__":
         import subprocess
         subprocess.run(
             ["bash", "run_pedestalcalib.sh", str(runnumber)],
-            cwd="/afs/cern.ch/user/y/ymaruya/private/FASERlink/AHCAL/FAIR/auto",
+            cwd="/afs/cern.ch/user/y/ymaruya/private/FASERlink/AHCAL/FAIR/auto/pedestal",
             check=True
         )
         writeToFinishedRuns(runnumber)

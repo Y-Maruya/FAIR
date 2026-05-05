@@ -25,6 +25,7 @@
 #include <stdexcept>
 #include <filesystem>
 #include <glob.h>
+#include <sys/resource.h>
 
 
 std::string customPad(const std::string& str, size_t totalLength) {
@@ -333,6 +334,9 @@ int main(int argc, char* argv[]) {
                     if (!rawHitReader.next(rawHits, tluData)) {
                         break; // No more events or error
                     }
+                    if (ctx.config.nEvents > 0 && nEvent >= ctx.config.nEvents) {
+                        break; // Reached the maximum number of events to process
+                    }
                     EventStore eventStore;
                     eventStore.set_event_counter(nEvent);
                     eventStore.put(input_key_hits, std::move(rawHits));
@@ -344,6 +348,12 @@ int main(int argc, char* argv[]) {
                     nEvent_current++;
                     if (nEvent_current % 10000 == 0) {
                         LOG_INFO("Processed {} events in file {}.", nEvent_current, ctx.config.input);
+                    }
+                    if (nEvent % 1000 == 0) {
+                        struct rusage usage;
+                        getrusage(RUSAGE_SELF, &usage);
+                        long mem_mb = usage.ru_maxrss / 1024;
+                        LOG_INFO("Event {}: Memory = {} MB", nEvent, mem_mb);
                     }
                     eventStore.clear();
                 }

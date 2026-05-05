@@ -42,7 +42,8 @@ algs: # Define the sequence of algorithms to be executed. The order matters.
       # in_pedestal_file: /afs/cern.ch/user/y/ymaruya/private/FASERlink/AHCAL/FAIR/out_calibration/pedestal_calib/22287/pedestal.root
       intercalib_to_file: true
       intercalib_to_DB: true
-      out_intercalib_filename: /afs/cern.ch/user/y/ymaruya/private/FASERlink/AHCAL/FAIR/out_calibration/intercalib_calib/###run-numbers###/intercalib.root
+      hg_bin_width: 25.0
+      out_intercalib_filename: /afs/cern.ch/user/y/ymaruya/private/FASERlink/AHCAL/FAIR/out_calibration/intercalib_calib/###run-numbers###/intercalib_adj.root
       out_json_dirname: /afs/cern.ch/user/y/ymaruya/private/FASERlink/AHCAL/FAIR/out_calibration/intercalib_calib/###run-numbers###/json/
       "example_chs": [
         4,
@@ -98,7 +99,13 @@ algs: # Define the sequence of algorithms to be executed. The order matters.
         22,
         19,
         14,
-        13
+        13,
+        21,
+        21,
+        21,
+        21,
+        10,
+        24
       ]
       "example_chips": [
         0,
@@ -154,6 +161,12 @@ algs: # Define the sequence of algorithms to be executed. The order matters.
         6,
         6,
         6,
+        4,
+        0,
+        1,
+        2,
+        3,
+        3,
         4
       ]
       "example_layers": [
@@ -210,10 +223,17 @@ algs: # Define the sequence of algorithms to be executed. The order matters.
         5,
         5,
         5,
-        1
+        1,
+        1,
+        1,
+        1,
+        1,
+        2,
+        19
       ] 
       require_hittag: true
       hg_fit_max: 1800.0
+      hg_fit_min: 50.0
       use_specific_fit_range_toL39C8: true
       hg_fit_max_L39C8: 1500.0
   # - type: AdcToEnergyReadTTreeAlg

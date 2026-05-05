@@ -14,6 +14,7 @@
 #include "TCanvas.h"
 #include "TFile.h"
 #include "TGraph.h"
+#include "TGraphErrors.h"
 #include "TLegend.h"
 #include "TMultiGraph.h"
 #include "TROOT.h"
@@ -47,7 +48,7 @@ struct InterCalibEntry {
 };
 
 struct RunData {
-  int run = 0;
+  std::string dirName = "";
   std::string label;
   std::string path;
   std::vector<InterCalibEntry> entries;
@@ -77,20 +78,20 @@ struct CellShiftInfo {
 // Utility Functions
 // ============================================================================
 
-std::vector<int> parseRunList(const char *csv) {
-  std::vector<int> runs;
-  if (!csv) return runs;
+std::vector<std::string> parseDirectoryRanges(const char *csv) {
+  std::vector<std::string> dirs;
+  if (!csv) return dirs;
 
   if (std::string(csv) == std::string("all")) {
-    gSystem->Exec("ls -d */ | sed 's#/##' > run_list.txt");
-    std::ifstream ifs("run_list.txt");
+    gSystem->Exec("ls -d */ | sed 's#/##' > dir_list.txt");
+    std::ifstream ifs("dir_list.txt");
     std::string line;
     while (std::getline(ifs, line)) {
       line.erase(std::remove_if(line.begin(), line.end(), ::isspace), line.end());
       if (line.empty()) continue;
-      runs.push_back(std::atoi(line.c_str()));
+      dirs.push_back(line);
     }
-    return runs;
+    return dirs;
   }
 
   std::stringstream ss(csv);
@@ -98,9 +99,9 @@ std::vector<int> parseRunList(const char *csv) {
   while (std::getline(ss, token, ',')) {
     token.erase(std::remove_if(token.begin(), token.end(), ::isspace), token.end());
     if (token.empty()) continue;
-    runs.push_back(std::atoi(token.c_str()));
+    dirs.push_back(token);
   }
-  return runs;
+  return dirs;
 }
 
 bool setBranchIfExists(TTree *tree, const char *name, void *addr) {
@@ -110,11 +111,11 @@ bool setBranchIfExists(TTree *tree, const char *name, void *addr) {
 }
 
 bool loadRunFromFile(const std::string &filePath,
-                     int run,
+                     const std::string &dirName,
                      const std::string &label,
                      RunData &out) {
   out = RunData();
-  out.run = run;
+  out.dirName = dirName;
   out.label = label;
   out.path = filePath;
 
@@ -160,6 +161,14 @@ bool loadRunFromFile(const std::string &filePath,
 
   for (Long64_t i = 0; i < nEntries; ++i) {
     tree->GetEntry(i);
+    if (e.layer == 24 && (e.chip == 4 || e.chip == 6 || e.chip == 8)) {
+      // Skip known bad channels in layer 24
+      continue;
+    }
+    if (e.fit_status == 999) {
+      // Skip entries with invalid fit status
+      continue;
+    }
     out.entries.push_back(e);
     out.byCellId[e.cellid] = e;
   }
@@ -175,9 +184,9 @@ bool loadRunFromFile(const std::string &filePath,
   return true;
 }
 
-bool loadRun(const std::string &baseDir, int run, RunData &out) {
-  const std::string path = baseDir + "/" + std::to_string(run) + "/intercalib.root";
-  return loadRunFromFile(path, run, std::to_string(run), out);
+bool loadRun(const std::string &baseDir, const std::string &dirName, RunData &out) {
+  const std::string path = baseDir + "/" + dirName + "/intercalib_adj.root";
+  return loadRunFromFile(path, dirName, dirName, out);
 }
 
 void setGraphStyle(TGraph *g, int color, int markerStyle) {
@@ -396,7 +405,7 @@ void drawDeltaFromReferenceByRun(const std::vector<RunData> &runs,
   TH1D *hFirst = nullptr;
   int colors[] = {kRed + 1, kBlue + 1, kGreen + 2, kMagenta + 1, kOrange + 7, kCyan + 2};
   for (size_t i = 1; i < runs.size(); ++i) {
-    TH1D *h = new TH1D(Form("hDelta_%zu", i), Form("%s vs run %d", branchLabel.c_str(), runs[i].run),
+    TH1D *h = new TH1D(Form("hDelta_%zu", i), Form("%s vs %s", branchLabel.c_str(), runs[i].label.c_str()),
                        nbins, xmin, xmax);
     for (double d : allDeltas[i]) h->Fill(d);
     h->SetLineColor(colors[(i - 1) % 6]);
@@ -516,14 +525,16 @@ void drawSummaryGraphs(const std::vector<RunData> &runs, const std::string &outD
     std::vector<double> runNumbers;
     std::vector<double> means;
     std::vector<double> rmss;
+    std::vector<std::string> xLabels;
 
     for (size_t i = 0; i < runs.size(); ++i) {
       SummaryStats stats = extractStats(runs[i], branches[b], true);
       if (stats.n == 0) continue;
 
-      runNumbers.push_back(i);
+      runNumbers.push_back(static_cast<double>(xLabels.size() + 1));
       means.push_back(stats.mean);
       rmss.push_back(stats.rms);
+      xLabels.push_back(runs[i].label);
     }
 
     if (means.empty()) continue;
@@ -531,16 +542,37 @@ void drawSummaryGraphs(const std::vector<RunData> &runs, const std::string &outD
     TCanvas *c = new TCanvas(Form("c_summary_%s", branches[b].c_str()),
                              Form("Summary: %s", labels[b].c_str()), 800, 600);
 
-    TGraph *gMean = new TGraph(means.size(), runNumbers.data(), means.data());
+    double yMin = means.front() - rmss.front();
+    double yMax = means.front() + rmss.front();
+    for (size_t i = 0; i < means.size(); ++i) {
+      yMin = std::min(yMin, means[i] - rmss[i]);
+      yMax = std::max(yMax, means[i] + rmss[i]);
+    }
+    const double ySpan = std::max(1e-6, yMax - yMin);
+
+    TH1D *frame = new TH1D(Form("hFrame_%s", branches[b].c_str()),
+                           Form("%s;RunNumber-RunNumber;%s", labels[b].c_str(), labels[b].c_str()),
+                           static_cast<int>(xLabels.size()), 0.5, xLabels.size() + 0.5);
+    frame->SetMinimum(yMin - 0.15 * ySpan);
+    frame->SetMaximum(yMax + 0.15 * ySpan);
+    frame->SetStats(0);
+    for (size_t i = 0; i < xLabels.size(); ++i) {
+      frame->GetXaxis()->SetBinLabel(static_cast<int>(i) + 1, xLabels[i].c_str());
+    }
+    frame->Draw();
+
+    std::vector<double> xErrors(means.size(), 0.0);
+    TGraphErrors *gMean = new TGraphErrors(means.size(), runNumbers.data(), means.data(),
+                                           xErrors.data(), rmss.data());
     gMean->SetTitle(Form("%s vs run", labels[b].c_str()));
     gMean->SetMarkerColor(kBlack);
     gMean->SetMarkerStyle(20);
     gMean->SetMarkerSize(1.2);
     gMean->SetLineColor(kBlack);
     gMean->SetLineWidth(2);
-    gMean->GetXaxis()->SetTitle("Run index");
+    gMean->GetXaxis()->SetTitle("RunNumber-RunNumber");
     gMean->GetYaxis()->SetTitle(labels[b].c_str());
-    gMean->Draw("ALP");
+    gMean->Draw("P SAME");
 
     c->SaveAs((outDir + "/Summary_" + branches[b] + ".pdf").c_str());
   }
@@ -623,29 +655,29 @@ void writeRepresentativeSummary(const std::string &fileName,
 // ============================================================================
 
 void compare(const char *baseDir = ".",
-             const char *runList = "22163,22296",
-             const char *outDir = "comparison_out") {
+             const char *runList = "22137-22142,22159-22163,22165-22198,22205-22251,22268-22268,22286-22296,22298-22298",
+             const char *outDir = "comparison_out_directory") {
   // Create output directory
   gSystem->Exec(Form("mkdir -p %s", outDir));
 
-  // Parse run list
-  std::vector<int> runNumbers = parseRunList(runList);
-  if (runNumbers.empty()) {
-    std::cerr << "No runs to process" << std::endl;
+  // Parse directory ranges
+  std::vector<std::string> dirNames = parseDirectoryRanges(runList);
+  if (dirNames.empty()) {
+    std::cerr << "No directories to process" << std::endl;
     return;
   }
 
-  std::cout << "Loading " << runNumbers.size() << " runs..." << std::endl;
+  std::cout << "Loading " << dirNames.size() << " directories..." << std::endl;
 
-  // Load all runs
+  // Load all directories
   std::vector<RunData> allRuns;
-  for (int run : runNumbers) {
+  for (const auto &dirName : dirNames) {
     RunData data;
-    if (loadRun(baseDir, run, data)) {
-      std::cout << "  Run " << run << ": " << data.entries.size() << " entries" << std::endl;
+    if (loadRun(baseDir, dirName, data)) {
+      std::cout << "  " << dirName << ": " << data.entries.size() << " entries" << std::endl;
       allRuns.push_back(data);
     } else {
-      std::cerr << "  Failed to load run " << run << std::endl;
+      std::cerr << "  Failed to load directory " << dirName << std::endl;
     }
   }
 

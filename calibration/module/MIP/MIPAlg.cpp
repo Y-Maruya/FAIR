@@ -249,8 +249,20 @@ namespace AHCALRecoAlg{
 
             if (hg_value >= cfg_.xmin && hg_value <= cfg_.xmax) {
                 auto& ptr = hg_hist_[cellid];
-                if (!ptr) ptr = make_hist(cellid);
+                if (!ptr) {
+                    ptr = make_hist(cellid);
+                    if (hg_hist_.size() == 1) {
+                        LOG_INFO("MIPAlg: created first histogram for cellID={}", cellid);
+                    } else if (hg_hist_.size() % 500 == 0) {
+                        LOG_INFO("MIPAlg: created {} histograms so far (missing_ped={})",
+                                 hg_hist_.size(), n_missing_ped_);
+                    }
+                }
                 ptr->Fill(hg_value);
+            }
+            if (hg_hist_.size() % 1000 == 0) {
+                LOG_INFO("MIPAlg: {} histograms created, estimated memory ≈ {} MB",
+                        hg_hist_.size(), hg_hist_.size() * 45 / 1024);
             }
         }
 
