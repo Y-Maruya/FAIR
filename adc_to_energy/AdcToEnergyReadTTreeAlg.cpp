@@ -77,6 +77,14 @@ bool AdcToEnergyReadTTreeAlg::initialize_mip(){
   LOG_INFO("Reference MIP values assigned for cut channels.");
   LOG_INFO("Total channels with reference MIP: {}",
            static_cast<int>(mip_map.size()) - nonref);
+  
+  // Clean up ROOT objects to avoid memory leaks
+  if (m_in_file) {
+    m_in_file->Close();
+    m_in_file.reset();
+  }
+  m_in_tree = nullptr;
+  
   return true;
 }
 
@@ -147,6 +155,13 @@ bool AdcToEnergyReadTTreeAlg::initialize_ped( ){
   LOG_INFO("Total channels with reference pedestal: {}",
            static_cast<int>(hg_ped_map.size()) - nonref);
 
+  // Clean up ROOT objects to avoid memory leaks
+  if (m_in_file) {
+    m_in_file->Close();
+    m_in_file.reset();
+  }
+  m_in_tree = nullptr;
+
   return true;
 }
 
@@ -216,6 +231,13 @@ bool AdcToEnergyReadTTreeAlg::initialize_dac( ){
   LOG_INFO("Reference DAC values assigned for cut channels.");
   LOG_INFO("Total channels with reference DAC: {}",
            static_cast<int>(gainratio_map.size()) - nonref);
+
+  // Clean up ROOT objects to avoid memory leaks
+  if (m_in_file) {
+    m_in_file->Close();
+    m_in_file.reset();
+  }
+  m_in_tree = nullptr;
 
   return true;
 }
