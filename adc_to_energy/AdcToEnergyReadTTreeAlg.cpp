@@ -54,29 +54,25 @@ bool AdcToEnergyReadTTreeAlg::initialize_mip(){
 
   for (size_t i = 0; i < cellids.size(); ++i) {
     const int conv_cellid = cellid_conversion(cellids[i]);
-    mip_map[conv_cellid] = mpvs[i];
+    const std::size_t idx = channel_index_from_cellid(conv_cellid);
+    if (idx >= total_channel_count()) continue;
+    mip_values_[idx] = mpvs[i];
   }
 
-  const int nonref = static_cast<int>(mip_map.size());
-  LOG_INFO("Loaded {} MIP entries from {}", mip_map.size(), mip_file_name);
+  int loaded = 0;
+  LOG_INFO("Loaded {} MIP entries from {}", cellids.size(), mip_file_name);
 
-  for (int layer = 0; layer < AHCALGeometry::Layer_No; ++layer) {
-    for (int chip = 0; chip < AHCALGeometry::chip_No; ++chip) {
-      for (int channel = 0; channel < AHCALGeometry::channel_No; ++channel) {
-        const int cellid = layer * 100000 + chip * 10000 + channel;
-        if (mip_map.find(cellid) == mip_map.end()) {
-          mip_map[cellid] = AHCALRefValues::ref_MIP;
-        }else if (mip_map[cellid]<=100.0){
-          LOG_DEBUG("Low MIP value detected: cellID={} MPV={}", cellid, mip_map[cellid]);
-          mip_map[cellid] = AHCALRefValues::ref_MIP;
-        }
-      }
+  for (double &mip : mip_values_) {
+    if (mip <= 100.0) {
+      mip = AHCALRefValues::ref_MIP;
+    } else {
+      ++loaded;
     }
   }
 
   LOG_INFO("Reference MIP values assigned for cut channels.");
   LOG_INFO("Total channels with reference MIP: {}",
-           static_cast<int>(mip_map.size()) - nonref);
+           static_cast<int>(mip_values_.size()) - loaded);
   
   // Clean up ROOT objects to avoid memory leaks
   if (m_in_file) {
@@ -130,30 +126,14 @@ bool AdcToEnergyReadTTreeAlg::initialize_ped( ){
 
   for (size_t i = 0; i < cellids.size(); ++i) {
     const int conv_cellid = cellid_conversion(cellids[i]);
-    hg_ped_map[conv_cellid] = hg[i];
-    lg_ped_map[conv_cellid] = lg[i];
+    const std::size_t idx = channel_index_from_cellid(conv_cellid);
+    if (idx >= total_channel_count()) continue;
+    hg_ped_values_[idx] = hg[i];
+    lg_ped_values_[idx] = lg[i];
   }
 
-  const int nonref = static_cast<int>(hg_ped_map.size());
-  LOG_INFO("Loaded {} pedestal entries from {}", hg_ped_map.size(), ped_file_name);
-
-  for (int layer = 0; layer < AHCALGeometry::Layer_No; ++layer) {
-    for (int chip = 0; chip < AHCALGeometry::chip_No; ++chip) {
-      for (int channel = 0; channel < AHCALGeometry::channel_No; ++channel) {
-        const int cellid = layer * 100000 + chip * 10000 + channel;
-        if (hg_ped_map.find(cellid) == hg_ped_map.end()) {
-          hg_ped_map[cellid] = AHCALRefValues::ref_ped_highgain;
-        }
-        if (lg_ped_map.find(cellid) == lg_ped_map.end()) {
-          lg_ped_map[cellid] = AHCALRefValues::ref_ped_lowgain;
-        }
-      }
-    }
-  }
-
+  LOG_INFO("Loaded {} pedestal entries from {}", cellids.size(), ped_file_name);
   LOG_INFO("Reference pedestal values assigned for cut channels.");
-  LOG_INFO("Total channels with reference pedestal: {}",
-           static_cast<int>(hg_ped_map.size()) - nonref);
 
   // Clean up ROOT objects to avoid memory leaks
   if (m_in_file) {
@@ -207,30 +187,14 @@ bool AdcToEnergyReadTTreeAlg::initialize_dac( ){
 
   for (size_t i = 0; i < cellids.size(); ++i) {
     const int conv_cellid = cellid_conversion(cellids[i]);
-    gainratio_map[conv_cellid] = slopes[i];
-    gainplat_map[conv_cellid] = static_cast<int>(plats[i]);
+    const std::size_t idx = channel_index_from_cellid(conv_cellid);
+    if (idx >= total_channel_count()) continue;
+    gainratio_values_[idx] = slopes[i];
+    gainplat_values_[idx] = static_cast<int>(plats[i]);
   }
 
-  const int nonref = static_cast<int>(gainratio_map.size());
-  LOG_INFO("Loaded {} DAC entries from {}", gainratio_map.size(), dac_file_name);
-
-  for (int layer = 0; layer < AHCALGeometry::Layer_No; ++layer) {
-    for (int chip = 0; chip < AHCALGeometry::chip_No; ++chip) {
-      for (int channel = 0; channel < AHCALGeometry::channel_No; ++channel) {
-        const int cellid = layer * 100000 + chip * 10000 + channel;
-        if (gainratio_map.find(cellid) == gainratio_map.end()) {
-          gainratio_map[cellid] = AHCALRefValues::ref_gain_ratio;
-        }
-        if (gainplat_map.find(cellid) == gainplat_map.end()) {
-          gainplat_map[cellid] = AHCALRefValues::lowgain_plat;
-        }
-      }
-    }
-  }
-
+  LOG_INFO("Loaded {} DAC entries from {}", cellids.size(), dac_file_name);
   LOG_INFO("Reference DAC values assigned for cut channels.");
-  LOG_INFO("Total channels with reference DAC: {}",
-           static_cast<int>(gainratio_map.size()) - nonref);
 
   // Clean up ROOT objects to avoid memory leaks
   if (m_in_file) {
@@ -247,6 +211,26 @@ AdcToEnergyReadTTreeAlg::~AdcToEnergyReadTTreeAlg() {
     m_in_file->Close();
   }
   m_in_tree = nullptr;
+}
+
+
+std::size_t AdcToEnergyReadTTreeAlg::total_channel_count() {
+  return static_cast<std::size_t>(AHCALGeometry::Layer_No) *
+         static_cast<std::size_t>(AHCALGeometry::chip_No) *
+         static_cast<std::size_t>(AHCALGeometry::channel_No);
+}
+
+std::size_t AdcToEnergyReadTTreeAlg::channel_index_from_cellid(int cellid) {
+  const int layer = cellid / 100000;
+  const int chip = (cellid / 10000) % 10;
+  const int channel = cellid % 10000;
+  if (layer < 0 || layer >= AHCALGeometry::Layer_No ||
+      chip < 0 || chip >= AHCALGeometry::chip_No ||
+      channel < 0 || channel >= AHCALGeometry::channel_No) {
+    return total_channel_count();
+  }
+  return (static_cast<std::size_t>(layer) * AHCALGeometry::chip_No + static_cast<std::size_t>(chip)) *
+         AHCALGeometry::channel_No + static_cast<std::size_t>(channel);
 }
 
 int AdcToEnergyReadTTreeAlg::cellid_conversion(int input_cellid) {
@@ -266,23 +250,16 @@ void AdcToEnergyReadTTreeAlg::execute(EventStore &evt) {
     AHCALRecoHit reco_hit;
     reco_hit.cellID = raw_hit.cellID;
     reco_hit.index = raw_hit.index;
-    const auto mip_it = mip_map.find(raw_hit.cellID);
-    const auto hg_it = hg_ped_map.find(raw_hit.cellID);
-    const auto lg_it = lg_ped_map.find(raw_hit.cellID);
-    const auto gr_it = gainratio_map.find(raw_hit.cellID);
-    const auto gp_it = gainplat_map.find(raw_hit.cellID);
-    if (mip_it == mip_map.end() || hg_it == hg_ped_map.end() ||
-        lg_it == lg_ped_map.end() || gr_it == gainratio_map.end() ||
-        gp_it == gainplat_map.end()) {
-      LOG_DEBUG("Missing calibration constants for cellID={}, skip hit", raw_hit.cellID);
+    const std::size_t idx = channel_index_from_cellid(raw_hit.cellID);
+    if (idx >= total_channel_count()) {
+      LOG_DEBUG("Invalid cellID={}, skip hit", raw_hit.cellID);
       continue;
     }
-
-    const double mpv        = mip_it->second;
-    const double hg_ped     = hg_it->second;
-    const double lg_ped     = lg_it->second;
-    const double gain_ratio = gr_it->second;
-    const int gain_plat     = gp_it->second;
+    const double mpv        = mip_values_[idx];
+    const double hg_ped     = hg_ped_values_[idx];
+    const double lg_ped     = lg_ped_values_[idx];
+    const double gain_ratio = gainratio_values_[idx];
+    const int gain_plat     = gainplat_values_[idx];
 
     const double hg = static_cast<double>(raw_hit.hg_adc);
     const double lg = static_cast<double>(raw_hit.lg_adc);
