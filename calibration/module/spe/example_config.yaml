@@ -1,0 +1,58 @@
+# Example SPEAlg Configuration File
+# SPE = Signal-to-noise ratio, Pedestal subtraction, Efficiency
+# 
+# This algorithm performs:
+# 1. Per-channel MIP (Most Probable value) extraction via Landau-Gauss fitting
+# 2. FFT-based gain analysis (MIP peak detection)
+# 3. SNR (signal-to-noise ratio) calculation per channel
+# 4. Layer efficiency calculation based on SNR threshold
+
+SPEAlg:
+  # ===== Input Configuration =====
+  in_rawhit_key: "RawHits"          # Input raw hit collection key
+  in_track_key: "Tracks"             # Input track collection key
+  
+  # ===== Track Structure & Selection =====
+  string_track_struct: "SimpleFittedTrack"  # "SimpleFittedTrack" or "Track"
+  track_selection_string: ""         # Leave empty for no selection, or specify cuts
+  
+  # ===== Output Modes =====
+  mip_to_file: true                  # Write ROOT output file
+  mip_to_json: false                 # Write per-layer JSON calibration files
+  output_to_png: false               # Generate PNG plots (requires X11 forwarding)
+  
+  # ===== File Paths =====
+  out_mip_filename: "spe_analysis.root"     # Output ROOT file path
+  out_png_dir: "./png"               # Output directory for PNG plots
+  out_json_dirname: "./json"         # Output directory for JSON files
+  
+  # ===== MIP Histogram Parameters =====
+  nbin: 512                          # Number of bins in MIP histogram
+  xmin: 0.0                          # Minimum ADC value (after pedestal subtraction)
+  xmax: 1000.0                       # Maximum ADC value
+  min_entries: 200                   # Minimum entries to attempt fit
+  
+  # ===== FFT Configuration =====
+  npad_req: 8192                     # Requested FFT padding size
+  gain_min: 5.0                      # Minimum gain for search window [ADC/p.e.]
+  gain_max: 30.0                     # Maximum gain for search window [ADC/p.e.]
+  min_ent_fft: 500                   # Minimum entries to perform FFT analysis
+  edge_gain_tol: 0.01                # Tolerance for edge peak detection
+  kedge_skip: 4                      # Number of bins to skip from gain boundary
+  
+  # ===== Output Control =====
+  save_per_channel_hists: true       # Save individual channel histograms (space intensive)
+  save_max_channel_hists: 600        # Maximum number of channel hists to save
+  do_event_scan: false               # Perform detailed event-by-event scan (heavy)
+  save_examples: true                # Save best SNR channel examples
+  
+  # ===== Pedestal Handling =====
+  substrate_pedestal: true           # Subtract pedestals from MIP histogram
+  read_pedestal_from_ROOT: false     # Load pedestals from ROOT file
+  in_pedestal_file: "pedestal.root"  # Pedestal ROOT file path
+  read_pedestal_from_DB: true        # Load pedestals from database
+  
+  # ===== Analysis Parameters =====
+  processing_mode: 2                 # 0=raw only, 1=muon only, 2=both (not implemented yet)
+  snr_threshold: 3.0                 # SNR threshold for layer efficiency calculation
+  calculate_fwhm: true               # Calculate FWHM during Landau-Gauss fit

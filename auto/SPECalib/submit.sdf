@@ -1,0 +1,12 @@
+universe = vanilla
+
+executable = /eos/user/y/ymaruya/FASER/AHCAL/FAIR/auto/SPECalib/submit.sh
+arguments  = 22135 22500
+
+output = /eos/user/y/ymaruya/FASER/AHCAL/FAIR/auto/SPECalib/condor_logs/spe.$(ClusterId).$(ProcId).out
+error  = /eos/user/y/ymaruya/FASER/AHCAL/FAIR/auto/SPECalib/condor_logs/spe.$(ClusterId).$(ProcId).err
+log    = /eos/user/y/ymaruya/FASER/AHCAL/FAIR/auto/SPECalib/condor_logs/spe.$(ClusterId).log
+
++JobFlavour = "testmatch"
+request_memory = 24GB
+queue

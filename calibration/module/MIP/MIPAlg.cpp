@@ -441,6 +441,13 @@ namespace AHCALRecoAlg{
                 drawLayerLabel(L);
             }
             if (cfg_.output_to_png) {
+                std::filesystem::path out_dir(cfg_.out_png_dir.empty() ? "." : cfg_.out_png_dir);
+                std::error_code ec;
+                std::filesystem::create_directories(out_dir, ec);
+                if (ec) {
+                    LOG_ERROR("MIPAlg: cannot create output directory {}: {}", out_dir.string(), ec.message());
+                    return;
+                }
                 cAllMPV->SaveAs((cfg_.out_png_dir + "/MIP_MPV_AllLayers.png").c_str());
                 for (int L = 0; L < AHCALGeometry::Layer_No; ++L) {
                     auto c = std::make_unique<TCanvas>(Form("cMPV_L%02d", L), Form("MIP MPV Layer %d", L), 800, 700);
