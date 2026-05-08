@@ -21,7 +21,7 @@ Analyze `std::vector<TutorialCluster>` and produce basic correlation plots.
 
 ## 3) Run Part C config (analysis inside same reco pipeline)
 ```bash
-./exe/ExecCalib docs/tutorial/config/partC_ana.yaml
+./bin/fair_single docs/tutorial/config/partC_ana.yaml
 ```
 
 <details>
@@ -48,3 +48,13 @@ Then scan threshold from `0` to `threshold_scan_max` with that step.
 > `partC_ana.yaml` uses `###run-number###` placeholders; replace them before execution.
 
 > This Part C config does **not** use `RootInput`; analysis is executed in the same chain right after reco/clustering.
+
+## run-by-run execution (actual)
+Use `fair_run` when running per run-number from one base config:
+```bash
+./bin/fair_run docs/tutorial/config/partC_ana.yaml -r 21897
+```
+Optional pool cap:
+```bash
+./bin/fair_run docs/tutorial/config/partC_ana.yaml -r 21897 -m 10
+```

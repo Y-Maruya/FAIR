@@ -64,7 +64,7 @@ And have `updateSummary()`.
 
 ## 4) Run Part B config (`partB_reco.yaml`)
 ```bash
-./exe/ExecCalib docs/tutorial/config/partB_reco.yaml
+./bin/fair_single docs/tutorial/config/partB_reco.yaml
 ```
 
 `partB_reco.yaml` should include `cluster_distance_mm`.
@@ -84,3 +84,7 @@ Add your new RecoAlg `.cpp` into the corresponding module `CMakeLists.txt`, then
 
 
 > `partB_reco.yaml` uses `###run-number###` placeholders; replace them before execution.
+
+## fair_single options (actual)
+- Basic: `./bin/fair_single <config_yaml>`
+- Multi-input text list: `./bin/fair_single <config_yaml> -i <input_list.txt>`

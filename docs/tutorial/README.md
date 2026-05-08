@@ -49,7 +49,7 @@ When you add new tutorial alg files, also update the relevant module `CMakeLists
    - Use one config where analysis alg runs after reco algs in the same `algs` chain.
    - Example:
      ```bash
-     ./exe/ExecCalib docs/tutorial/config/partC_ana.yaml
+     ./bin/fair_single docs/tutorial/config/partC_ana.yaml
      ```
 
 2. **Run-by-run execution**
@@ -59,6 +59,6 @@ When you add new tutorial alg files, also update the relevant module `CMakeLists
      RUN=21897
      sed "s/###run-number###/${RUN}/g" docs/tutorial/config/partB_reco.yaml > /tmp/partB_${RUN}.yaml
      sed "s/###run-number###/${RUN}/g" docs/tutorial/config/partC_ana.yaml > /tmp/partC_${RUN}.yaml
-     ./exe/ExecCalib /tmp/partB_${RUN}.yaml
-     ./exe/ExecCalib /tmp/partC_${RUN}.yaml  # includes reco + analysis in one run config
+     ./bin/fair_run docs/tutorial/config/partB_reco.yaml -r ${RUN}
+     ./bin/fair_run docs/tutorial/config/partC_ana.yaml -r ${RUN}
      ```
