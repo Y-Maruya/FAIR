@@ -1,0 +1,33 @@
+run:
+  input: /path/to/input/Faser-Physics-###run-number###-000000.root
+  output: /path/to/output/reco_###run-number###.root
+  nEvents: -1
+  log_level: INFO
+  runNumber: ###run-number###
+
+reader:
+  type: BinaryRawHitReader
+  cfg:
+    out_rawhits_key: RawHits
+    out_tlu_key: TLURawData
+
+algs:
+  - type: AdcToEnergyReadTTreeAlg
+    cfg:
+      in_rawhit_key: RawHits
+      out_recohit_key: RecoHits
+      mip: {file: calibration/reffiles/mip.root, cut: "(1)", cellid_version: 0}
+      pedestal: {file: calibration/pedestal_calib/run21722/pedestal.root, cut: "(1)", cellid_version: 1}
+      dac: {file: calibration/reffiles/dac.root, cut: "(1)", cellid_version: 0}
+
+  - type: SimpleClusteringRecoAlg
+    cfg:
+      in_recohit_key: RecoHits
+      out_cluster_key: Clusters
+      cluster_distance_mm: 45.0
+
+  - type: RootWriterAlg
+    cfg:
+      outputlist:
+        - vector<AHCALRecoHit>
+        - vector<TutorialCluster>
