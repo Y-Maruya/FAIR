@@ -1,4 +1,4 @@
-# Half-Day FAIR Tutorial (Master's Students)
+# Half-Day FAIR Tutorial (Beginners)
 
 ## Goal (what students can do by the end)
 In ~4 hours, students will be able to:

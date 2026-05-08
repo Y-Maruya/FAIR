@@ -1,4 +1,4 @@
-# FAIR Half-Day Tutorial (Master's Students)
+# FAIR Half-Day Tutorial (Beginners)
 
 This tutorial is a hands-on, straight-forward course to finish in about 4 hours.
 
