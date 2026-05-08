@@ -257,7 +257,7 @@ void AdcToEnergyReadTTreeAlg::execute(EventStore &evt) {
   auto raw_hits = evt.get<std::vector<AHCALRawHit>>(m_in_rawhit_key);
 
   std::vector<AHCALRecoHit> reco_hits;
-  // reco_hits.reserve(raw_hits.size());
+  reco_hits.reserve(raw_hits.size());
 
   const int SwitchPoint = AHCALRefValues::SwitchPoint;
 
@@ -266,11 +266,23 @@ void AdcToEnergyReadTTreeAlg::execute(EventStore &evt) {
     AHCALRecoHit reco_hit;
     reco_hit.cellID = raw_hit.cellID;
     reco_hit.index = raw_hit.index;
-    const double mpv        = mip_map[raw_hit.cellID];
-    const double hg_ped     = hg_ped_map[raw_hit.cellID];
-    const double lg_ped     = lg_ped_map[raw_hit.cellID];
-    const double gain_ratio = gainratio_map[raw_hit.cellID];
-    const int gain_plat     = gainplat_map[raw_hit.cellID];
+    const auto mip_it = mip_map.find(raw_hit.cellID);
+    const auto hg_it = hg_ped_map.find(raw_hit.cellID);
+    const auto lg_it = lg_ped_map.find(raw_hit.cellID);
+    const auto gr_it = gainratio_map.find(raw_hit.cellID);
+    const auto gp_it = gainplat_map.find(raw_hit.cellID);
+    if (mip_it == mip_map.end() || hg_it == hg_ped_map.end() ||
+        lg_it == lg_ped_map.end() || gr_it == gainratio_map.end() ||
+        gp_it == gainplat_map.end()) {
+      LOG_DEBUG("Missing calibration constants for cellID={}, skip hit", raw_hit.cellID);
+      continue;
+    }
+
+    const double mpv        = mip_it->second;
+    const double hg_ped     = hg_it->second;
+    const double lg_ped     = lg_it->second;
+    const double gain_ratio = gr_it->second;
+    const int gain_plat     = gp_it->second;
 
     const double hg = static_cast<double>(raw_hit.hg_adc);
     const double lg = static_cast<double>(raw_hit.lg_adc);
