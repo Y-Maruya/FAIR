@@ -23,3 +23,10 @@
 Use:
 - `threshold_scan_max`
 - `threshold_scan_step`
+
+
+## Output files
+Set in cfg:
+- `out_root_filename`
+- `write_to_png`
+- `out_png_dir`

@@ -15,6 +15,10 @@ struct ClusterBasicAnaAlgCfg {
     double edep_threshold = 5.0;
     double threshold_scan_max = 20.0;
     double threshold_scan_step = 1.0;
+    std::string out_root_filename = "cluster_ana.root";
+    bool write_to_png = true;
+    std::string out_png_dir = "cluster_ana_png";
+
 };
 
 class ClusterBasicAnaAlg final : public IAlg {

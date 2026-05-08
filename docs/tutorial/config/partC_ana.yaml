@@ -32,6 +32,9 @@ algs:
       edep_threshold: 5.0
       threshold_scan_max: 20.0
       threshold_scan_step: 1.0
+      out_root_filename: /path/to/output/cluster_ana_###run-number###.root
+      write_to_png: true
+      out_png_dir: /path/to/output/png_###run-number###
 
   - type: RootWriterAlg
     cfg:
