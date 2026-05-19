@@ -117,6 +117,8 @@ bool BinaryRawHitReader::next(std::vector<AHCALRawHit>& out_hits, AHCALTLURawDat
         // TLUDATA
         out_tlu.EventCounter = event.event_counter();
         out_tlu.EventID = event.event_id();
+        out_tlu.Timestamp_cpu_mus = event.timestamp();
+        out_tlu.run_number = event.run_number();
         for (const auto id: event.getFragmentIDs()){
             const DAQFormats::EventFragment* frag = event.find_fragment(id);
             if (frag->source_id() == DAQFormats::SourceIDs::TLUSourceID){

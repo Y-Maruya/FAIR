@@ -187,6 +187,11 @@ if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/CalibDBIO/CMakeLists.txt")
   add_subdirectory(CalibDBIO)
 endif()
 
+# LHC beam data reader (for fetching beam conditions for a run from COOL)
+if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/LHCDataReader/CMakeLists.txt")
+  add_subdirectory(LHCDataReader)
+endif()
+
 # Executables (driver programs)
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/exe/CMakeLists.txt")
   add_subdirectory(exe)

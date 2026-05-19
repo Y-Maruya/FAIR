@@ -3,9 +3,11 @@
 #include "IO/IOTypeRegistry.hpp"
 
 
-struct AHCALTLURawData{
+struct AHCALTLURawData {
     int EventCounter;
     int EventID;
+    uint64_t Timestamp_cpu_mus;
+    int run_number;
     int Timestamp;
     int BCID_TLU;
     std::vector<int> Inputs = std::vector<int>(6,0);
@@ -16,10 +18,11 @@ struct AHCALTLURawData{
     int Event_Time;
 };
 
-inline std::vector<FieldDesc> describe(const AHCALTLURawData*){
+inline std::vector<FieldDesc> describe(const AHCALTLURawData*) {
     return {
         field("EventCounter", &AHCALTLURawData::EventCounter),
         field("EventID", &AHCALTLURawData::EventID),
+        field("Timestamp_cpu_mus", &AHCALTLURawData::Timestamp_cpu_mus),
         field("Timestamp", &AHCALTLURawData::Timestamp),
         field("BCID_TLU", &AHCALTLURawData::BCID_TLU),
         field("Inputs", &AHCALTLURawData::Inputs),
@@ -27,7 +30,7 @@ inline std::vector<FieldDesc> describe(const AHCALTLURawData*){
         field("RunNo", &AHCALTLURawData::RunNo),
         field("CycleID", &AHCALTLURawData::CycleID),
         field("TriggerID", &AHCALTLURawData::TriggerID),
-        field("Event_Time", &AHCALTLURawData::Event_Time),
+        field("Event_Time", &AHCALTLURawData::Event_Time)
     };
 }
 
