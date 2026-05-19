@@ -38,3 +38,13 @@ algs: # Define the sequence of algorithms to be executed. The order matters.
       nbin: 800
       xmin: 0
       xmax: 800
+      hg_cut_failed: true
+      hg_cut_rms_per_sigma: true
+      hg_max_rms_per_sigma: 4.0
+      hg_cut_max_sigma_and_max_rms: true
+      hg_max_sigma: 20.0
+      hg_max_rms: 35.0
+      hg_cut_sigma_vs_chi2: false
+      lg_cut_failed: true
+      lg_cut_max_sigma: true
+      lg_max_sigma: 4.0

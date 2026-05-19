@@ -393,6 +393,12 @@ namespace AHCALRecoAlg {
             TDirectory* dHist = nullptr;
             if (cfg_.save_per_channel_hists) {
                 dHist = ensureDir(fout.get(), "SPE");
+                for (int L = 0; L < AHCALGeometry::Layer_No; ++L) {
+                    if (dHist) dHist->mkdir(Form("Layer%02d", L));
+                    for (int C = 0; C < AHCALGeometry::chip_No; ++C) {
+                        if (dHist) dHist->mkdir(Form("Layer%02d/Chip%d", L, C));
+                    }
+                }
             }
 
             // Build fit cache if needed
@@ -552,13 +558,12 @@ namespace AHCALRecoAlg {
                     auto it = hg_hist_.find(cid);
                     if (it != hg_hist_.end() && it->second) {
                         // Create nested directory structure
-                        TString nestedPath = Form("per_channel/L%02d/C%02d/ch%02d", layer, chip, channel);
-                        auto dNested = ensureDir(dHist, nestedPath);
+                        TDirectory* dNested = dynamic_cast<TDirectory*>(dHist->Get(Form("Layer%02d/Chip%d", layer, chip)));
                         if (!dNested) dNested = dHist;
                         
                         TH1D* hMIP = it->second.get();
-                        dNested->cd();
-                        hMIP->Write();
+                        if (dNested) dNested->cd();
+                        hMIP->Write(Form("hMIP_L%d_C%d_ch%d", layer, chip, channel));
                         
                         // Compute and save FFT histograms if SNR is good
                         if (res.snr >= cfg_.snr_threshold && res.snr > 0) {
@@ -753,12 +758,7 @@ namespace AHCALRecoAlg {
             if (!cfg_.mip_to_json) return;
             if (!cache_built_) buildFitCache();
 
-            const std::string timestamp = formatTimestampFromRunContexts(run_contexts_);
-            std::vector<int> same_data_runs;
-            for (const auto& rc : run_contexts_) {
-                same_data_runs.push_back(rc.config.runNumber);
-            }
-
+            const int n_channels_per_layer = AHCALGeometry::chip_No * AHCALGeometry::channel_No;
             std::filesystem::path out_dir(cfg_.out_json_dirname.empty() ? "." : cfg_.out_json_dirname);
             std::error_code ec;
             std::filesystem::create_directories(out_dir, ec);
@@ -767,55 +767,119 @@ namespace AHCALRecoAlg {
                 return;
             }
 
-            // Per-layer JSON (matching MIPAlg structure)
-            for (int layer = 0; layer < AHCALGeometry::Layer_No; ++layer) {
-                json out_json;
-                out_json["timestamp"] = timestamp;
-                out_json["runs"] = same_data_runs;
-                out_json["layer"] = layer;
-                out_json["algorithm"] = "SPEAlg";
-                out_json["channels"] = json::array();
-
-                for (const auto& [cid, res] : fit_cache_) {
-                    if (res.layer != layer) continue;
-
-                    json ch_json;
-                    ch_json["cellid"] = res.cellid;
-                    ch_json["chip"] = res.chip;
-                    ch_json["channel"] = res.channel;
-                    ch_json["entries"] = res.entries;
-                    ch_json["x_mm"] = res.x_mm;
-                    ch_json["y_mm"] = res.y_mm;
-                    
-                    // MIP fit information
-                    if (res.fit_out.fit_ok) {
-                        ch_json["mpv"] = res.fit_out.mpv;
-                        ch_json["width"] = res.fit_out.width;
-                        ch_json["chi2perndf"] = (res.fit_out.ndf > 0) 
-                            ? res.fit_out.chi2 / double(res.fit_out.ndf) : -1.0;
-                        ch_json["fit_ok"] = true;
-                    } else {
-                        ch_json["fit_ok"] = false;
-                    }
-                    
-                    // FFT/SPE information
-                    ch_json["gain"] = res.gain;
-                    ch_json["gainErr"] = res.gainErr;
-                    ch_json["snr"] = res.snr;
-                    ch_json["peakAmp"] = res.peakAmp;
-                    ch_json["noiseMed"] = res.noiseMed;
-                    
-                    out_json["channels"].push_back(ch_json);
-                }
-
-                std::string json_filename = out_dir.string() + "/spe_layer" + 
-                                           std::to_string(layer) + ".json";
-                std::ofstream ofs(json_filename);
-                ofs << out_json.dump(2) << "\n";
-                ofs.close();
+            const std::string timestamp = formatTimestampFromRunContexts(run_contexts_);
+            std::vector<int> same_data_runs;
+            for (const auto& rc : run_contexts_) {
+                same_data_runs.push_back(rc.config.runNumber);
             }
 
-            LOG_INFO("SPEAlg: wrote JSON files to {}", out_dir.string());
+            // Per run, per layer JSON (MIPAlg format)
+            for (const auto& rc : run_contexts_) {
+                for (int layer = 0; layer < AHCALGeometry::Layer_No; ++layer) {
+                    // Initialize per-channel arrays
+                    std::vector<double> mpv_arr(n_channels_per_layer, -1.0);
+                    std::vector<double> width_arr(n_channels_per_layer, -1.0);
+                    std::vector<double> total_area_arr(n_channels_per_layer, -1.0);
+                    std::vector<double> gaus_sigma_arr(n_channels_per_layer, -1.0);
+                    std::vector<double> max_x_arr(n_channels_per_layer, -1.0);
+                    std::vector<double> fwhm_arr(n_channels_per_layer, -1.0);
+                    std::vector<int> entries_arr(n_channels_per_layer, 0);
+                    std::vector<double> chi2_arr(n_channels_per_layer, -1.0);
+                    std::vector<int> ndf_arr(n_channels_per_layer, 0);
+                    std::vector<int> fit_status_arr(n_channels_per_layer, 999);
+                    std::vector<int> fit_ok_arr(n_channels_per_layer, 0);
+                    
+                    // SPE-specific arrays
+                    std::vector<double> gain_arr(n_channels_per_layer, -1.0);
+                    std::vector<double> gainErr_arr(n_channels_per_layer, -1.0);
+                    std::vector<double> snr_arr(n_channels_per_layer, -1.0);
+                    std::vector<double> peakAmp_arr(n_channels_per_layer, -1.0);
+                    std::vector<double> noiseMed_arr(n_channels_per_layer, -1.0);
+
+                    long long total_entries = 0;
+                    int fit_failures = 0;
+
+                    for (const auto& [_, res] : fit_cache_) {
+                        if (res.layer != layer) continue;
+                        const int idx = res.chip * AHCALGeometry::channel_No + res.channel;
+                        if (idx < 0 || idx >= n_channels_per_layer) continue;
+
+                        mpv_arr[idx] = res.fit_out.mpv;
+                        width_arr[idx] = res.fit_out.width;
+                        total_area_arr[idx] = res.fit_out.total_area;
+                        gaus_sigma_arr[idx] = res.fit_out.gaus_sigma;
+                        max_x_arr[idx] = res.fit_out.max_x;
+                        fwhm_arr[idx] = res.fit_out.FWHM;
+                        entries_arr[idx] = res.entries;
+                        chi2_arr[idx] = res.fit_out.chi2;
+                        ndf_arr[idx] = res.fit_out.ndf;
+                        fit_status_arr[idx] = res.fit_out.fit_status;
+                        fit_ok_arr[idx] = res.fit_out.fit_ok ? 1 : 0;
+                        
+                        // SPE-specific
+                        gain_arr[idx] = res.gain;
+                        gainErr_arr[idx] = res.gainErr;
+                        snr_arr[idx] = res.snr;
+                        peakAmp_arr[idx] = res.peakAmp;
+                        noiseMed_arr[idx] = res.noiseMed;
+                        
+                        total_entries += res.entries;
+                        if (!res.fit_out.fit_ok) {
+                            fit_failures++;
+                        }
+                    }
+
+                    json j;
+                    j["RunNumber"] = rc.config.runNumber;
+                    j["TimeStamp"] = timestamp;
+                    j["Layer"] = layer;
+                    j["CalibrationType"] = "SPE";
+                    j["Summary"]["FitOK"] = nFitOK_;
+                    j["Summary"]["FitAll"] = nFitAll_;
+                    j["Summary"]["Entries"] = total_entries;
+                    j["Summary"]["NumUsedRun"] = static_cast<int>(run_contexts_.size());
+                    j["Summary"]["SameDataRuns"] = same_data_runs;
+                    if (!cfg_.fit) {
+                        fit_failures = 0;
+                    }
+                    j["Status"] = (fit_failures == 0) ? 0 : 1;
+
+                    j["PerChannel"]["MPV"] = mpv_arr;
+                    j["PerChannel"]["Width"] = width_arr;
+                    j["PerChannel"]["TotalArea"] = total_area_arr;
+                    j["PerChannel"]["GausSigma"] = gaus_sigma_arr;
+                    j["PerChannel"]["MaxX"] = max_x_arr;
+                    j["PerChannel"]["FWHM"] = fwhm_arr;
+                    j["PerChannel"]["Entries"] = entries_arr;
+                    j["PerChannel"]["Chi2"] = chi2_arr;
+                    j["PerChannel"]["NDF"] = ndf_arr;
+                    j["PerChannel"]["FitStatus"] = fit_status_arr;
+                    j["PerChannel"]["FitOK"] = fit_ok_arr;
+                    
+                    // SPE-specific per-channel data
+                    j["PerChannel"]["Gain"] = gain_arr;
+                    j["PerChannel"]["GainErr"] = gainErr_arr;
+                    j["PerChannel"]["SNR"] = snr_arr;
+                    j["PerChannel"]["PeakAmp"] = peakAmp_arr;
+                    j["PerChannel"]["NoiseMed"] = noiseMed_arr;
+
+                    std::ostringstream filename;
+                    if (!out_dir.empty()) {
+                        filename << out_dir.string() << "/";
+                    }
+                    filename << "run" << rc.config.runNumber << "_spe_Layer" << layer << ".json";
+
+                    const std::string out_filename = filename.str();
+                    std::ofstream jout(out_filename);
+                    if (!jout.is_open()) {
+                        LOG_ERROR("SPEAlg: cannot write JSON {}", out_filename);
+                        continue;
+                    }
+                    jout << j.dump(2) << std::endl;
+                    jout.close();
+                    LOG_INFO("SPEAlg: wrote JSON {}", out_filename);
+                }
+            }
         }
 
         void write() {

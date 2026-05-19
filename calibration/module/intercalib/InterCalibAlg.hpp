@@ -25,12 +25,17 @@ namespace AHCALRecoAlg {
         int    min_points = 200;
         double hg_bin_width = 25.0;
         int    min_hg_bins_for_fit = 8;
-        double outlier_sigma_threshold = 5.0;
+        double outlier_sigma_threshold = 3.0;
 
-        // Example channel for visualization
-        std::vector<int> example_layers = {13};
-        std::vector<int> example_chips = {3};
-        std::vector<int> example_chs = {13};
+        // Example cells for visualization (using cellid directly)
+        std::vector<int> example_cellids = {
+            // Layer 13, Chip 3, Channel 13
+            AHCALGeometry::CellID(13, 3, 13)
+        };
+
+        // Save mode
+        bool save_all_channels_root = false;  // if true, save ROOT histograms for all channels; if false, save only example channels
+        bool save_residual_histograms = false;  // if true, save LG-residual histograms for all fit channels
 
         // HitTag filtering
         bool require_hittag = true;
@@ -40,6 +45,11 @@ namespace AHCALRecoAlg {
 
         bool use_specific_fit_range_toL39C8 = true; // if true, use specific fit range for L39C8 (based on observed saturation behavior), otherwise use global fit range for all channels
         double hg_fit_max_L39C8 = 1500.0; // specific fit max for L39C8
+
+        bool select_muon_hits = false; // if true, only fill histograms with events that have at least one hit with HG>1000 and LG>100 (muon-like hits)
+        std::string in_track_key = "FittedTrack";
+        std::string string_track_struct = "SimpleFittedTrack"; // or "Track"
+        std::string track_selection_string = ""; // optional selection string for tracks, e.g. "nHits >= 5 && chi2/ndf < 5"
     };
 
     class InterCalibAlg final : public IAlg {

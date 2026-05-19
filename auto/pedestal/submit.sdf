@@ -1,0 +1,10 @@
+universe = vanilla
+
+executable = /eos/user/y/ymaruya/FASER/AHCAL/FAIR/auto/pedestal/submit.sh
+
+output = /eos/user/y/ymaruya/FASER/AHCAL/FAIR/auto/pedestal/condor_logs/spe.$(ClusterId).$(ProcId).out
+error  = /eos/user/y/ymaruya/FASER/AHCAL/FAIR/auto/pedestal/condor_logs/spe.$(ClusterId).$(ProcId).err
+log    = /eos/user/y/ymaruya/FASER/AHCAL/FAIR/auto/pedestal/condor_logs/spe.$(ClusterId).log
+
++JobFlavour = "testmatch"
+queue

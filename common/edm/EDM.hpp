@@ -8,3 +8,4 @@
 #include "common/edm/SimHit.hpp"
 #include "common/edm/SimData.hpp"
 #include "common/edm/EventSummary.hpp"
+#include "common/edm/RmNoiseSummary.hpp"

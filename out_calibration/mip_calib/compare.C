@@ -76,9 +76,61 @@ std::vector<int> parseRunList(const char *csv) {
   while (std::getline(ss, token, ',')) {
     token.erase(std::remove_if(token.begin(), token.end(), ::isspace), token.end());
     if (token.empty()) continue;
-    runs.push_back(std::atoi(token.c_str()));
+    // support single run numbers and ranges like 22133-22136
+    const auto dashPos = token.find('-');
+    if (dashPos == std::string::npos) {
+      char *endptr = nullptr;
+      long val = std::strtol(token.c_str(), &endptr, 10);
+      if (endptr != token.c_str() && *endptr == '\0') {
+        runs.push_back(static_cast<int>(val));
+      } else {
+        std::cerr << "[compare] warning: invalid run token '" << token << "' skipped\n";
+      }
+    } else {
+      std::string a = token.substr(0, dashPos);
+      std::string b = token.substr(dashPos + 1);
+      if (a.empty() || b.empty()) {
+        std::cerr << "[compare] warning: invalid range '" << token << "' skipped\n";
+        continue;
+      }
+      char *endptr = nullptr;
+      long start = std::strtol(a.c_str(), &endptr, 10);
+      if (endptr == a.c_str() || *endptr != '\0') {
+        std::cerr << "[compare] warning: invalid range start '" << a << "' skipped\n";
+        continue;
+      }
+      endptr = nullptr;
+      long end = std::strtol(b.c_str(), &endptr, 10);
+      if (endptr == b.c_str() || *endptr != '\0') {
+        std::cerr << "[compare] warning: invalid range end '" << b << "' skipped\n";
+        continue;
+      }
+      if (start > end) std::swap(start, end);
+      for (long r = start; r <= end; ++r) runs.push_back(static_cast<int>(r));
+    }
   }
   return runs;
+}
+
+std::vector<std::string> parseTokenList(const char *csv) {
+  std::vector<std::string> tokens;
+  if (!csv) return tokens;
+  std::stringstream ss(csv);
+  std::string token;
+  while (std::getline(ss, token, ',')) {
+    token.erase(std::remove_if(token.begin(), token.end(), ::isspace), token.end());
+    if (token.empty()) continue;
+    tokens.push_back(token);
+  }
+  return tokens;
+}
+
+std::string sanitizeLabel(const std::string &label) {
+  std::string out = label;
+  for (char &c : out) {
+    if (!std::isalnum(static_cast<unsigned char>(c))) c = '_';
+  }
+  return out;
 }
 
 bool setBranchIfExists(TTree *tree, const char *name, void *addr) {
@@ -530,7 +582,7 @@ void drawRepresentativeHistogramZoomSet(const std::vector<RunData> &runs,
 
       if (h->Integral() > 0) h->Scale(1.0 / h->Integral());
       h->Rebin(16);
-      h->GetXaxis()->SetRangeUser(480, 1184);
+      h->GetXaxis()->SetRangeUser(240, 480+240);
       h->SetLineColor(colors[irun % 12]);
       h->SetLineWidth(2);
       h->SetStats(0);
@@ -762,11 +814,13 @@ void drawDeltaFromReferenceByRun(const std::vector<RunData> &runs,
   for (size_t i = 1; i < runs.size(); ++i) {
     if (allDeltas[i].empty()) continue;
 
+    const std::string san = sanitizeLabel(runs[i].label);
+    const std::string sanRef = sanitizeLabel(ref.label);
     TH1D *h = new TH1D(
-        Form("h_%s_delta_ref_%d", outTag.c_str(), runs[i].run),
-        Form("%s (ref run %d);#Delta %s;Normalized entries", title.c_str(),
-             ref.run, branch.c_str()),
-        80, xmin, xmax);
+      Form("h_%s_delta_ref_%s", outTag.c_str(), san.c_str()),
+      Form("%s (ref %s);#Delta %s;Normalized entries", title.c_str(),
+         ref.label.c_str(), branch.c_str()),
+      80, xmin, xmax);
     for (double d : allDeltas[i]) h->Fill(d);
     if (h->Integral() > 0) h->Scale(1.0 / h->Integral());
     if (ymax < h->GetMaximum()) ymax = h->GetMaximum() * 1.25;
@@ -793,10 +847,270 @@ void drawDeltaFromReferenceByRun(const std::vector<RunData> &runs,
   }
 }
 
+void drawDeltaByLayer(const std::vector<RunData> &runs,
+                      const std::string &branch,
+                      const std::string &outDir,
+                      bool onlyFitOk = true) {
+  if (runs.size() < 2) return;
+
+  const RunData &ref = runs.front();
+  int nLayers = 40;
+  int colors[] = {kRed + 1, kBlue + 1, kGreen + 2, kMagenta + 1, kOrange + 7, kCyan + 2};
+
+  for (size_t irun = 1; irun < runs.size(); ++irun) {
+    std::vector<double> sum(nLayers, 0.0);
+    std::vector<int> count(nLayers, 0);
+
+    for (const auto &kv : ref.byCellId) {
+      const int cellid = kv.first;
+      const int layer = cellid / 100000;
+      if (layer < 0 || layer >= nLayers) continue;
+
+      auto it = runs[irun].byCellId.find(cellid);
+      if (it == runs[irun].byCellId.end()) continue;
+
+      double va = 0.0, vb = 0.0;
+      if (!getBranchValue(kv.second, branch, onlyFitOk, va)) continue;
+      if (!getBranchValue(it->second, branch, onlyFitOk, vb)) continue;
+
+      sum[layer] += (vb - va);
+      ++count[layer];
+    }
+
+    std::vector<int> layers;
+    std::vector<double> meanDelta;
+    for (int L = 0; L < nLayers; ++L) {
+      if (count[L] > 0) {
+        layers.push_back(L);
+        meanDelta.push_back(sum[L] / count[L]);
+      }
+    }
+
+    if (layers.empty()) continue;
+
+    std::vector<double> xd(layers.size()), yd(meanDelta.size());
+    for (size_t i = 0; i < layers.size(); ++i) {
+      xd[i] = static_cast<double>(layers[i]);
+      yd[i] = meanDelta[i];
+    }
+
+    TCanvas *c = new TCanvas(Form("c_delta_layer_%s_%s", branch.c_str(), runs[irun].label.c_str()),
+                             Form("%s mean #Delta per layer (%s - %s)", branch.c_str(), runs[irun].label.c_str(), ref.label.c_str()),
+                             1200, 600);
+    c->SetGrid();
+
+    TGraph *g = new TGraph(static_cast<int>(xd.size()), &xd[0], &yd[0]);
+    setGraphStyle(g, colors[(irun - 1) % 6], 20);
+    g->SetTitle(Form("%s mean #Delta per layer;Layer;#Delta %s", branch.c_str(), branch.c_str()));
+    g->Draw("ALP");
+
+    // annotate counts per layer in the legend
+    TLegend *leg = new TLegend(0.65, 0.70, 0.88, 0.88);
+    leg->AddEntry(g, Form("%s - %s (mean per layer)", runs[irun].label.c_str(), ref.label.c_str()), "lp");
+    leg->Draw();
+
+    const std::string san = sanitizeLabel(runs[irun].label);
+    c->SaveAs((outDir + Form("/delta_%s_by_layer_%s.pdf", branch.c_str(), san.c_str())).c_str());
+    c->SaveAs((outDir + Form("/delta_%s_by_layer_%s.png", branch.c_str(), san.c_str())).c_str());
+  }
+}
+
+void drawLayerOverlays(const std::vector<RunData> &runs,
+                       const std::string &outDir,
+                       bool onlyFitOk = true) {
+  if (runs.size() < 2) return;
+
+  const RunData &ref = runs.front();
+  const int nLayers = 40;
+
+  for (int layer = 0; layer < nLayers; ++layer) {
+    std::vector<double> x_runs;
+    std::vector<double> delta_mpv;
+    std::vector<double> delta_fwhm;
+
+    // compute reference means for this layer
+    auto computeMeanForLayer = [&](const RunData &r, const std::string &branch) -> std::pair<bool, double> {
+      double sum = 0.0;
+      int cnt = 0;
+      for (const auto &kv : r.byCellId) {
+        const int cid = kv.first;
+        const int lay = cid / 100000;
+        if (lay != layer) continue;
+        double v = 0.0;
+        if (!getBranchValue(kv.second, branch, onlyFitOk, v)) continue;
+        sum += v;
+        ++cnt;
+      }
+      if (cnt == 0) return {false, 0.0};
+      return {true, sum / cnt};
+    };
+
+    auto ref_mpv_pair = computeMeanForLayer(ref, "MPV");
+    auto ref_fwhm_pair = computeMeanForLayer(ref, "FWHM");
+    if (!ref_mpv_pair.first && !ref_fwhm_pair.first) continue;
+
+    for (size_t ir = 0; ir < runs.size(); ++ir) {
+      const RunData &r = runs[ir];
+      auto mv_mpv = computeMeanForLayer(r, "MPV");
+      auto mv_fwhm = computeMeanForLayer(r, "FWHM");
+
+      // require that at least one of MPV/FWHM is present to include this run
+      if (!mv_mpv.first && !mv_fwhm.first) continue;
+
+      x_runs.push_back(static_cast<double>(r.run));
+      if (mv_mpv.first && ref_mpv_pair.first)
+        delta_mpv.push_back(mv_mpv.second - ref_mpv_pair.second);
+      else
+        delta_mpv.push_back(0.0/0.0); // NaN placeholder for missing
+
+      if (mv_fwhm.first && ref_fwhm_pair.first)
+        delta_fwhm.push_back(mv_fwhm.second - ref_fwhm_pair.second);
+      else
+        delta_fwhm.push_back(0.0/0.0);
+    }
+
+    if (x_runs.empty()) continue;
+
+    // Filter out NaN entries so graphs have matching points
+    std::vector<double> x_mpv, y_mpv, x_fwhm, y_fwhm;
+    for (size_t i = 0; i < x_runs.size(); ++i) {
+      if (std::isfinite(delta_mpv[i])) {
+        x_mpv.push_back(x_runs[i]);
+        y_mpv.push_back(delta_mpv[i]);
+      }
+      if (std::isfinite(delta_fwhm[i])) {
+        x_fwhm.push_back(x_runs[i]);
+        y_fwhm.push_back(delta_fwhm[i]);
+      }
+    }
+
+    if (x_mpv.empty() && x_fwhm.empty()) continue;
+
+    TCanvas *c = new TCanvas(Form("c_layer_overlay_%02d", layer),
+                             Form("Layer %02d: delta MPV/FWHM overlay", layer), 1200, 600);
+    c->SetGrid();
+
+    TLegend *leg = new TLegend(0.62, 0.70, 0.88, 0.88);
+
+    if (!x_mpv.empty()) {
+      TGraph *gmpv = new TGraph(static_cast<int>(x_mpv.size()), &x_mpv[0], &y_mpv[0]);
+      setGraphStyle(gmpv, kRed + 1, 20);
+      gmpv->SetTitle(Form("Layer %02d;Run;#Delta MPV/FWHM", layer));
+      gmpv->Draw("ALP");
+      leg->AddEntry(gmpv, "#Delta MPV", "lp");
+    }
+
+    if (!x_fwhm.empty()) {
+      TGraph *gfwhm = new TGraph(static_cast<int>(x_fwhm.size()), &x_fwhm[0], &y_fwhm[0]);
+      setGraphStyle(gfwhm, kBlue + 1, 21);
+      if (!x_mpv.empty()) gfwhm->Draw("LP SAME");
+      else gfwhm->Draw("ALP");
+      leg->AddEntry(gfwhm, "#Delta FWHM", "lp");
+    }
+
+    leg->Draw();
+
+    c->SaveAs((outDir + Form("/layer_%02d_delta_overlay.pdf", layer)).c_str());
+    c->SaveAs((outDir + Form("/layer_%02d_delta_overlay.png", layer)).c_str());
+  }
+}
+
+void drawDeltaByLayerOverlay(const std::vector<RunData> &runs,
+                             const std::string &branch,
+                             const std::string &outDir,
+                             bool onlyFitOk = true) {
+  if (runs.size() < 2) return;
+
+  const RunData &ref = runs.front();
+  const int nLayers = 40;
+  int colors[] = {kRed + 1, kBlue + 1, kGreen + 2, kMagenta + 1, kOrange + 7, kCyan + 2,
+                  kRed + 3, kBlue + 3, kGreen + 4, kMagenta + 3, kOrange + 9, kCyan + 4};
+
+  for (int layer = 0; layer < nLayers; ++layer) {
+    std::vector<std::vector<double>> layerDeltas(runs.size());
+    double globalMin = 1e30;
+    double globalMax = -1e30;
+
+    // compute deltas for each run (relative to ref) in this layer only
+    for (size_t ir = 1; ir < runs.size(); ++ir) {
+      for (const auto &kv : ref.byCellId) {
+        const int cellid = kv.first;
+        const int cLayer = cellid / 100000;
+        if (cLayer != layer) continue;
+
+        auto it = runs[ir].byCellId.find(cellid);
+        if (it == runs[ir].byCellId.end()) continue;
+
+        double va = 0.0, vb = 0.0;
+        if (!getBranchValue(kv.second, branch, onlyFitOk, va)) continue;
+        if (!getBranchValue(it->second, branch, onlyFitOk, vb)) continue;
+
+        double delta = vb - va;
+        layerDeltas[ir].push_back(delta);
+        globalMin = std::min(globalMin, delta);
+        globalMax = std::max(globalMax, delta);
+      }
+    }
+
+    if (globalMin > globalMax) continue;
+    if (globalMin == globalMax) {
+      globalMin -= 1.0;
+      globalMax += 1.0;
+    }
+
+    const double span = std::max(1e-6, globalMax - globalMin);
+    const double xmin = globalMin - 0.1 * span;
+    const double xmax = globalMax + 0.1 * span;
+    double ymax = 0.0;
+
+    TCanvas *c = new TCanvas(Form("c_layer_%02d_delta_%s_overlay", layer, branch.c_str()),
+                             Form("Layer %02d #Delta %s overlay", layer, branch.c_str()),
+                             1000, 700);
+    c->SetGrid();
+
+    TLegend *leg = new TLegend(0.62, 0.64, 0.88, 0.88);
+    bool first = true;
+    std::vector<TH1D *> drawn;
+
+    for (size_t ir = 1; ir < runs.size(); ++ir) {
+      if (layerDeltas[ir].empty()) continue;
+
+      const std::string san = sanitizeLabel(runs[ir].label);
+      TH1D *h = new TH1D(
+        Form("h_layer_%02d_delta_%s_%s", layer, branch.c_str(), san.c_str()),
+        Form("Layer %02d #Delta %s;#Delta %s;Normalized entries", layer, branch.c_str(), branch.c_str()),
+        80, xmin, xmax);
+
+      for (double d : layerDeltas[ir]) h->Fill(d);
+      if (h->Integral() > 0) h->Scale(1.0 / h->Integral());
+      if (ymax < h->GetMaximum()) ymax = h->GetMaximum() * 1.25;
+      h->SetLineColor(colors[(ir - 1) % 12]);
+      h->SetLineWidth(2);
+      h->SetStats(0);
+
+      if (first) {
+        h->Draw("HIST");
+        first = false;
+      } else {
+        h->Draw("HIST SAME");
+      }
+      drawn.push_back(h);
+      leg->AddEntry(h, Form("%s - %s", runs[ir].label.c_str(), ref.label.c_str()), "l");
+    }
+
+    for (TH1D *hist : drawn) hist->SetMaximum(ymax);
+
+    if (!first) {
+      leg->Draw();
+      c->SaveAs((outDir + Form("/layer_%02d_delta_%s_overlay.pdf", layer, branch.c_str())).c_str());
+      c->SaveAs((outDir + Form("/layer_%02d_delta_%s_overlay.png", layer, branch.c_str())).c_str());
+    }
+  }
+}
+
 void drawSummaryGraphs(const std::vector<RunData> &runs, const std::string &outDir) {
   const int n = static_cast<int>(runs.size());
   if (n == 0) return;
-
   std::vector<double> x(n), mpv(n), width(n), fwhm(n), chi2ndf(n), fitok(n), gausSigma(n);
   for (int i = 0; i < n; ++i) {
     x[i] = runs[i].run;
@@ -814,86 +1128,114 @@ void drawSummaryGraphs(const std::vector<RunData> &runs, const std::string &outD
     fitok[i] = 100.0 * ok / std::max(1, static_cast<int>(runs[i].entries.size()));
   }
 
-  TCanvas *c = new TCanvas("c_summary", "MIP summary", 1200, 900);
-  c->Divide(2, 2);
+  // Produce separate canvases (one metric per canvas) to avoid overlaying
+  // and to produce 8 output files as requested.
 
-  c->cd(1);
-  TMultiGraph *mgMpv = new TMultiGraph();
-  TGraph *gMpv = new TGraph(n, &x[0], &mpv[0]);
-  TGraph *gWidth = new TGraph(n, &x[0], &width[0]);
-  setGraphStyle(gMpv, kRed + 1, 20);
-  setGraphStyle(gWidth, kBlue + 1, 21);
-  mgMpv->Add(gMpv, "LP");
-  mgMpv->Add(gWidth, "LP");
-  mgMpv->SetTitle("Mean MPV/width vs run;Run;ADC counts");
-  mgMpv->Draw("A");
+  // 1) MPV vs run
   {
-    TLegend *leg = new TLegend(0.16, 0.42, 0.42, 0.68);
-    leg->AddEntry(gMpv, "MPV", "lp");
-    leg->AddEntry(gWidth, "width", "lp");
-    leg->Draw();
+    TCanvas *c = new TCanvas("c_mpv", "Mean MPV vs run", 1000, 700);
+    TGraph *g = new TGraph(n, &x[0], &mpv[0]);
+    setGraphStyle(g, kRed + 1, 20);
+    g->SetTitle("Mean MPV vs run;Run;ADC counts");
+    g->Draw("ALP");
+    c->SetGrid();
+    c->SaveAs((outDir + "/summary_MPV.pdf").c_str());
+    c->SaveAs((outDir + "/summary_MPV.png").c_str());
   }
 
-  c->cd(2);
-  TMultiGraph *mgShape = new TMultiGraph();
-  TGraph *gFwhm = new TGraph(n, &x[0], &fwhm[0]);
-  TGraph *gGausSigma = new TGraph(n, &x[0], &gausSigma[0]);
-  setGraphStyle(gFwhm, kMagenta + 1, 20);
-  setGraphStyle(gGausSigma, kCyan + 2, 21);
-  mgShape->Add(gFwhm, "LP");
-  mgShape->Add(gGausSigma, "LP");
-  mgShape->SetTitle("Mean FWHM/gaus_sigma vs run;Run;ADC counts");
-  mgShape->Draw("A");
+  // 2) width vs run
   {
-    TLegend *leg = new TLegend(0.16, 0.42, 0.42, 0.68);
-    leg->AddEntry(gFwhm, "FWHM", "lp");
-    leg->AddEntry(gGausSigma, "gaus_sigma", "lp");
-    leg->Draw();
+    TCanvas *c = new TCanvas("c_width", "Mean width vs run", 1000, 700);
+    TGraph *g = new TGraph(n, &x[0], &width[0]);
+    setGraphStyle(g, kBlue + 1, 21);
+    g->SetTitle("Mean width vs run;Run;ADC counts");
+    g->Draw("ALP");
+    c->SetGrid();
+    c->SaveAs((outDir + "/summary_width.pdf").c_str());
+    c->SaveAs((outDir + "/summary_width.png").c_str());
   }
 
-  c->cd(3);
-  TMultiGraph *mgQuality = new TMultiGraph();
-  TGraph *gChi2Ndf = new TGraph(n, &x[0], &chi2ndf[0]);
-  TGraph *gFitOk = new TGraph(n, &x[0], &fitok[0]);
-  setGraphStyle(gChi2Ndf, kGreen + 2, 20);
-  setGraphStyle(gFitOk, kOrange + 7, 21);
-  mgQuality->Add(gChi2Ndf, "LP");
-  mgQuality->Add(gFitOk, "LP");
-  mgQuality->SetTitle("Quality trend vs run;Run;Value");
-  mgQuality->Draw("A");
+  // 3) FWHM vs run
   {
-    TLegend *leg = new TLegend(0.16, 0.42, 0.42, 0.68);
-    leg->AddEntry(gChi2Ndf, "chi2perndf (mean)", "lp");
-    leg->AddEntry(gFitOk, "fit_ok [%]", "lp");
-    leg->Draw();
+    TCanvas *c = new TCanvas("c_fwhm", "Mean FWHM vs run", 1000, 700);
+    TGraph *g = new TGraph(n, &x[0], &fwhm[0]);
+    setGraphStyle(g, kMagenta + 1, 20);
+    g->SetTitle("Mean FWHM vs run;Run;ADC counts");
+    g->Draw("ALP");
+    c->SetGrid();
+    c->SaveAs((outDir + "/summary_FWHM.pdf").c_str());
+    c->SaveAs((outDir + "/summary_FWHM.png").c_str());
   }
 
-  c->cd(4);
-  gPad->SetGrid();
-  TH1D *hDeltaMpv = makeDeltaHist("hDeltaMpv",
-                                  Form("#Delta MPV relative to run %d;#Delta MPV;Cells",
-                                       runs.front().run),
-                                  runs, "MPV", true);
-  TH1D *hDeltaFwhm = makeDeltaHist("hDeltaFwhm",
-                                   Form("#Delta FWHM relative to run %d;#Delta FWHM;Cells",
-                                        runs.front().run),
-                                   runs, "FWHM", true);
-
-  if (hDeltaMpv) {
-    hDeltaMpv->SetLineColor(kRed + 1);
-    hDeltaMpv->Draw("HIST");
+  // 4) gaus_sigma vs run
+  {
+    TCanvas *c = new TCanvas("c_gaus", "Mean gaus_sigma vs run", 1000, 700);
+    TGraph *g = new TGraph(n, &x[0], &gausSigma[0]);
+    setGraphStyle(g, kCyan + 2, 21);
+    g->SetTitle("Mean gaus_sigma vs run;Run;ADC counts");
+    g->Draw("ALP");
+    c->SetGrid();
+    c->SaveAs((outDir + "/summary_gaus_sigma.pdf").c_str());
+    c->SaveAs((outDir + "/summary_gaus_sigma.png").c_str());
   }
-  if (hDeltaFwhm) {
-    hDeltaFwhm->SetLineColor(kBlue + 1);
-    if (hDeltaMpv)
-      hDeltaFwhm->Draw("HIST SAME");
-    else
+
+  // 5) chi2perndf vs run
+  {
+    TCanvas *c = new TCanvas("c_chi2ndf", "Mean chi2/ndf vs run", 1000, 700);
+    TGraph *g = new TGraph(n, &x[0], &chi2ndf[0]);
+    setGraphStyle(g, kGreen + 2, 20);
+    g->SetTitle("Mean chi2/ndf vs run;Run;chi2/ndf");
+    g->Draw("ALP");
+    c->SetGrid();
+    c->SaveAs((outDir + "/summary_chi2perndf.pdf").c_str());
+    c->SaveAs((outDir + "/summary_chi2perndf.png").c_str());
+  }
+
+  // 6) fit_ok percentage vs run
+  {
+    TCanvas *c = new TCanvas("c_fitok", "fit_ok [%] vs run", 1000, 700);
+    TGraph *g = new TGraph(n, &x[0], &fitok[0]);
+    setGraphStyle(g, kOrange + 7, 21);
+    g->SetTitle("fit_ok [%] vs run;Run;fit_ok [%]");
+    g->Draw("ALP");
+    c->SetGrid();
+    c->SaveAs((outDir + "/summary_fit_ok.pdf").c_str());
+    c->SaveAs((outDir + "/summary_fit_ok.png").c_str());
+  }
+
+  // 7) Delta MPV histogram (relative to first run)
+  {
+    TH1D *hDeltaMpv = makeDeltaHist("hDeltaMpv",
+                                    Form("#Delta MPV relative to run %d;#Delta MPV;Cells",
+                                         runs.front().run),
+                                    runs, "MPV", true);
+    if (hDeltaMpv) {
+      TCanvas *c = new TCanvas("c_deltampv", "#Delta MPV", 1000, 700);
+      hDeltaMpv->SetLineColor(kRed + 1);
+      hDeltaMpv->SetLineWidth(2);
+      hDeltaMpv->Draw("HIST");
+      c->SetGrid();
+      c->SaveAs((outDir + "/delta_MPV_from_first_run.pdf").c_str());
+      c->SaveAs((outDir + "/delta_MPV_from_first_run.png").c_str());
+    }
+  }
+
+  // 8) Delta FWHM histogram (relative to first run)
+  {
+    TH1D *hDeltaFwhm = makeDeltaHist("hDeltaFwhm",
+                                     Form("#Delta FWHM relative to run %d;#Delta FWHM;Cells",
+                                          runs.front().run),
+                                     runs, "FWHM", true);
+    if (hDeltaFwhm) {
+      TCanvas *c = new TCanvas("c_deltafwhm", "#Delta FWHM", 1000, 700);
+      hDeltaFwhm->SetLineColor(kBlue + 1);
+      hDeltaFwhm->SetLineWidth(2);
       hDeltaFwhm->Draw("HIST");
+      c->SetGrid();
+      c->SaveAs((outDir + "/delta_FWHM_from_first_run.pdf").c_str());
+      c->SaveAs((outDir + "/delta_FWHM_from_first_run.png").c_str());
+    }
   }
-  if (hDeltaMpv || hDeltaFwhm) gPad->BuildLegend();
-
-  c->SaveAs((outDir + "/summary_compare_mip.pdf").c_str());
-  c->SaveAs((outDir + "/summary_compare_mip.png").c_str());
 }
 
 void drawOverlayHistograms(const std::vector<RunData> &runs, const std::string &outDir) {
@@ -948,8 +1290,9 @@ void drawOverlayHistograms(const std::vector<RunData> &runs, const std::string &
     std::vector<TH1D *> drawn;
 
     for (size_t i = 0; i < runs.size(); ++i) {
+      const std::string san = sanitizeLabel(runs[i].label);
       TH1D *h = new TH1D(
-          Form("h_%s_%d", def.key.c_str(), runs[i].run),
+          Form("h_%s_%s", def.key.c_str(), san.c_str()),
           Form("%s;%s;Normalized entries", def.title.c_str(), def.xTitle.c_str()), bins,
           xmin, xmax);
 
@@ -1077,35 +1420,76 @@ void printSummaryTable(const std::vector<RunData> &runs) {
 
 void compare(const char *baseDir = ".",
              const char *runListCsv =
-                 "22133,22163,22296",
+                 "21987-22133,22135-22135,22137-22142,22139-22142,22159-22163,22165-22198,22205-22251,22268-22268",
              int focusCellId = -1,
              const char *outDirName = "compare_plots_mip",
              const char *testBeamDir = "EHN1") {
   gROOT->SetBatch(kTRUE);
   gStyle->SetOptStat(0);
 
-  std::vector<int> runNumbers = parseRunList(runListCsv);
-  if (runNumbers.empty()) {
+  // Accept either numeric run lists (e.g. "22133,22135") or directory-like
+  // tokens (e.g. "21987-22133,22135-22135") where each token is a folder
+  // name under `baseDir` containing a `mip.root` file. Detect which mode to
+  // use by checking for existing directories under `baseDir`.
+  std::vector<std::string> tokens = parseTokenList(runListCsv);
+  if (tokens.empty()) {
     std::cerr << "[compare] empty run list" << std::endl;
     return;
   }
 
-  std::string outDir = std::string(baseDir) + "/" + outDirName;
-  gSystem->mkdir(outDir.c_str(), true);
-
-  std::vector<RunData> runs;
-  for (int run : runNumbers) {
-    RunData data;
-    if (loadRun(baseDir, run, data)) {
-      std::cout << "[compare] loaded run " << data.label << " from " << data.path
-                << " with " << data.entries.size() << " cells" << std::endl;
-      runs.push_back(data);
+  bool tokensAreDirs = false;
+  for (const auto &t : tokens) {
+    const std::string p = std::string(baseDir) + "/" + t + "/mip.root";
+    if (gSystem->AccessPathName(p.c_str()) == 0) {
+      tokensAreDirs = true;
+      break;
     }
   }
 
+  std::vector<int> runNumbers;
+  std::vector<RunData> runs;
+
+  if (tokensAreDirs) {
+    int idx = 1;
+    for (const auto &t : tokens) {
+      const std::string path = std::string(baseDir) + "/" + t + "/mip.root";
+      RunData data;
+      if (loadRunFromFile(path, idx, t, false, data)) {
+        std::cout << "[compare] loaded run " << data.label << " from " << data.path
+                  << " with " << data.entries.size() << " cells" << std::endl;
+        runs.push_back(data);
+        ++idx;
+      } else {
+        std::cout << "[compare] skipping missing/invalid token path " << path << std::endl;
+      }
+    }
+  } else {
+    runNumbers = parseRunList(runListCsv);
+    if (runNumbers.empty()) {
+      std::cerr << "[compare] empty run list" << std::endl;
+      return;
+    }
+
+    for (int run : runNumbers) {
+      RunData data;
+      if (loadRun(baseDir, run, data)) {
+        std::cout << "[compare] loaded run " << data.label << " from " << data.path
+                  << " with " << data.entries.size() << " cells" << std::endl;
+        runs.push_back(data);
+      }
+    }
+  }
+  std::string outDir = std::string(baseDir) + "/" + outDirName;
+  gSystem->mkdir(outDir.c_str(), true);
+
   if (testBeamDir && std::string(testBeamDir).size() > 0) {
-    const int pseudoRun =
-        runNumbers.empty() ? 1 : (*std::max_element(runNumbers.begin(), runNumbers.end()) + 1);
+    int pseudoRun = 1;
+    if (!runNumbers.empty()) {
+      pseudoRun = *std::max_element(runNumbers.begin(), runNumbers.end()) + 1;
+    } else if (!runs.empty()) {
+      // use next index after last loaded run
+      pseudoRun = runs.back().run + 1;
+    }
     RunData tbData;
     if (loadTestBeamRun(baseDir, testBeamDir, pseudoRun, tbData)) {
       std::cout << "[compare] loaded TestBeam run " << tbData.label << " from "
@@ -1132,6 +1516,17 @@ void compare(const char *baseDir = ".",
                               outDir, true);
   drawDeltaFromReferenceByRun(runs, "chi2perndf", "chi2perndf shift from first run",
                               "chi2perndf", outDir, true);
+
+  // layer-by-layer delta plots for MPV and FWHM
+  drawDeltaByLayer(runs, "MPV", outDir, true);
+  drawDeltaByLayer(runs, "FWHM", outDir, true);
+
+  // per-layer overlay plots (MPV and FWHM) vs run
+  drawLayerOverlays(runs, outDir, true);
+
+  // per-layer overlay plots (delta MPV and delta FWHM from first run)
+  drawDeltaByLayerOverlay(runs, "MPV", outDir, true);
+  drawDeltaByLayerOverlay(runs, "FWHM", outDir, true);
 
   if (focusCellId >= 0) {
     drawCellTrend(runs, focusCellId, outDir);

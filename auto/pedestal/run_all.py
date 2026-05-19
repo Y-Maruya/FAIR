@@ -24,17 +24,17 @@ def extract_configName(run_info):
     return None
 
 def last_run_number():
-    with open("ped_finished_runs.txt", "r") as f:
+    with open("/eos/user/y/ymaruya/FASER/AHCAL/FAIR/auto/pedestal/ped_finished_runs.txt", "r") as f:
         finished_runs = f.read().splitlines()
     return finished_runs[-1] if finished_runs else None
 
 def isFinished(runnumber):
-    with open("ped_finished_runs.txt", "r") as f:
+    with open("/eos/user/y/ymaruya/FASER/AHCAL/FAIR/auto/pedestal/ped_finished_runs.txt", "r") as f:
         finished_runs = f.read().splitlines()
     return str(runnumber) in finished_runs
 
 def writeToFinishedRuns(runnumber):
-    with open("ped_finished_runs.txt", "a") as f:
+    with open("/eos/user/y/ymaruya/FASER/AHCAL/FAIR/auto/pedestal/ped_finished_runs.txt", "a") as f:
         f.write(f"{runnumber}\n")
 
 if __name__ == "__main__":
@@ -58,7 +58,7 @@ if __name__ == "__main__":
         import subprocess
         subprocess.run(
             ["bash", "run_pedestalcalib.sh", str(runnumber)],
-            cwd="/afs/cern.ch/user/y/ymaruya/private/FASERlink/AHCAL/FAIR/auto/pedestal",
+            cwd="/eos/user/y/ymaruya/FASER/AHCAL/FAIR/auto/pedestal",
             check=True
         )
         writeToFinishedRuns(runnumber)

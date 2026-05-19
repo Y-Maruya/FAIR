@@ -1,0 +1,193 @@
+run:
+  input: /eos/experiment/faser/raw/2026/0###run-number###/FaserAHCAL-Physics-0###run-number###-0*.raw
+  MC: false
+  log_file: /afs/cern.ch/user/y/ymaruya/private/FASERlink/AHCAL/FAIR/out_calibration/intercalib_calib/###run-number###/log_tmp
+  output: /eos/project/f/faser-upgrade/AHCAL/FAIR/###run-number###.root
+  nEvents: -1
+  log_level: INFO
+  runNumber: ###run-number###
+  poolIndex: 0
+reader:
+  type: BinaryRawHitReader
+  cfg:
+    out_rawhits_key: RawHits
+    out_tlu_key: TLURawData
+algs:
+  - type: RmNoiseHitAlg
+    cfg:
+      in_rawhit_key: RawHits
+      out_rawhit_key: RmNoiseHits
+      criteria: (HG<1000)*(LG>50)*(HG<LG*2)
+      output_removed_hits: true
+      out_removedrawhit_key: RemovedNoiseHits
+      out_summary_key: NoiseSummary
+      hittag1_only: true
+  - type: AdcToEnergyReadTTreeAlg
+    cfg:
+      in_rawhit_key: RmNoiseHits
+      out_recohit_key: RecoHits
+      mip:
+        file: /afs/cern.ch/user/y/ymaruya/private/FASERlink/AHCAL/FAIR/calibration/reffiles/mip.root
+        cut: (gaus_sigma>20)
+        cellid_version: 0
+      pedestal:
+        file: /afs/cern.ch/user/y/ymaruya/private/FASERlink/AHCAL/FAIR/calibration/pedestal_calib/run21722/pedestal.root
+        cut: (1)
+        cellid_version: 1
+      dac:
+        file: /afs/cern.ch/user/y/ymaruya/private/FASERlink/AHCAL/FAIR/calibration/reffiles/dac.root
+        cut: (1)
+        cellid_version: 0
+  - type: RmIsolatedHitAlg
+    cfg:
+      in_recohit_key: RecoHits
+      out_recohit_key: RmIsolatedHits
+      useNmipWindow: false
+      xy_cone: 42.0
+      maxMissingLayers: 2
+  - type: TrackFitAlg
+    cfg:
+      in_recohit_key: RmIsolatedHits
+      out_track_key: FittedTrack
+      use_mip_window: false
+      nmipMin: 0.5
+      nmipMax: 3.0
+      threshold_xy: 20.0
+  - type: InterCalibAlg
+    cfg:
+      in_rawhit_key: RmNoiseHits
+      read_pedestal_from_ROOT: false
+      read_pedestal_from_DB: true
+      intercalib_to_file: true
+      intercalib_to_DB: true
+      hg_bin_width: 25.0
+      out_intercalib_filename: /afs/cern.ch/user/y/ymaruya/private/FASERlink/AHCAL/FAIR/out_calibration/intercalib_calib/###run-number###/intercalib_adj.root
+      out_json_dirname: /afs/cern.ch/user/y/ymaruya/private/FASERlink/AHCAL/FAIR/out_calibration/intercalib_calib/###run-number###/json/
+      save_all_channels_root: false
+      require_hittag: true
+      hg_fit_max: 3500.0
+      hg_fit_min: -200.0
+      use_specific_fit_range_toL39C8: true
+      hg_fit_max_L39C8: 3500.0
+      save_residual_histograms: true
+      select_muon_hits: false
+      in_track_key: FittedTrack
+      string_track_struct: SimpleFittedTrack
+      track_selection_string: (valid>0)*(chi2xperndf<5)*(chi2xperndf>0)*(chi2yperndf<5)*(chi2yperndf>0)*(direction_y<0.1)*(direction_y>-0.1)*(direction_x<0.1)*(direction_x>-0.1)
+      example_cellids:
+      - 3440028
+      - 3640029
+      - 3510002
+      - 1210002
+      - 3250018
+      - 3410002
+      - 2210031
+      - 3270009
+      - 2420004
+      - 3250000
+      - 3550009
+      - 1380031
+      - 2170002
+      - 2620035
+      - 3780009
+      - 2500027
+      - 3460003
+      - 2710002
+      - 2680029
+      - 2780029
+      - 3970011
+      - 3550018
+      - 3820016
+      - 2280011
+      - 2020000
+      - 1380001
+      - 1580005
+      - 870013
+      - 3910016
+      - 1870011
+      - 1670024
+      - 1670004
+      - 1670001
+      - 3910001
+      - 1680000
+      - 1170011
+      - 1370002
+      - 1670033
+      - 2570021
+      - 970012
+      - 1670027
+      - 1670010
+      - 1240008
+      - 1370003
+      - 1680011
+      - 1670002
+      - 3080002
+      - 1640008
+      - 1680005
+      - 1660009
+      - 1680004
+      - 1140008
+      - 1670016
+      - 1370011
+      - 3780003
+      - 640008
+      - 1670014
+      - 1670031
+      - 1680017
+      - 1680025
+      - 1680009
+      - 1640005
+      - 1670006
+      - 1680013
+      - 3840024
+      - 1370005
+      - 1670011
+      - 740008
+      - 140013
+      - 1370006
+      - 3770006
+      - 1670021
+      - 1670013
+      - 1680014
+      - 1610034
+      - 1670022
+      - 3770004
+      - 3770005
+      - 2570009
+      - 1680026
+      - 1370001
+      - 3370012
+      - 1660018
+      - 1680015
+      - 2240008
+      - 1670000
+      - 1670035
+      - 1670026
+      - 1660005
+      - 3770032
+      - 1670009
+      - 1670005
+      - 1610035
+      - 1100034
+      - 3910026
+      - 1630008
+      - 3770008
+      - 1370008
+      - 1170000
+      - 3170000
+      - 2980010
+      - 2570001
+      - 3910022
+      - 310008
+      - 2770003
+      - 2540018
+      - 3810002
+      - 2110023
+  # - type: RootWriterAlg
+  #   cfg: 
+  #     outputlist:
+  #       - AHCALTLURawData
+  #       - vector<AHCALRecoHit>
+  #       - vector<AHCALRawHit>
+  #       - SimpleFittedTrack
+  #       - RmNoiseSummary

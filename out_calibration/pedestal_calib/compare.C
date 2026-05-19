@@ -13,8 +13,10 @@
 
 #include "TCanvas.h"
 #include "TFile.h"
+#include "TGaxis.h"
 #include "TGraph.h"
 #include "TLegend.h"
+#include "TLatex.h"
 #include "TMultiGraph.h"
 #include "TROOT.h"
 #include "TStyle.h"
@@ -26,6 +28,7 @@
 
 struct PedestalEntry {
   int cellid = -1;
+  int channel_index = -1;
   double highgain_peak = 0.0;
   double lowgain_peak = 0.0;
   double highgain_sigma = 0.0;
@@ -36,6 +39,10 @@ struct PedestalEntry {
   int fitStatus_lg = 0;
   int fitOk_hg = 1;
   int fitOk_lg = 1;
+  int usable_hg = 1;
+  int usable_lg = 1;
+  int status_hg = 0;
+  int status_lg = 0;
   double x_mm = 0.0;
   double y_mm = 0.0;
 };
@@ -68,26 +75,47 @@ struct CellShiftInfo {
   double y_mm = 0.0;
 };
 
-std::vector<int> parseRunList(const char *csv) {
+struct MaskCandidateInfo {
+  int cellid = -1;
+  int channel_index = -1;
+  int nRunsSeen = 0;
+  int badRunsHg = 0;
+  int badRunsLg = 0;
+  double badFractionHg = 0.0;
+  double badFractionLg = 0.0;
+  std::vector<std::string> statusSequenceHg;
+  std::vector<std::string> statusSequenceLg;
+  std::vector<std::string> badRunLabelsHg;
+  std::vector<std::string> badRunLabelsLg;
+};
+
+bool isAllDigits(const std::string &s) {
+  if (s.empty()) return false;
+  for (char c : s) {
+    if (!std::isdigit(static_cast<unsigned char>(c))) return false;
+  }
+  return true;
+}
+
+std::vector<int> parseRunList(const char *csv, const std::string &baseDir = ".") {
   std::vector<int> runs;
   if (!csv) return runs;
   if (csv == std::string("all")) {
-    gSystem->Exec("ls -d */ | sed 's#/##' > run_list.txt");
-    std::ifstream ifs("run_list.txt");
-    std::string line;
-    while (std::getline(ifs, line)) {
-      line.erase(std::remove_if(line.begin(), line.end(), ::isspace), line.end());
-      if (line.empty()) continue;
-      if (line.find("EHN1") != std::string::npos || line.find("TestBeam") != std::string::npos) {
-        // skip test beam runs for "all" since they don't have numeric run numbers
-        continue;
-      }
-      if (line.find("muon") != std::string::npos) {
-        // skip muon runs for "all" since they are not pedestal runs
-        continue;
-      }
-      runs.push_back(std::atoi(line.c_str()));
+    void *dir = gSystem->OpenDirectory(baseDir.c_str());
+    if (!dir) {
+      std::cerr << "[compare] cannot open directory " << baseDir << " for runListCsv=all" << std::endl;
+      return runs;
     }
+
+    const char *entry = nullptr;
+    while ((entry = gSystem->GetDirEntry(dir))) {
+      std::string name(entry);
+      name.erase(std::remove_if(name.begin(), name.end(), ::isspace), name.end());
+      if (!isAllDigits(name)) continue;
+      runs.push_back(std::atoi(name.c_str()));
+    }
+    gSystem->FreeDirectory(dir);
+    std::sort(runs.begin(), runs.end());
     return runs;
   }
   std::stringstream ss(csv);
@@ -104,6 +132,38 @@ bool setBranchIfExists(TTree *tree, const char *name, void *addr) {
   if (!tree || !tree->GetBranch(name)) return false;
   tree->SetBranchAddress(name, addr);
   return true;
+}
+
+bool pedestalStatusIsUsable(int status) {
+  return status == 0 || status == 1;
+}
+
+std::string joinStrings(const std::vector<std::string> &values, const std::string &sep = "|") {
+  std::ostringstream os;
+  for (size_t i = 0; i < values.size(); ++i) {
+    if (i > 0) os << sep;
+    os << values[i];
+  }
+  return os.str();
+}
+
+std::string csvQuote(const std::string &value) {
+  bool needsQuote = value.find_first_of(",\"\n\r") != std::string::npos;
+  if (!needsQuote) return value;
+
+  std::string quoted = "\"";
+  for (char c : value) {
+    if (c == '"') quoted += "\"\"";
+    else quoted += c;
+  }
+  quoted += "\"";
+  return quoted;
+}
+
+std::string makeOutputDirPath(const std::string &baseDir, const char *outDirName) {
+  const std::string outName = outDirName ? outDirName : "compare_plots";
+  if (!outName.empty() && outName[0] == '/') return outName;
+  return baseDir + "/" + outName;
 }
     inline int HBUPositionOrder[40] = {
                                 39, 38, 37, 27, 14, 6, 7, 9, 12, 0,
@@ -235,12 +295,17 @@ bool loadRunFromFile(const std::string &filePath,
   }
 
   out.usesRmsForSigma = hasHgRms || hasLgRms;
+  setBranchIfExists(tree, "channel_index", &e.channel_index);
   setBranchIfExists(tree, "entries_hg", &e.entries_hg);
   setBranchIfExists(tree, "entries_lg", &e.entries_lg);
   setBranchIfExists(tree, "fitStatus_hg", &e.fitStatus_hg);
   setBranchIfExists(tree, "fitStatus_lg", &e.fitStatus_lg);
   bool hasFitOkHg = setBranchIfExists(tree, "fitOk_hg", &e.fitOk_hg);
   bool hasFitOkLg = setBranchIfExists(tree, "fitOk_lg", &e.fitOk_lg);
+  bool hasUsableHg = setBranchIfExists(tree, "usable_hg", &e.usable_hg);
+  bool hasUsableLg = setBranchIfExists(tree, "usable_lg", &e.usable_lg);
+  bool hasStatusHg = setBranchIfExists(tree, "status_hg", &e.status_hg);
+  bool hasStatusLg = setBranchIfExists(tree, "status_lg", &e.status_lg);
   out.hasFitFlags = hasFitOkHg && hasFitOkLg;
   bool hasX = setBranchIfExists(tree, "x_mm", &e.x_mm);
   bool hasY = setBranchIfExists(tree, "y_mm", &e.y_mm);
@@ -250,11 +315,20 @@ bool loadRunFromFile(const std::string &filePath,
   out.entries.reserve(nEntries);
 
   for (Long64_t i = 0; i < nEntries; ++i) {
+    e.channel_index = -1;
     e.fitOk_hg = 1;
     e.fitOk_lg = 1;
+    e.usable_hg = 1;
+    e.usable_lg = 1;
+    e.status_hg = 0;
+    e.status_lg = 0;
     e.x_mm = 0.0;
     e.y_mm = 0.0;
     tree->GetEntry(i);
+    if (!hasUsableHg) e.usable_hg = (e.fitOk_hg && pedestalStatusIsUsable(e.status_hg)) ? 1 : 0;
+    if (!hasUsableLg) e.usable_lg = (e.fitOk_lg && pedestalStatusIsUsable(e.status_lg)) ? 1 : 0;
+    if (!hasStatusHg) e.status_hg = e.usable_hg ? 0 : e.fitStatus_hg;
+    if (!hasStatusLg) e.status_lg = e.usable_lg ? 0 : e.fitStatus_lg;
     PedestalEntry mapped = e;
     mapped.cellid = applyCellIdMapping ? mapCellIdForComparison(e.cellid) : e.cellid;
     out.entries.push_back(mapped);
@@ -268,6 +342,10 @@ bool loadRunFromFile(const std::string &filePath,
   if (!out.hasCoordinates) {
     std::cout << "[compare] run " << run
               << " has no x_mm/y_mm coordinates" << std::endl;
+  }
+  if (!(hasUsableHg && hasUsableLg && hasStatusHg && hasStatusLg)) {
+    std::cout << "[compare] run " << run
+              << " is missing some status/usable branches, using fallback values" << std::endl;
   }
 
   file->Close();
@@ -909,6 +987,387 @@ void drawOverlayHistograms(const std::vector<RunData> &runs, const std::string &
   }
 }
 
+int getStatusValue(const PedestalEntry &e, bool isHg) {
+  return isHg ? e.status_hg : e.status_lg;
+}
+
+std::vector<MaskCandidateInfo> collectMaskCandidates(const std::vector<RunData> &runs) {
+  std::map<int, bool> allCellIds;
+  for (const auto &run : runs) {
+    for (const auto &kv : run.byCellId) {
+      allCellIds[kv.first] = true;
+    }
+  }
+
+  std::vector<MaskCandidateInfo> candidates;
+  for (const auto &kvCell : allCellIds) {
+    const int cellid = kvCell.first;
+    MaskCandidateInfo info;
+    info.cellid = cellid;
+
+    for (const auto &run : runs) {
+      const auto it = run.byCellId.find(cellid);
+      if (it == run.byCellId.end()) continue;
+
+      const PedestalEntry &e = it->second;
+      ++info.nRunsSeen;
+      if (info.channel_index < 0) info.channel_index = e.channel_index;
+
+      info.statusSequenceHg.push_back(run.label + ":" + std::to_string(e.status_hg));
+      info.statusSequenceLg.push_back(run.label + ":" + std::to_string(e.status_lg));
+
+      if (e.usable_hg == 0) {
+        ++info.badRunsHg;
+        info.badRunLabelsHg.push_back(run.label);
+      }
+      if (e.usable_lg == 0) {
+        ++info.badRunsLg;
+        info.badRunLabelsLg.push_back(run.label);
+      }
+    }
+
+    if (info.nRunsSeen <= 0) continue;
+    info.badFractionHg = static_cast<double>(info.badRunsHg) / info.nRunsSeen;
+    info.badFractionLg = static_cast<double>(info.badRunsLg) / info.nRunsSeen;
+    if (info.badRunsHg > 0 || info.badRunsLg > 0) candidates.push_back(info);
+  }
+
+  std::sort(candidates.begin(), candidates.end(),
+            [](const MaskCandidateInfo &a, const MaskCandidateInfo &b) {
+              const double maxA = std::max(a.badFractionHg, a.badFractionLg);
+              const double maxB = std::max(b.badFractionHg, b.badFractionLg);
+              if (maxA != maxB) return maxA > maxB;
+              return a.cellid < b.cellid;
+            });
+  return candidates;
+}
+
+void writeMaskCandidateCsv(const std::vector<MaskCandidateInfo> &candidates,
+                           const std::string &outDir) {
+  std::ofstream ofs((outDir + "/mask_candidate_channels.csv").c_str());
+  if (!ofs) {
+    std::cerr << "[compare] cannot write mask_candidate_channels.csv in " << outDir << std::endl;
+    return;
+  }
+
+  ofs << "cellid,channel_index,n_runs_seen,"
+      << "bad_runs_hg,bad_fraction_hg,status_sequence_hg,bad_run_labels_hg,"
+      << "bad_runs_lg,bad_fraction_lg,status_sequence_lg,bad_run_labels_lg\n";
+
+  for (const auto &c : candidates) {
+    ofs << c.cellid << ","
+        << c.channel_index << ","
+        << c.nRunsSeen << ","
+        << c.badRunsHg << ","
+        << c.badFractionHg << ","
+        << csvQuote(joinStrings(c.statusSequenceHg)) << ","
+        << csvQuote(joinStrings(c.badRunLabelsHg)) << ","
+        << c.badRunsLg << ","
+        << c.badFractionLg << ","
+        << csvQuote(joinStrings(c.statusSequenceLg)) << ","
+        << csvQuote(joinStrings(c.badRunLabelsLg)) << "\n";
+  }
+}
+
+void drawUsableBadFractionHist(const std::vector<MaskCandidateInfo> &candidates,
+                               bool isHg,
+                               const std::string &outDir) {
+  const std::string gain = isHg ? "HG" : "LG";
+  const std::string tag = isHg ? "hg" : "lg";
+  TH1D *h = new TH1D(Form("h_usable_bad_fraction_%s", tag.c_str()),
+                     Form("%s channels ever unusable;Fraction of runs with usable=0;Channels",
+                          gain.c_str()),
+                     20, 0.0, 1.000001);
+  h->SetLineWidth(2);
+  h->SetLineColor(isHg ? kRed + 1 : kBlue + 1);
+  h->SetFillColorAlpha(isHg ? kRed + 1 : kBlue + 1, 0.25);
+  h->SetStats(0);
+
+  for (const auto &c : candidates) {
+    const int badRuns = isHg ? c.badRunsHg : c.badRunsLg;
+    const double badFraction = isHg ? c.badFractionHg : c.badFractionLg;
+    if (badRuns > 0) h->Fill(badFraction);
+  }
+
+  TCanvas *canvas = new TCanvas(Form("c_usable_bad_fraction_%s", tag.c_str()),
+                                Form("%s usable bad fraction", gain.c_str()), 900, 700);
+  canvas->SetGrid();
+  h->Draw("HIST");
+  canvas->SaveAs((outDir + "/usable_bad_fraction_" + tag + ".pdf").c_str());
+  canvas->SaveAs((outDir + "/usable_bad_fraction_" + tag + ".png").c_str());
+}
+
+void drawErrorChannelDistribution(const std::vector<RunData> &runs,
+                                  const std::vector<MaskCandidateInfo> &candidates,
+                                  bool isHg,
+                                  const std::string &outDir) {
+  const std::string gain = isHg ? "HG" : "LG";
+  const std::string tag = isHg ? "hg" : "lg";
+
+  std::vector<const MaskCandidateInfo *> selected;
+  selected.reserve(candidates.size());
+  for (const auto &c : candidates) {
+    const int badRuns = isHg ? c.badRunsHg : c.badRunsLg;
+    if (badRuns > 0) selected.push_back(&c);
+  }
+
+  const std::string pdfName = outDir + "/error_channel_adc_overlay_" + tag + ".pdf";
+  if (selected.empty()) {
+    TCanvas *canvas = new TCanvas(Form("c_error_channel_adc_overlay_%s_empty", tag.c_str()),
+                                  Form("%s error channel ADC overlay", gain.c_str()), 900, 650);
+    TH1D *empty = new TH1D(Form("h_error_channel_adc_overlay_%s_empty", tag.c_str()),
+                           Form("%s channels ever unusable;ADC;Normalized entries", gain.c_str()),
+                           1, 0.0, 1.0);
+    empty->SetStats(0);
+    empty->Draw("HIST");
+    canvas->SaveAs(pdfName.c_str());
+    canvas->SaveAs((outDir + "/error_channel_adc_overlay_" + tag + ".png").c_str());
+    return;
+  }
+
+  const int padsPerPage = 6;
+  const int nCols = 2;
+  const int nRows = 3;
+  const int nPages = (static_cast<int>(selected.size()) + padsPerPage - 1) / padsPerPage;
+  int colors[] = {kRed + 1, kBlue + 1, kGreen + 2, kMagenta + 1, kOrange + 7, kCyan + 2,
+                  kRed + 3, kBlue + 3, kGreen + 4, kMagenta + 3, kOrange + 9, kCyan + 4};
+  
+  TCanvas *pdfBook = new TCanvas(Form("c_error_channel_adc_overlay_%s_pdf_open", tag.c_str()),
+                                 Form("%s error channel ADC overlay pdf open", gain.c_str()), 1, 1);
+  pdfBook->Print((pdfName + "[").c_str());
+
+  for (int page = 0; page < nPages; ++page) {
+    TCanvas *canvas = new TCanvas(Form("c_error_channel_adc_overlay_%s_page_%d", tag.c_str(), page),
+                                  Form("%s error channel ADC overlay page %d", gain.c_str(), page + 1),
+                                  1500, 1200);
+    canvas->Divide(nCols, nRows);
+
+    for (int ipad = 0; ipad < padsPerPage; ++ipad) {
+      const int idx = page * padsPerPage + ipad;
+      if (idx >= static_cast<int>(selected.size())) break;
+
+      const auto *candidate = selected[idx];
+      canvas->cd(ipad + 1);
+      gPad->SetGrid();
+
+      bool first = true;
+      double maxY = 0.0;
+      std::vector<TH1 *> drawn;
+      TLegend *leg = nullptr;
+      if (runs.size() <= 10) leg = new TLegend(0.62, 0.50, 0.88, 0.88);
+
+      for (size_t irun = 0; irun < runs.size(); ++irun) {
+        int histCellId = candidate->cellid;
+        if (runs[irun].path.find("EHN1") != std::string::npos ||
+            runs[irun].path.find("TestBeam") != std::string::npos) {
+          histCellId = mapCellIdForComparisonInverse(candidate->cellid);
+        }
+
+        TH1 *h = loadPedestalHistogram(runs[irun].path, gain, histCellId);
+        if (!h) continue;
+
+        if (h->Integral() > 0) h->Scale(1.0 / h->Integral());
+        h->SetLineColor(colors[irun % 12]);
+        h->SetLineWidth(2);
+        h->SetStats(0);
+        h->SetTitle(Form("%s ADC overlay cell %d;ADC;Normalized entries",
+                         gain.c_str(), candidate->cellid));
+        maxY = std::max(maxY, h->GetMaximum());
+
+        if (first) {
+          h->Draw("HIST");
+          first = false;
+        } else {
+          h->Draw("HIST SAME");
+        }
+        if (leg) leg->AddEntry(h, runs[irun].label.c_str(), "l");
+        drawn.push_back(h);
+      }
+
+      if (!drawn.empty()) {
+        drawn.front()->SetMaximum(std::max(1e-9, maxY * 1.35));
+        if (leg) leg->Draw();
+
+        const int badRuns = isHg ? candidate->badRunsHg : candidate->badRunsLg;
+        const double badFraction = isHg ? candidate->badFractionHg : candidate->badFractionLg;
+        TLatex latex;
+        latex.SetNDC(true);
+        latex.SetTextSize(0.055);
+        latex.DrawLatex(0.16, 0.84, Form("usable=0: %d/%d = %.3f",
+                                         badRuns, candidate->nRunsSeen, badFraction));
+        latex.DrawLatex(0.16, 0.77, Form("channel_index=%d", candidate->channel_index));
+      }
+    }
+
+    canvas->Print(pdfName.c_str());
+    canvas->SaveAs((outDir + Form("/error_channel_adc_overlay_%s_page%03d.png",
+                                  tag.c_str(), page + 1)).c_str());
+  }
+
+  pdfBook->Print((pdfName + "]").c_str());
+}
+
+void drawUsableNonZeroCountByRun(const std::vector<RunData> &runs, const std::string &outDir) {
+  const int n = static_cast<int>(runs.size());
+  if (n == 0) return;
+
+  std::vector<double> x(n), hg(n), lg(n);
+  for (int i = 0; i < n; ++i) {
+    x[i] = runs[i].run;
+    for (const auto &e : runs[i].entries) {
+      if (e.usable_hg != 0) hg[i] += 1.0;
+      if (e.usable_lg != 0) lg[i] += 1.0;
+    }
+  }
+
+  TCanvas *canvas = new TCanvas("c_usable_nonzero_count_by_run",
+                                "usable nonzero count by run", 1000, 700);
+  canvas->SetGrid();
+  TMultiGraph *mg = new TMultiGraph();
+  TGraph *gHg = new TGraph(n, &x[0], &hg[0]);
+  TGraph *gLg = new TGraph(n, &x[0], &lg[0]);
+  setGraphStyle(gHg, kRed + 1, 20);
+  setGraphStyle(gLg, kBlue + 1, 21);
+  gHg->SetTitle("HG usable!=0");
+  gLg->SetTitle("LG usable!=0");
+  mg->Add(gHg, "LP");
+  mg->Add(gLg, "LP");
+  mg->SetTitle("Channels with usable!=0 vs run;Run;Channels");
+  mg->Draw("ALP");
+
+  TLegend *leg = new TLegend(0.62, 0.72, 0.88, 0.88);
+  leg->AddEntry(gHg, "HG usable!=0", "lp");
+  leg->AddEntry(gLg, "LG usable!=0", "lp");
+  leg->Draw();
+
+  canvas->SaveAs((outDir + "/usable_nonzero_count_by_run.pdf").c_str());
+  canvas->SaveAs((outDir + "/usable_nonzero_count_by_run.png").c_str());
+}
+
+void drawStatusPopulation(const std::vector<RunData> &runs,
+                          bool isHg,
+                          const std::string &outDir) {
+  const int n = static_cast<int>(runs.size());
+  if (n == 0) return;
+
+  std::map<int, std::vector<double>> countsByStatus;
+  std::vector<double> x(n);
+  for (int i = 0; i < n; ++i) {
+    x[i] = runs[i].run;
+    for (const auto &e : runs[i].entries) {
+      countsByStatus[getStatusValue(e, isHg)].resize(n, 0.0);
+    }
+  }
+
+  for (int i = 0; i < n; ++i) {
+    for (const auto &e : runs[i].entries) {
+      countsByStatus[getStatusValue(e, isHg)][i] += 1.0;
+    }
+  }
+
+  const std::string gain = isHg ? "HG" : "LG";
+  const std::string tag = isHg ? "hg" : "lg";
+  TCanvas *canvasZero = new TCanvas(Form("c_status_zero_population_%s", tag.c_str()),
+                                    Form("%s status 0 population", gain.c_str()), 900, 650);
+  canvasZero->SetGrid();
+  std::vector<double> zeroCounts(n, 0.0);
+  auto zeroIt = countsByStatus.find(0);
+  if (zeroIt != countsByStatus.end()) zeroCounts = zeroIt->second;
+  TGraph *gZero = new TGraph(n, &x[0], &zeroCounts[0]);
+  setGraphStyle(gZero, kBlack, 20);
+  gZero->SetTitle(Form("%s pedestal status 0 population vs run;Run;Channels", gain.c_str()));
+  gZero->Draw("ALP");
+  canvasZero->SaveAs((outDir + "/status_zero_population_" + tag + ".pdf").c_str());
+  canvasZero->SaveAs((outDir + "/status_zero_population_" + tag + ".png").c_str());
+
+  TCanvas *canvas = new TCanvas(Form("c_status_nonzero_population_%s", tag.c_str()),
+                                Form("%s nonzero status population", gain.c_str()), 1100, 750);
+  canvas->SetGrid();
+  TMultiGraph *mg = new TMultiGraph();
+  TLegend *leg = new TLegend(0.68, 0.58, 0.90, 0.88);
+  int colors[] = {kRed + 1, kBlue + 1, kGreen + 2, kMagenta + 1, kOrange + 7,
+                  kCyan + 2, kRed + 3, kBlue + 3, kGreen + 4, kMagenta + 3, kOrange + 9};
+
+  int idx = 0;
+  for (const auto &kv : countsByStatus) {
+    if (kv.first == 0) continue;
+    TGraph *g = new TGraph(n, &x[0], &kv.second[0]);
+    setGraphStyle(g, colors[idx % 11], 20 + (idx % 10));
+    g->SetTitle(Form("status %d", kv.first));
+    mg->Add(g, "LP");
+    leg->AddEntry(g, Form("status %d", kv.first), "lp");
+    ++idx;
+  }
+
+  mg->SetTitle(Form("%s pedestal nonzero status population vs run;Run;Channels", gain.c_str()));
+  if (idx > 0) {
+    mg->Draw("ALP");
+    leg->Draw();
+  } else {
+    TH1D *empty = new TH1D(Form("h_status_nonzero_population_%s_empty", tag.c_str()),
+                           Form("%s pedestal nonzero status population vs run;Run;Channels", gain.c_str()),
+                           1, 0.0, 1.0);
+    empty->SetStats(0);
+    empty->Draw("HIST");
+  }
+  canvas->SaveAs((outDir + "/status_population_" + tag + ".pdf").c_str());
+  canvas->SaveAs((outDir + "/status_population_" + tag + ".png").c_str());
+  canvas->SaveAs((outDir + "/status_nonzero_population_" + tag + ".pdf").c_str());
+  canvas->SaveAs((outDir + "/status_nonzero_population_" + tag + ".png").c_str());
+}
+
+void drawStatusChangedChannels(const std::vector<RunData> &runs,
+                               bool isHg,
+                               const std::string &outDir) {
+  if (runs.size() < 2) return;
+
+  std::vector<double> x;
+  std::vector<double> changed;
+  x.reserve(runs.size() - 1);
+  changed.reserve(runs.size() - 1);
+
+  for (size_t i = 1; i < runs.size(); ++i) {
+    int nChanged = 0;
+    for (const auto &kv : runs[i - 1].byCellId) {
+      const auto it = runs[i].byCellId.find(kv.first);
+      if (it == runs[i].byCellId.end()) continue;
+      if (getStatusValue(kv.second, isHg) != getStatusValue(it->second, isHg)) ++nChanged;
+    }
+    x.push_back(runs[i].run);
+    changed.push_back(nChanged);
+  }
+
+  const std::string gain = isHg ? "HG" : "LG";
+  const std::string tag = isHg ? "hg" : "lg";
+  TCanvas *canvas = new TCanvas(Form("c_status_changed_channels_%s", tag.c_str()),
+                                Form("%s status changed channels", gain.c_str()), 900, 700);
+  canvas->SetGrid();
+  TGraph *g = new TGraph(x.size(), &x[0], &changed[0]);
+  setGraphStyle(g, isHg ? kRed + 1 : kBlue + 1, 20);
+  g->SetTitle(Form("%s status changes from previous run;Run;Channels with changed status",
+                   gain.c_str()));
+  g->Draw("ALP");
+  canvas->SaveAs((outDir + "/status_changed_channels_" + tag + ".pdf").c_str());
+  canvas->SaveAs((outDir + "/status_changed_channels_" + tag + ".png").c_str());
+}
+
+void drawMaskCandidatePlots(const std::vector<RunData> &runs, const std::string &outDir) {
+  std::vector<MaskCandidateInfo> candidates = collectMaskCandidates(runs);
+  writeMaskCandidateCsv(candidates, outDir);
+  drawUsableBadFractionHist(candidates, true, outDir);
+  drawUsableBadFractionHist(candidates, false, outDir);
+  drawErrorChannelDistribution(runs, candidates, true, outDir);
+  drawErrorChannelDistribution(runs, candidates, false, outDir);
+  drawUsableNonZeroCountByRun(runs, outDir);
+  drawStatusPopulation(runs, true, outDir);
+  drawStatusPopulation(runs, false, outDir);
+  drawStatusChangedChannels(runs, true, outDir);
+  drawStatusChangedChannels(runs, false, outDir);
+
+  std::cout << "[compare] mask candidate channels: " << candidates.size()
+            << " (written to " << outDir << "/mask_candidate_channels.csv)" << std::endl;
+}
+
 void drawCellTrend(const std::vector<RunData> &runs, int cellid, const std::string &outDir) {
   if (runs.empty() || cellid < 0) return;
 
@@ -959,6 +1418,98 @@ void drawCellTrend(const std::vector<RunData> &runs, int cellid, const std::stri
   c->SaveAs((outDir + Form("/cell_%d_compare.png", cellid)).c_str());
 }
 
+double calculateCorrelation(const std::vector<double> &x, const std::vector<double> &y) {
+  if (x.size() != y.size() || x.empty()) return 0.0;
+  
+  double meanX = 0.0, meanY = 0.0;
+  for (size_t i = 0; i < x.size(); ++i) {
+    meanX += x[i];
+    meanY += y[i];
+  }
+  meanX /= x.size();
+  meanY /= y.size();
+  
+  double cov = 0.0, varX = 0.0, varY = 0.0;
+  for (size_t i = 0; i < x.size(); ++i) {
+    double dx = x[i] - meanX;
+    double dy = y[i] - meanY;
+    cov += dx * dy;
+    varX += dx * dx;
+    varY += dy * dy;
+  }
+  
+  if (varX <= 0.0 || varY <= 0.0) return 0.0;
+  return cov / std::sqrt(varX * varY);
+}
+
+void drawCorrelationHistograms(const std::vector<RunData> &runs, const std::string &outDir) {
+  // Create individual correlation plots for each run
+  for (size_t irun = 0; irun < runs.size(); ++irun) {
+    const RunData &run = runs[irun];
+    
+    std::vector<double> hgPeak, lgPeak, hgSigma, lgSigma;
+    for (const auto &entry : run.entries) {
+      hgPeak.push_back(entry.highgain_peak);
+      lgPeak.push_back(entry.lowgain_peak);
+      hgSigma.push_back(entry.highgain_sigma);
+      lgSigma.push_back(entry.lowgain_sigma);
+    }
+    
+    if (hgPeak.empty()) continue;
+    
+    // Calculate correlations
+    double corrPeak = calculateCorrelation(hgPeak, lgPeak);
+    double corrSigma = calculateCorrelation(hgSigma, lgSigma);
+    
+    // Get min/max for bin ranges
+    auto hgPeakMm = std::minmax_element(hgPeak.begin(), hgPeak.end());
+    auto lgPeakMm = std::minmax_element(lgPeak.begin(), lgPeak.end());
+    auto hgSigmaMm = std::minmax_element(hgSigma.begin(), hgSigma.end());
+    auto lgSigmaMm = std::minmax_element(lgSigma.begin(), lgSigma.end());
+    
+    // Create canvas with 2 pads: peak and sigma correlations
+    TCanvas *c = new TCanvas(
+        Form("c_correlation_run_%d", run.run),
+        Form("Correlation Run %s", run.label.c_str()), 1200, 600);
+    c->Divide(2, 1);
+    
+    // Peak correlation
+    c->cd(1);
+    gPad->SetGrid();
+    TH2D *h2dPeak = new TH2D(
+        Form("h2d_peak_run_%d", run.run),
+        Form("Run %s - Peak correlation (r=%.3f);HG peak (ADC);LG peak (ADC)",
+             run.label.c_str(), corrPeak),
+        50, *hgPeakMm.first - 5, *hgPeakMm.second + 5,
+        50, *lgPeakMm.first - 5, *lgPeakMm.second + 5);
+    
+    for (size_t i = 0; i < hgPeak.size(); ++i) {
+      h2dPeak->Fill(hgPeak[i], lgPeak[i]);
+    }
+    h2dPeak->Draw("COLZ");
+    h2dPeak->SetStats(0);
+    
+    // Sigma correlation
+    c->cd(2);
+    gPad->SetGrid();
+    TH2D *h2dSigma = new TH2D(
+        Form("h2d_sigma_run_%d", run.run),
+        Form("Run %s - Sigma correlation (r=%.3f);HG sigma (ADC);LG sigma (ADC)",
+             run.label.c_str(), corrSigma),
+        50, *hgSigmaMm.first - 1, *hgSigmaMm.second + 1,
+        50, *lgSigmaMm.first - 1, *lgSigmaMm.second + 1);
+    
+    for (size_t i = 0; i < hgSigma.size(); ++i) {
+      h2dSigma->Fill(hgSigma[i], lgSigma[i]);
+    }
+    h2dSigma->Draw("COLZ");
+    h2dSigma->SetStats(0);
+    
+    c->SaveAs((outDir + Form("/correlation_run_%s.pdf", run.label.c_str())).c_str());
+    c->SaveAs((outDir + Form("/correlation_run_%s.png", run.label.c_str())).c_str());
+  }
+}
+
 void printSummaryTable(const std::vector<RunData> &runs) {
   std::cout << "\n=== Pedestal summary by run ===" << std::endl;
   std::cout << "run\tnCell\tHGpeak(mean)\tLGpeak(mean)\tHGsigma(mean)\tLGsigma(mean)\tFitOK_HG[%]\tFitOK_LG[%]" << std::endl;
@@ -999,13 +1550,13 @@ void compare(const char *baseDir = ".",
   gROOT->SetBatch(kTRUE);
   gStyle->SetOptStat(0);
 
-  std::vector<int> runNumbers = parseRunList(runListCsv);
+  std::vector<int> runNumbers = parseRunList(runListCsv, baseDir);
   if (runNumbers.empty()) {
     std::cerr << "[compare] empty run list" << std::endl;
     return;
   }
 
-  std::string outDir = std::string(baseDir) + "/" + outDirName;
+  std::string outDir = makeOutputDirPath(baseDir, outDirName);
   gSystem->mkdir(outDir.c_str(), true);
 
   std::vector<RunData> runs;
@@ -1038,7 +1589,10 @@ void compare(const char *baseDir = ".",
   }
 
   printSummaryTable(runs);
+
+  drawCorrelationHistograms(runs, outDir);
   drawSummaryGraphs(runs, outDir);
+  drawMaskCandidatePlots(runs, outDir);
   drawOverlayHistograms(runs, outDir);
   drawRepresentativeHistograms(runs, outDir);
   drawDeltaFromReferenceByRun(runs, "highgain_peak", "HG peak shift from first run",
