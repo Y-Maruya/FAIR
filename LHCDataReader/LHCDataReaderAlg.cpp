@@ -111,22 +111,40 @@ void LHCDataReaderAlg::execute(EventStore& evt) {
     LHCData lhcdata;
     try {
         const Options options = parseArgsFromEvent(rawdata, m_cfg.verbose);
-        cool::IObjectIteratorPtr it = 
-            m_folder->browseObjects(options.timestampNs, options.timestampNs, cool::ChannelSelection::all());
-        std::vector<LHCData> lhcdataList;
-        while (it->goToNext()) {
-            const cool::IObject& object = it->currentRef();
-            if (object.since() <= options.timestampNs && object.until() > options.timestampNs) {
-                lhcdataList.push_back(readBeamData(object));
+        
+        // Check cache: if timestamp falls in cached IOV range, reuse the result
+        if (m_cache_valid && 
+            options.timestampNs >= m_cached_since && 
+            options.timestampNs < m_cached_until) {
+            lhcdata = m_cached_data;
+            if (m_cfg.verbose) {
+                LOG_DEBUG("Using cached LHC data for timestamp {}", options.timestampNs);
             }
-        }
-        if (lhcdataList.empty()) {
-            LOG_ERROR("No LHC data found for run {} at timestamp {} ns", options.run, options.timestampNs);
-            throw std::runtime_error("No LHC data found for the given run and timestamp");
-        } else if (lhcdataList.size() > 1) {
-            LOG_WARN("Multiple LHC data entries found for run {} at timestamp {} ns. Using the first one.", options.run, options.timestampNs);
-        }
-        lhcdata = lhcdataList.front();       
+        } else {
+            // Cache miss: query COOL database
+            cool::IObjectIteratorPtr it = 
+                m_folder->browseObjects(options.timestampNs, options.timestampNs, cool::ChannelSelection::all());
+            std::vector<LHCData> lhcdataList;
+            while (it->goToNext()) {
+                const cool::IObject& object = it->currentRef();
+                if (object.since() <= options.timestampNs && object.until() > options.timestampNs) {
+                    lhcdataList.push_back(readBeamData(object));
+                }
+            }
+            if (lhcdataList.empty()) {
+                LOG_ERROR("No LHC data found for run {} at timestamp {} ns", options.run, options.timestampNs);
+                throw std::runtime_error("No LHC data found for the given run and timestamp");
+            } else if (lhcdataList.size() > 1) {
+                LOG_WARN("Multiple LHC data entries found for run {} at timestamp {} ns. Using the first one.", options.run, options.timestampNs);
+            }
+            lhcdata = lhcdataList.front();
+            
+            // Update cache
+            m_cached_data = lhcdata;
+            m_cached_since = lhcdata.since;
+            m_cached_until = lhcdata.until;
+            m_cache_valid = true;
+        }       
     }
     catch (const cool::Exception& e) {
         LOG_ERROR("COOL exception while reading LHC data: {}", e.what());
@@ -165,6 +183,7 @@ void LHCDataReaderAlg::initialize() {
 void LHCDataReaderAlg::finalize() {
     m_folder = nullptr;
     m_db = nullptr;
+    m_cache_valid = false;
     if (m_cfg.verbose) {
         LOG_INFO("LHCDataReaderAlg finalized");
     }
