@@ -50,6 +50,24 @@ namespace AHCALRecoAlg {
         std::string in_track_key = "FittedTrack";
         std::string string_track_struct = "SimpleFittedTrack"; // or "Track"
         std::string track_selection_string = ""; // optional selection string for tracks, e.g. "nHits >= 5 && chi2/ndf < 5"
+
+        // Quality metrics and TTree output
+        bool compute_quality_metrics = true;
+        int quality_minimum_points = 10;
+        double quality_bad_correlation_threshold = 0.8;
+        double quality_outlier_fraction_threshold = 0.2;
+        double quality_slope_layer_z_threshold = 5.0;
+        double quality_chi2_ndf_threshold = 10.0;
+        bool quality_output_ttree = true;
+        std::string quality_out_filename = "hglg_calib_quality.root";
+        bool quality_save_summary_plots = true;
+
+        // Interactive mode
+        bool interactive_fit = false;
+        std::string interactive_mode = "bad_only";  // all, bad_only, layer, single_channel
+        int interactive_layer = -1;
+        int interactive_chip = -1;
+        int interactive_channel = -1;
     };
 
     class InterCalibAlg final : public IAlg {

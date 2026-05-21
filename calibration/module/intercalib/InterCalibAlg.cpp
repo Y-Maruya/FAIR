@@ -39,6 +39,62 @@ AHCAL_REGISTER_ALG(AHCALRecoAlg::InterCalibAlg, "InterCalibAlg")
 
 namespace AHCALRecoAlg {
 
+// Quality flag bitmask for HG:LG calibration
+enum HGLGQualityFlag : uint32_t {
+    GOOD                = 0,
+    LOW_STAT            = 1 << 0,
+    FIT_FAILED          = 1 << 1,
+    BAD_CORRELATION     = 1 << 2,
+    MANY_OUTLIERS       = 1 << 3,
+    BAD_SLOPE_LAYER_Z   = 1 << 4,
+    BAD_CHI2            = 1 << 5,
+    PEDESTAL_MASKED     = 1 << 6,
+    MANUAL_BAD          = 1 << 7,
+    MANUAL_GOOD         = 1 << 8
+};
+
+// Per-channel HG:LG calibration result with quality metrics
+struct HGLGCalibResult {
+    int run = -1;
+    int layer = -1;
+    int chip = -1;
+    int channel = -1;
+    int cellid = -1;
+
+    double hg_pedestal = NAN;
+    double lg_pedestal = NAN;
+
+    double slope = NAN;
+    double intercept = NAN;
+    double slope_error = NAN;
+    double intercept_error = NAN;
+
+    double chi2 = NAN;
+    int ndf = -1;
+    double chi2_ndf = NAN;
+    int fit_status = -1;
+
+    int n_points_total = 0;
+    int n_points_used = 0;
+    int n_points_outlier = 0;
+    double outlier_fraction = -1.0;
+
+    double correlation = -999.0;
+
+    double slope_median_layer = NAN;
+    double slope_mad_layer = NAN;
+    double slope_z_layer = -999.0;
+
+    uint32_t quality_flag = 0;
+
+    bool is_pedestal_masked = false;
+    bool is_hglg_calib_bad = false;
+    bool is_physics_mask_candidate = false;
+
+    bool manual_bad = false;
+    bool manual_good = false;
+};
+
 namespace {
 
 struct FitOut {
@@ -326,6 +382,57 @@ static FitResult fitLinearFromHGBinnedProfileRejectOutliers(
     return fitLinearFromHGBinnedProfile(inlier_acc, minPoints, hgBinWidth, minBins);
 }
 
+// Compute Pearson correlation coefficient between two vectors
+static double computeCorrelation(const std::vector<double>& x, const std::vector<double>& y) {
+    if (x.size() != y.size() || x.size() < 2) return -999.0;
+    
+    double mean_x = 0.0, mean_y = 0.0;
+    for (size_t i = 0; i < x.size(); ++i) {
+        mean_x += x[i];
+        mean_y += y[i];
+    }
+    mean_x /= x.size();
+    mean_y /= y.size();
+    
+    double cov = 0.0, var_x = 0.0, var_y = 0.0;
+    for (size_t i = 0; i < x.size(); ++i) {
+        double dx = x[i] - mean_x;
+        double dy = y[i] - mean_y;
+        cov += dx * dy;
+        var_x += dx * dx;
+        var_y += dy * dy;
+    }
+    
+    double sigma_x = std::sqrt(var_x / x.size());
+    double sigma_y = std::sqrt(var_y / y.size());
+    
+    if (sigma_x == 0.0 || sigma_y == 0.0) return -999.0;
+    
+    return cov / (x.size() * sigma_x * sigma_y);
+}
+
+// Compute median absolute deviation (MAD)
+static std::pair<double, double> computeMedianAndMAD(std::vector<double> values) {
+    if (values.empty()) return {NAN, NAN};
+    
+    std::sort(values.begin(), values.end());
+    double median = values.size() % 2 == 0 
+        ? (values[values.size() / 2 - 1] + values[values.size() / 2]) / 2.0
+        : values[values.size() / 2];
+    
+    std::vector<double> abs_dev;
+    abs_dev.reserve(values.size());
+    for (double v : values) {
+        abs_dev.push_back(std::abs(v - median));
+    }
+    std::sort(abs_dev.begin(), abs_dev.end());
+    double mad = abs_dev.size() % 2 == 0
+        ? (abs_dev[abs_dev.size() / 2 - 1] + abs_dev[abs_dev.size() / 2]) / 2.0
+        : abs_dev[abs_dev.size() / 2];
+    
+    return {median, mad};
+}
+
 } // namespace
 
 struct InterCalibAlg::Impl {
@@ -597,12 +704,267 @@ struct InterCalibAlg::Impl {
         intercept_max_ = (max_p0 > -1e10) ? std::ceil(max_p0 * 1.1) : 500.0;
     }
 
+    void buildQualityResults() {
+        quality_results_.clear();
+        quality_results_.reserve(ic_cache_.size());
+
+        for (const auto& [cid, res] : ic_cache_) {
+            HGLGCalibResult qr;
+            int tmp_layer, tmp_chip, tmp_channel;
+            AHCALGeometry::CellIDToLC(cid, tmp_layer, tmp_chip, tmp_channel);
+
+            qr.run = ctx_.config.runNumber;
+            qr.layer = tmp_layer;
+            qr.chip = tmp_chip;
+            qr.channel = tmp_channel;
+            qr.cellid = cid;
+
+            auto ped_it = ped_map_.find(cid);
+            if (ped_it != ped_map_.end()) {
+                qr.hg_pedestal = ped_it->second.HighGainPeak;
+                qr.lg_pedestal = ped_it->second.LowGainPeak;
+                qr.is_pedestal_masked = (ped_it->second.HighGainStatus != 0 || ped_it->second.LowGainStatus != 0);
+            }
+
+            qr.slope = res.p1;
+            qr.intercept = res.p0;
+            qr.chi2 = res.chi2;
+            qr.ndf = res.ndf;
+            qr.chi2_ndf = res.chi2_ndf;
+            qr.fit_status = res.fit_status;
+
+            qr.n_points_total = res.n_points;
+            qr.n_points_used = res.n_points - res.n_outlier_points;
+            qr.n_points_outlier = res.n_outlier_points;
+
+            if (res.n_points > 0) {
+                qr.outlier_fraction = static_cast<double>(res.n_outlier_points) / res.n_points;
+            }
+
+            // Compute correlation coefficient from accumulated points
+            auto acc_it = acc_.find(cid);
+            if (acc_it != acc_.end() && !acc_it->second.points_hg_lg.empty()) {
+                std::vector<double> hg_vals, lg_vals;
+                hg_vals.reserve(acc_it->second.points_hg_lg.size());
+                lg_vals.reserve(acc_it->second.points_hg_lg.size());
+                for (const auto& p : acc_it->second.points_hg_lg) {
+                    hg_vals.push_back(p.first);  // HG_sub
+                    lg_vals.push_back(p.second); // LG_sub
+                }
+                qr.correlation = computeCorrelation(hg_vals, lg_vals);
+            }
+
+            quality_results_.push_back(std::move(qr));
+        }
+    }
+
+    void computeLayerStatistics() {
+        if (quality_results_.empty()) return;
+
+        std::unordered_map<int, std::vector<double>> slopes_by_layer;
+        
+        for (const auto& qr : quality_results_) {
+            // Only include valid fitted channels in layer statistics
+            if (qr.is_pedestal_masked) continue;
+            if (qr.fit_status != 0) continue;
+            if (qr.n_points_used < cfg_.quality_minimum_points) continue;
+            if (!std::isfinite(qr.slope)) continue;
+            if (qr.slope <= 0) continue;
+
+            slopes_by_layer[qr.layer].push_back(qr.slope);
+        }
+
+        // Compute layer median and MAD, then assign z-scores
+        std::unordered_map<int, std::pair<double, double>> layer_stats;
+        for (auto& [layer, slopes] : slopes_by_layer) {
+            auto [median, mad] = computeMedianAndMAD(slopes);
+            layer_stats[layer] = {median, mad};
+        }
+
+        // Update quality results with layer statistics and z-scores
+        for (auto& qr : quality_results_) {
+            auto it = layer_stats.find(qr.layer);
+            if (it != layer_stats.end()) {
+                qr.slope_median_layer = it->second.first;
+                qr.slope_mad_layer = it->second.second;
+
+                if (it->second.second > 0.0 && std::isfinite(qr.slope)) {
+                    qr.slope_z_layer = (qr.slope - it->second.first) / (1.4826 * it->second.second);
+                }
+            }
+        }
+    }
+
+    void assignQualityFlags() {
+        for (auto& qr : quality_results_) {
+            qr.quality_flag = GOOD;
+
+            if (qr.is_pedestal_masked) {
+                qr.quality_flag |= PEDESTAL_MASKED;
+            }
+
+            if (qr.n_points_used < cfg_.quality_minimum_points) {
+                qr.quality_flag |= LOW_STAT;
+            }
+
+            if (qr.fit_status != 0 || !std::isfinite(qr.slope)) {
+                qr.quality_flag |= FIT_FAILED;
+            }
+
+            if (qr.correlation < cfg_.quality_bad_correlation_threshold && qr.correlation > -999.0) {
+                qr.quality_flag |= BAD_CORRELATION;
+            }
+
+            if (qr.outlier_fraction > cfg_.quality_outlier_fraction_threshold) {
+                qr.quality_flag |= MANY_OUTLIERS;
+            }
+
+            if (std::abs(qr.slope_z_layer) > cfg_.quality_slope_layer_z_threshold) {
+                qr.quality_flag |= BAD_SLOPE_LAYER_Z;
+            }
+
+            if (qr.chi2_ndf > cfg_.quality_chi2_ndf_threshold) {
+                qr.quality_flag |= BAD_CHI2;
+            }
+
+            // Determine is_hglg_calib_bad based on flags
+            if ((qr.quality_flag & LOW_STAT) ||
+                (qr.quality_flag & FIT_FAILED) ||
+                (qr.quality_flag & BAD_CORRELATION) ||
+                (qr.quality_flag & MANY_OUTLIERS) ||
+                (qr.quality_flag & BAD_SLOPE_LAYER_Z) ||
+                (qr.quality_flag & BAD_CHI2)) {
+                qr.is_hglg_calib_bad = true;
+            }
+
+            // Determine is_physics_mask_candidate: only if pedestal-masked or manually marked bad
+            qr.is_physics_mask_candidate = qr.is_pedestal_masked || qr.manual_bad;
+        }
+    }
+
+    void writeQualityTree() {
+        if (!cfg_.quality_output_ttree || quality_results_.empty()) return;
+
+        std::unique_ptr<TFile> fout(TFile::Open(cfg_.quality_out_filename.c_str(), "RECREATE"));
+        if (!fout || fout->IsZombie()) {
+            LOG_ERROR("InterCalibAlg: cannot open quality output file: {}", cfg_.quality_out_filename);
+            return;
+        }
+
+        TTree tree("HGLGCalibQuality", "HG:LG Calibration Quality Metrics");
+
+        // Temporary variables for branches
+        int run, layer, chip, channel, cellid;
+        double hg_pedestal, lg_pedestal;
+        double slope, intercept, slope_error, intercept_error;
+        double chi2, chi2_ndf;
+        int ndf, fit_status;
+        int n_points_total, n_points_used, n_points_outlier;
+        double outlier_fraction;
+        double correlation;
+        double slope_median_layer, slope_mad_layer, slope_z_layer;
+        uint32_t quality_flag;
+        int is_pedestal_masked, is_hglg_calib_bad, is_physics_mask_candidate;
+        int manual_bad, manual_good;
+
+        tree.Branch("run", &run, "run/I");
+        tree.Branch("layer", &layer, "layer/I");
+        tree.Branch("chip", &chip, "chip/I");
+        tree.Branch("channel", &channel, "channel/I");
+        tree.Branch("cellid", &cellid, "cellid/I");
+
+        tree.Branch("hg_pedestal", &hg_pedestal, "hg_pedestal/D");
+        tree.Branch("lg_pedestal", &lg_pedestal, "lg_pedestal/D");
+
+        tree.Branch("slope", &slope, "slope/D");
+        tree.Branch("intercept", &intercept, "intercept/D");
+        tree.Branch("slope_error", &slope_error, "slope_error/D");
+        tree.Branch("intercept_error", &intercept_error, "intercept_error/D");
+
+        tree.Branch("chi2", &chi2, "chi2/D");
+        tree.Branch("ndf", &ndf, "ndf/I");
+        tree.Branch("chi2_ndf", &chi2_ndf, "chi2_ndf/D");
+        tree.Branch("fit_status", &fit_status, "fit_status/I");
+
+        tree.Branch("n_points_total", &n_points_total, "n_points_total/I");
+        tree.Branch("n_points_used", &n_points_used, "n_points_used/I");
+        tree.Branch("n_points_outlier", &n_points_outlier, "n_points_outlier/I");
+        tree.Branch("outlier_fraction", &outlier_fraction, "outlier_fraction/D");
+
+        tree.Branch("correlation", &correlation, "correlation/D");
+
+        tree.Branch("slope_median_layer", &slope_median_layer, "slope_median_layer/D");
+        tree.Branch("slope_mad_layer", &slope_mad_layer, "slope_mad_layer/D");
+        tree.Branch("slope_z_layer", &slope_z_layer, "slope_z_layer/D");
+
+        tree.Branch("quality_flag", &quality_flag, "quality_flag/i");
+
+        tree.Branch("is_pedestal_masked", &is_pedestal_masked, "is_pedestal_masked/I");
+        tree.Branch("is_hglg_calib_bad", &is_hglg_calib_bad, "is_hglg_calib_bad/I");
+        tree.Branch("is_physics_mask_candidate", &is_physics_mask_candidate, "is_physics_mask_candidate/I");
+        tree.Branch("manual_bad", &manual_bad, "manual_bad/I");
+        tree.Branch("manual_good", &manual_good, "manual_good/I");
+
+        for (const auto& qr : quality_results_) {
+            run = qr.run;
+            layer = qr.layer;
+            chip = qr.chip;
+            channel = qr.channel;
+            cellid = qr.cellid;
+
+            hg_pedestal = qr.hg_pedestal;
+            lg_pedestal = qr.lg_pedestal;
+
+            slope = qr.slope;
+            intercept = qr.intercept;
+            slope_error = qr.slope_error;
+            intercept_error = qr.intercept_error;
+
+            chi2 = qr.chi2;
+            ndf = qr.ndf;
+            chi2_ndf = qr.chi2_ndf;
+            fit_status = qr.fit_status;
+
+            n_points_total = qr.n_points_total;
+            n_points_used = qr.n_points_used;
+            n_points_outlier = qr.n_points_outlier;
+            outlier_fraction = qr.outlier_fraction;
+
+            correlation = qr.correlation;
+
+            slope_median_layer = qr.slope_median_layer;
+            slope_mad_layer = qr.slope_mad_layer;
+            slope_z_layer = qr.slope_z_layer;
+
+            quality_flag = qr.quality_flag;
+
+            is_pedestal_masked = qr.is_pedestal_masked ? 1 : 0;
+            is_hglg_calib_bad = qr.is_hglg_calib_bad ? 1 : 0;
+            is_physics_mask_candidate = qr.is_physics_mask_candidate ? 1 : 0;
+            manual_bad = qr.manual_bad ? 1 : 0;
+            manual_good = qr.manual_good ? 1 : 0;
+
+            tree.Fill();
+        }
+
+        fout->Write();
+        LOG_INFO("InterCalibAlg: wrote quality metrics to {}", cfg_.quality_out_filename);
+    }
+
     void write() {
-        if (!cfg_.intercalib_to_file && !cfg_.intercalib_to_json) return;
+        if (!cfg_.intercalib_to_file && !cfg_.intercalib_to_json && !cfg_.quality_output_ttree) return;
         if (written_) return;
         written_ = true;
 
         buildInterCalibCache();
+
+        // Build and compute quality metrics
+        if (cfg_.compute_quality_metrics) {
+            buildQualityResults();
+            computeLayerStatistics();
+            assignQualityFlags();
+            writeQualityTree();
+        }
 
         if (cfg_.intercalib_to_file) {
             writeRoot();
@@ -1161,6 +1523,9 @@ struct InterCalibAlg::Impl {
     std::unordered_map<int, std::unique_ptr<TH2D>> h_all_channels_;  // cellid -> 2D histogram
     std::unordered_map<int, std::unique_ptr<TLine>> all_channels_fit_lines_;  // cellid -> fit line
     
+    // Quality metrics results
+    std::vector<HGLGCalibResult> quality_results_;
+    
 };
 
 // Define deleter *after* Impl is a complete type in this TU.
@@ -1273,6 +1638,24 @@ void InterCalibAlg::parse_cfg(const YAML::Node& n) {
     cfg_.in_track_key = get_or<std::string>(n, "in_track_key", cfg_.in_track_key);
     cfg_.string_track_struct = get_or<std::string>(n, "string_track_struct", cfg_.string_track_struct);
     cfg_.track_selection_string = get_or<std::string>(n, "track_selection_string", cfg_.track_selection_string);
+
+    // Quality metrics and TTree output
+    cfg_.compute_quality_metrics = get_or<bool>(n, "compute_quality_metrics", cfg_.compute_quality_metrics);
+    cfg_.quality_minimum_points = get_or<int>(n, "quality_minimum_points", cfg_.quality_minimum_points);
+    cfg_.quality_bad_correlation_threshold = get_or<double>(n, "quality_bad_correlation_threshold", cfg_.quality_bad_correlation_threshold);
+    cfg_.quality_outlier_fraction_threshold = get_or<double>(n, "quality_outlier_fraction_threshold", cfg_.quality_outlier_fraction_threshold);
+    cfg_.quality_slope_layer_z_threshold = get_or<double>(n, "quality_slope_layer_z_threshold", cfg_.quality_slope_layer_z_threshold);
+    cfg_.quality_chi2_ndf_threshold = get_or<double>(n, "quality_chi2_ndf_threshold", cfg_.quality_chi2_ndf_threshold);
+    cfg_.quality_output_ttree = get_or<bool>(n, "quality_output_ttree", cfg_.quality_output_ttree);
+    cfg_.quality_out_filename = get_or<std::string>(n, "quality_out_filename", cfg_.quality_out_filename);
+    cfg_.quality_save_summary_plots = get_or<bool>(n, "quality_save_summary_plots", cfg_.quality_save_summary_plots);
+
+    // Interactive mode
+    cfg_.interactive_fit = get_or<bool>(n, "interactive_fit", cfg_.interactive_fit);
+    cfg_.interactive_mode = get_or<std::string>(n, "interactive_mode", cfg_.interactive_mode);
+    cfg_.interactive_layer = get_or<int>(n, "interactive_layer", cfg_.interactive_layer);
+    cfg_.interactive_chip = get_or<int>(n, "interactive_chip", cfg_.interactive_chip);
+    cfg_.interactive_channel = get_or<int>(n, "interactive_channel", cfg_.interactive_channel);
 }
 void InterCalibAlg::init_by_run() {
     LOG_INFO("InterCalibAlg: init_by_run called, runNumber={}, starttime={}, endtime={}",
