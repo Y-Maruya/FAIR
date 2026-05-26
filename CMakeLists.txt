@@ -155,6 +155,9 @@ endif()
 if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/common/CMakeLists.txt")
   add_subdirectory(common)
 endif()
+# add_library(common_algs INTERFACE)
+# target_link_libraries(common_algs INTERFACE ContextPutter)
+
 # --- add: zlib (needed by BinaryRawHitReader) ---
 find_package(ZLIB REQUIRED)
 target_link_libraries(fair_options INTERFACE ZLIB::ZLIB)

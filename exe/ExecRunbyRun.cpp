@@ -6,6 +6,7 @@
 #include "common/edm/EDM.hpp"
 #include "common/IAlg.hpp"
 #include "common/RunContext.hpp"
+#include "common/ContextPutter.hpp"
 #include "common/AlgFactory.hpp"
 #include "common/config/ParseRunConfig.hpp"
 #include "IO/reader/RootRawHitReader.hpp"

@@ -13,6 +13,10 @@ reader:
     out_rawhits_key: RawHits
     out_tlu_key: TLURawData
 algs:
+  - type: ContextPutter
+    cfg: 
+      out_RunConfig_key: RunConfig
+      out_ConditionStore_key: ConditionStore
   - type: LHCDataReaderAlg
     cfg:
       in_rawdata_key: TLURawData
@@ -21,5 +25,7 @@ algs:
   - type: RootWriterAlg
     cfg: 
       outputlist:
+        - RunConfig
+        - ConditionStore
         - LHCData
         - AHCALTLURawData

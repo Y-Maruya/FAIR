@@ -3,6 +3,9 @@
 #include <yaml-cpp/yaml.h>
 #include "common/config/YAMLUtil.hpp"
 #include "common/Logger.hpp"
+#include "IO/Descriptor.hpp"
+#include "IO/IOTypeRegistry.hpp"
+
 struct RunConfig {
   std::string input;                 // required
   std::string output = "out.root";
@@ -32,6 +35,9 @@ struct ConditionStore {
 struct RunContext {
   RunConfig config;
   ConditionStore conditions;
+  bool operator!() const {
+    return config.input.empty();
+  }
 };
 
 // void parse_run_config(const YAML::Node& n, RunConfig& cfg) {
@@ -48,3 +54,34 @@ struct RunContext {
 //   cfg.nEvents = get_or<long long>(runinfo,"nEvents", -1);
 //   cfg.log_level = get_or<std::string>(runinfo,"log_level", "info");
 // }
+
+inline std::vector<FieldDesc> describe(const RunConfig*) {
+  return {
+    field("input", &RunConfig::input),
+    field("output", &RunConfig::output),
+    field("log_file", &RunConfig::log_file),
+    field("runNumber", &RunConfig::runNumber),
+    field("luminosity", &RunConfig::luminosity),
+    field("poolIndex", &RunConfig::poolIndex),
+    field("isMC", &RunConfig::MC),
+    field("nEvents", &RunConfig::nEvents),
+    field("log_level", &RunConfig::log_level)
+  };
+}
+
+inline std::vector<FieldDesc> describe(const ConditionStore*) {
+  return {
+    field("skipLayers", &ConditionStore::skipLayers),
+    field("nTriggerLayers", &ConditionStore::nTriggerLayers),
+    field("triggerLayers", &ConditionStore::triggerLayers),
+    field("starttime", &ConditionStore::starttime),
+    field("endtime", &ConditionStore::endtime),
+    field("triggerLogic", &ConditionStore::triggerLogic),
+    field("thresholds", &ConditionStore::thresholds),
+    field("triggerStretch", &ConditionStore::triggerStretch),
+    field("triggerDelay", &ConditionStore::triggerDelay),
+    field("calibRate", &ConditionStore::calibRate)
+  };
+}
+AHCAL_REGISTER_IO_STRUCT(RunConfig, "RunConfig");
+AHCAL_REGISTER_IO_STRUCT(ConditionStore, "ConditionStore");

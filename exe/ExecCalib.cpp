@@ -6,6 +6,7 @@
 #include "common/edm/EDM.hpp"
 #include "common/IAlg.hpp"
 #include "common/RunContext.hpp"
+#include "common/ContextPutter.hpp"
 #include "common/AlgFactory.hpp"
 #include "common/config/ParseRunConfig.hpp"
 #include "IO/reader/RootRawHitReader.hpp"
@@ -65,28 +66,28 @@ std::string shell_quote(const std::string& s) {
     return out;
 }
 
-void replace_config_run_numbers(const std::string& config_path, const std::string& run_numbers) {
-    std::filesystem::copy_file(config_path, "/tmp/temp_config.yaml", std::filesystem::copy_options::overwrite_existing);
-    const std::string cmd = "python3 scripts/changepath_multirun.py /tmp/temp_config.yaml -rs " + shell_quote(run_numbers);
+void replace_config_run_numbers(const std::string& config_path, const std::string& run_numbers, std::string random_suffix = "") {
+    std::filesystem::copy_file(config_path, "/tmp/temp_config" + random_suffix + ".yaml", std::filesystem::copy_options::overwrite_existing);
+    const std::string cmd = "python3 scripts/changepath_multirun.py /tmp/temp_config" + random_suffix + ".yaml -rs " + shell_quote(run_numbers);
     const int rc = std::system(cmd.c_str());
     if (rc != 0) {
         LOG_ERROR("Failed to update run range via changepath_multirun.py. command={}, return_code={}", cmd, rc);
         throw std::runtime_error("Failed to update run range in temporary config");
     }
-    if (!std::filesystem::exists("/tmp/temp_config.yaml")) {
+    if (!std::filesystem::exists("/tmp/temp_config" + random_suffix + ".yaml")) {
         LOG_ERROR("Failed to create temporary config file with updated run numbers.");
         throw std::runtime_error("Temporary config file not found after run range update");
     }
 }
-void replace_config_run_number(const std::string& config_path, int run_number) {
-    std::filesystem::copy_file(config_path, "/tmp/temp_config_2.yaml", std::filesystem::copy_options::overwrite_existing);
-    const std::string cmd = "python3 scripts/changepath.py /tmp/temp_config_2.yaml -r " + std::to_string(run_number);
+void replace_config_run_number(const std::string& config_path, int run_number, std::string random_suffix = "") {
+    std::filesystem::copy_file(config_path, "/tmp/temp_config" + random_suffix + "_2.yaml", std::filesystem::copy_options::overwrite_existing);
+    const std::string cmd = "python3 scripts/changepath.py /tmp/temp_config" + random_suffix + "_2.yaml -r " + std::to_string(run_number);
     const int rc = std::system(cmd.c_str());
     if (rc != 0) {
         LOG_ERROR("Failed to update run number via changepath.py. command={}, return_code={}", cmd, rc);
         throw std::runtime_error("Failed to update run number in temporary config");
     }
-    if (!std::filesystem::exists("/tmp/temp_config_2.yaml")) {
+    if (!std::filesystem::exists("/tmp/temp_config" + random_suffix + "_2.yaml")) {
         LOG_ERROR("Failed to create temporary config file with updated run numbers.");
         throw std::runtime_error("Temporary config file not found after run update");
     }
@@ -238,9 +239,10 @@ int main(int argc, char* argv[]) {
     run_numbers_str += "-";
     run_numbers_str += std::to_string(runNumbers.back());
     std::cout << "Run numbers to process: " << run_numbers_str << std::endl;
-    replace_config_run_numbers(argv[1], run_numbers_str);
-    replace_config_run_number("/tmp/temp_config.yaml", start_runNumber);
-    YAML::Node config = YAML::LoadFile("/tmp/temp_config_2.yaml");
+    std::string random_suffix = "_" + std::to_string(std::rand() % 10000);
+    replace_config_run_numbers(argv[1], run_numbers_str, random_suffix);
+    replace_config_run_number("/tmp/temp_config" + random_suffix + ".yaml", start_runNumber, random_suffix);
+    YAML::Node config = YAML::LoadFile("/tmp/temp_config" + random_suffix + "_2.yaml");
     RunContext ctx;
     ctx.config = parse_run_config(config);
     if (ctx.config.log_level == "debug" || ctx.config.log_level == "DEBUG") {
@@ -254,14 +256,15 @@ int main(int argc, char* argv[]) {
     } else {
         FAIR::init_logger("AHCALApp", ctx.config.log_file, spdlog::level::info);
     }
+    std::cout << "LOG is initialized. Log file: " << ctx.config.log_file << std::endl;
     LOG_INFO("RunConfig parsed successfully.");
     auto algs = build_pipeline(ctx, config);
     for (auto& alg : algs) {
         alg->initialize();
     }
     for (size_t i = 0; i < runNumbers.size(); ++i) {
-        replace_config_run_number("/tmp/temp_config.yaml", runNumbers[i]);
-        YAML::Node config = YAML::LoadFile("/tmp/temp_config_2.yaml");
+        replace_config_run_number("/tmp/temp_config" + random_suffix + ".yaml", runNumbers[i], random_suffix);
+        YAML::Node config = YAML::LoadFile("/tmp/temp_config" + random_suffix + "_2.yaml");
         ctx.config = parse_run_config(config);
         ctx.conditions = parse_condition_store(ctx.config.runNumber);
         LOG_INFO("Processing run number: {}", ctx.config.runNumber);
