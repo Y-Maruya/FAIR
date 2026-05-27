@@ -35,8 +35,27 @@ inline WriterRegistry parse_writer_registry(const YAML::Node& n) {
   const auto out = require_node(n, "outputlist");
   if (!out.IsSequence()) throw std::runtime_error("RootWriterAlg.cfg.outputlist must be a sequence");
 
+  std::unordered_set<std::string> keys;
+  bool has_key_filter = false;
+
   for (const auto& x : out) {
-    const auto type = x.as<std::string>();
+    std::string type;
+    
+    if (x.IsScalar()) {
+      // Old format: just type name
+      type = x.as<std::string>();
+    } else if (x.IsSequence()) {
+      // New format: [type, key] pair
+      auto arr = x.as<std::vector<std::string>>();
+      if (arr.size() != 2) {
+        throw std::runtime_error("outputlist [type, key] pair must have exactly 2 elements");
+      }
+      type = arr[0];
+      keys.insert(arr[1]); // Extract and collect key
+      has_key_filter = true;
+    } else {
+      throw std::runtime_error("outputlist entry must be a string or a [type, key] pair");
+    }
 
     if (auto fn = IOTypeRegistry::instance().get_writer(type)) {
       fn(reg);
@@ -47,6 +66,12 @@ inline WriterRegistry parse_writer_registry(const YAML::Node& n) {
     LOG_ERROR("IF YOU HAVE ADDED A NEW STRUCT, MAKE SURE TO REGISTER IT (e.g. in its EDM header).");
     throw std::runtime_error("Unknown writer type: " + type);
   }
+  
+  // If any [type, key] pairs were found, set the key whitelist
+  if (has_key_filter) {
+    reg.set_key_whitelist(keys);
+  }
+  
   return reg;
 }
 
@@ -107,11 +132,13 @@ inline std::unique_ptr<IAlg> make_alg(RunContext& ctx, const YAML::Node& alg_nod
 
     if (type == "RootWriterAlg") {
       LOG_INFO("Creating RootWriterAlg");
-      return std::make_unique<RootWriterAlg>(
+      auto alg = std::make_unique<RootWriterAlg>(
           ctx,
           "RootWriterAlg",
           ctx.config.output,
           parse_writer_registry(cfg));
+      alg->parse_cfg(cfg);
+      return alg;
     }
 
     try {

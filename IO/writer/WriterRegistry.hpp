@@ -3,6 +3,7 @@
 #include <any>
 #include <typeindex>
 #include <unordered_map>
+#include <unordered_set>
 #include <functional>
 #include <string>
 #include "IO/writer/RootOutput.hpp"
@@ -46,12 +47,33 @@ public:
         return m_writers.find(std::type_index(a.type())) != m_writers.end();
     }
 
+    bool is_key_enabled(const std::string& key) const {
+        // If whitelist is empty, all keys are enabled (backward compatible)
+        if (m_key_whitelist.empty()) {
+            return true;
+        }
+        return m_key_whitelist.find(key) != m_key_whitelist.end();
+    }
+
     void write_any(const std::string& key, const std::any& a, RootOutput& out) const {
-        m_writers.at(std::type_index(a.type()))(key, a, out);
+        if (is_key_enabled(key)) {
+            m_writers.at(std::type_index(a.type()))(key, a, out);
+        }
+    }
+
+    void set_key_whitelist(const std::unordered_set<std::string>& keys) {
+        m_key_whitelist = keys;
+        LOG_DEBUG("Set WriterRegistry key whitelist with {} keys", keys.size());
+    }
+
+    void clear_key_whitelist() {
+        m_key_whitelist.clear();
+        LOG_DEBUG("Cleared WriterRegistry key whitelist");
     }
 
 private:
     std::unordered_map<std::type_index, WriterFn> m_writers;
+    std::unordered_set<std::string> m_key_whitelist;
 };
 
 // inline WriterRegistry& global_registry() {
