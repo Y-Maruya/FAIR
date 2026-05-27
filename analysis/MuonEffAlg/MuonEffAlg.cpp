@@ -359,21 +359,23 @@ namespace AHCALRecoAlg{
                     }
                     bool is_in_track = false;
                     bool is_in_chip = false;
+
                     for (const auto& rh : rawhits) {
                         if (rh.layer() != i_layer) continue;
                         if (rh.hittag == 1) {
-                            double rh_x = AHCALGeometry::Pos_X(rh.channel(), rh.chip());
-                            double rh_y = AHCALGeometry::Pos_Y(rh.channel(), rh.chip());
                             if (rh.chip() == chip) {
                                 is_in_chip = true;
                             }
-                            if (abs(x-rh_x) <= cfg_.xy_size_threshold && abs(y-rh_y) <= cfg_.xy_size_threshold) {
-                                is_in_track = true;
-                                chip = rh.chip();
-                                channel = rh.channel();
-                                break;
-                            }
                         }
+                    }
+                    double rh_x = AHCALGeometry::Pos_X(channel, chip);
+                    double rh_y = AHCALGeometry::Pos_Y(channel, chip);
+                    if (abs(x-rh_x) <= cfg_.xy_size_threshold && abs(y-rh_y) <= cfg_.xy_size_threshold) {
+                        is_in_track = std::find_if(rawhits.begin(), rawhits.end(), [&](const AHCALRawHit& rh){
+                            return rh.layer() == i_layer && rh.chip() == chip && rh.channel() == channel && rh.hittag == 1;
+                        }) != rawhits.end();
+                        int cellid = i_layer*100000 + chip*10000 + channel;
+                        impl_->fill_channel(cellid, is_in_track);
                     }
                     if (i_layer ==21 && chip == 1 && is_in_chip ==false){
                         if (cfg_.write_to_txt && out_file_) {
@@ -381,7 +383,6 @@ namespace AHCALRecoAlg{
                         }
                     }
                     int cellid = i_layer*100000 + chip*10000 + channel;
-                    impl_->fill_channel(cellid, is_in_track);
                     impl_->fill_chip(cellid, is_in_chip);
                     if (std::find(cfg_.trigger_layer.begin(), cfg_.trigger_layer.end(), i_layer) != cfg_.trigger_layer.end()) {
                         int i_input = std::distance(cfg_.trigger_layer.begin(), std::find(cfg_.trigger_layer.begin(), cfg_.trigger_layer.end(), i_layer));
@@ -413,21 +414,21 @@ namespace AHCALRecoAlg{
                     for (const auto& rh : recohits) {
                         if (rh.layer() != i_layer) continue;
                         if (rh.Nmip > cfg_.MIP_cut) {
-                            double rh_x = AHCALGeometry::Pos_X(rh.channel(), rh.chip());
-                            double rh_y = AHCALGeometry::Pos_Y(rh.channel(), rh.chip());
                             if (rh.chip() == chip) {
                                 is_in_chip = true;
                             }
-                            if (abs(x-rh_x) <= cfg_.xy_size_threshold && abs(y-rh_y) <= cfg_.xy_size_threshold) {
-                                is_in_track = true;
-                                chip = rh.chip();
-                                channel = rh.channel();
-                                break;
-                            }
                         }
                     }
+                    double rh_x = AHCALGeometry::Pos_X(channel, chip);
+                    double rh_y = AHCALGeometry::Pos_Y(channel, chip);
+                    if (abs(x-rh_x) <= cfg_.xy_size_threshold && abs(y-rh_y) <= cfg_.xy_size_threshold) {
+                        is_in_track = std::find_if(recohits.begin(), recohits.end(), [&](const AHCALRecoHit& rh){
+                            return rh.layer() == i_layer && rh.chip() == chip && rh.channel() == channel && rh.Nmip > cfg_.MIP_cut;
+                        }) != recohits.end();
+                        int cellid = i_layer*100000 + chip*10000 + channel;
+                        impl_->fill_channel(cellid, is_in_track);
+                    }
                     int cellid = i_layer*100000 + chip*10000 + channel;
-                    impl_->fill_channel(cellid, is_in_track);
                     impl_->fill_chip(cellid, is_in_chip);
                 }
             }
@@ -461,21 +462,21 @@ namespace AHCALRecoAlg{
                     for (const auto& rh : rawhits) {
                         if (rh.layer() != i_layer) continue;
                         if (rh.hittag == 1) {
-                            double rh_x = AHCALGeometry::Pos_X(rh.channel(), rh.chip());
-                            double rh_y = AHCALGeometry::Pos_Y(rh.channel(), rh.chip());
                             if (rh.chip() == chip) {
                                 is_in_chip = true;
                             }
-                            if (abs(x-rh_x) <= cfg_.xy_size_threshold && abs(y-rh_y) <= cfg_.xy_size_threshold) {
-                                is_in_track = true;
-                                chip = rh.chip();
-                                channel = rh.channel();
-                                break;
-                            }
                         }
                     }
+                    double rh_x = AHCALGeometry::Pos_X(channel, chip);
+                    double rh_y = AHCALGeometry::Pos_Y(channel, chip);
+                    if (abs(x-rh_x) <= cfg_.xy_size_threshold && abs(y-rh_y) <= cfg_.xy_size_threshold) {
+                        is_in_track = std::find_if(rawhits.begin(), rawhits.end(), [&](const AHCALRawHit& rh){
+                            return rh.layer() == i_layer && rh.chip() == chip && rh.channel() == channel && rh.hittag == 1;
+                        }) != rawhits.end();
+                        int cellid = i_layer*100000 + chip*10000 + channel;
+                        impl_->fill_channel(cellid, is_in_track);
+                    }
                     int cellid = i_layer*100000 + chip*10000 + channel;
-                    impl_->fill_channel(cellid, is_in_track);
                     impl_->fill_chip(cellid, is_in_chip);
                     if (std::find(cfg_.trigger_layer.begin(), cfg_.trigger_layer.end(), i_layer) != cfg_.trigger_layer.end()) {
                         int i_input = std::distance(cfg_.trigger_layer.begin(), std::find(cfg_.trigger_layer.begin(), cfg_.trigger_layer.end(), i_layer));
@@ -507,21 +508,22 @@ namespace AHCALRecoAlg{
                     for (const auto& rh : recohits) {
                         if (rh.layer() != i_layer) continue;
                         if (rh.Nmip > cfg_.MIP_cut) {
-                            double rh_x = AHCALGeometry::Pos_X(rh.channel(), rh.chip());
-                            double rh_y = AHCALGeometry::Pos_Y(rh.channel(), rh.chip());
                             if (rh.chip() == chip) {
                                 is_in_chip = true;
                             }
-                            if (abs(x-rh_x) <= cfg_.xy_size_threshold && abs(y-rh_y) <= cfg_.xy_size_threshold) {
-                                is_in_track = true;
-                                chip = rh.chip();
-                                channel = rh.channel();
-                                break;
-                            }
                         }
                     }
+                    double rh_x = AHCALGeometry::Pos_X(channel, chip);
+                    double rh_y = AHCALGeometry::Pos_Y(channel, chip);
+                    if (abs(x-rh_x) <= cfg_.xy_size_threshold && abs(y-rh_y) <= cfg_.xy_size_threshold) {
+                        is_in_track = std::find_if(recohits.begin(), recohits.end(), [&](const AHCALRecoHit& rh){
+                            return rh.layer() == i_layer && rh.chip() == chip && rh.channel() == channel && rh.Nmip > cfg_.MIP_cut;
+                        }) != recohits.end();
+
+                        int cellid = i_layer*100000 + chip*10000 + channel;
+                        impl_->fill_channel(cellid, is_in_track);
+                    }
                     int cellid = i_layer*100000 + chip*10000 + channel;
-                    impl_->fill_channel(cellid, is_in_track);
                     impl_->fill_chip(cellid, is_in_chip);
                 }
             }
