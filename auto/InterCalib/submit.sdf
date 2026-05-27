@@ -1,12 +1,12 @@
 universe = vanilla
 
 executable = /eos/user/y/ymaruya/FASER/AHCAL/FAIR/auto/InterCalib/submit.sh
-arguments  = 21987 22500
+arguments  = 21987 23000
 
 output = /eos/user/y/ymaruya/FASER/AHCAL/FAIR/auto/InterCalib/condor_logs/intercalib.$(ClusterId).$(ProcId).out
 error  = /eos/user/y/ymaruya/FASER/AHCAL/FAIR/auto/InterCalib/condor_logs/intercalib.$(ClusterId).$(ProcId).err
 log    = /eos/user/y/ymaruya/FASER/AHCAL/FAIR/auto/InterCalib/condor_logs/intercalib.$(ClusterId).log
 
 +JobFlavour = "testmatch"
-request_memory = 24GB
+request_memory = 16GB
 queue

@@ -44,10 +44,7 @@ enum HGLGQualityFlag : uint32_t {
     GOOD                = 0,
     LOW_STAT            = 1 << 0,
     FIT_FAILED          = 1 << 1,
-    BAD_CORRELATION     = 1 << 2,
-    MANY_OUTLIERS       = 1 << 3,
-    BAD_SLOPE_LAYER_Z   = 1 << 4,
-    BAD_CHI2            = 1 << 5,
+    BAD_RMSPERSIGMA     = 1 << 2,
     PEDESTAL_MASKED     = 1 << 6,
     MANUAL_BAD          = 1 << 7,
     MANUAL_GOOD         = 1 << 8
@@ -79,8 +76,18 @@ struct HGLGCalibResult {
     int n_points_outlier = 0;
     double outlier_fraction = -1.0;
 
+    int n_fit_points = 0; // number of points used in the final fit after outlier removal
+    int n_fit_points_over500 = 0; // number of fit points with HG>500
+
     double correlation = -999.0;
 
+    double distance_avg = -1.0;
+    double distance_rms = -1.0;
+    double distance_sigma = -1.0;
+    std::vector<double> distances;  // Distance of each raw point to the fitted line in HG-LG space
+    
+    int n_points_HGLG_cluster = 0; // lg>50 & HG<1000 & HG<2*LG
+    
     double slope_median_layer = NAN;
     double slope_mad_layer = NAN;
     double slope_z_layer = -999.0;
@@ -117,6 +124,66 @@ struct FitOut {
 static inline double peakFromMaxBin(TH1D* h) {
   const int b = h->GetMaximumBin();
   return h->GetBinCenter(b);
+}
+
+static FitOut fitSimpleGaussian(TH1D* h, int minEntries, double sigmaMin, double sigmaMax) {
+    FitOut r;
+    if (!h) return r;
+    if (h->GetEntries() < minEntries) return r;
+
+    double mu0 = peakFromMaxBin(h);
+    double rms = h->GetRMS();
+    r.rms = rms;
+    r.avg = h->GetMean();
+    if (!(rms > 0.0)) rms = 10.0;
+
+    double sig0 = std::clamp(rms, sigmaMin, sigmaMax);
+
+    const std::string fname = std::string("f_") + h->GetName();
+    TF1 f(fname.c_str(), "gaus", h->GetXaxis()->GetXmin(), h->GetXaxis()->GetXmax());
+    f.SetParameters(h->GetMaximum(), mu0, sig0);
+    f.SetParLimits(2, sigmaMin, sigmaMax);
+
+    const int st = h->Fit(&f, "RQ0");
+    if (st != 0) {
+        r.mean = mu0;
+        r.sigma = sig0;
+        r.fitStatus = st;
+        r.ok = false;
+        r.chi2 = f.GetChisquare();
+        r.ndf = f.GetNDF();
+        return r;
+    }
+    r.mean = f.GetParameter(1);
+    r.sigma = std::fabs(f.GetParameter(2));
+    r.fitStatus = st;
+    r.ok = true;
+    r.chi2 = f.GetChisquare();
+    r.ndf = f.GetNDF();
+    double sig3_upper = f.GetParameter(1) + 3.0 * std::fabs(f.GetParameter(2));
+    double sig5_upper = f.GetParameter(1) + 5.0 * std::fabs(f.GetParameter(2));
+    double sig3_lower = f.GetParameter(1) - 3.0 * std::fabs(f.GetParameter(2));
+    double sig5_lower = f.GetParameter(1) - 5.0 * std::fabs(f.GetParameter(2));
+    int entries = static_cast<int>(h->GetEntries());
+    int tail_3sig = h->Integral(h->FindBin(sig3_upper), h->GetNbinsX()) + h->Integral(1, h->FindBin(sig3_lower));
+    int tail_5sig = h->Integral(h->FindBin(sig5_upper), h->GetNbinsX()) + h->Integral(1, h->FindBin(sig5_lower));
+    r.tail_3sig_fraction = (entries > 0) ? static_cast<double>(tail_3sig) / entries : -1.0;
+    r.tail_5sig_fraction = (entries > 0) ? static_cast<double>(tail_5sig) / entries : -1.0;
+    r.asymmetry = (h->Integral(h->FindBin(f.GetParameter(1)), h->GetNbinsX()) - h->Integral(1, h->FindBin(f.GetParameter(1)))) / (entries > 0 ? static_cast<double>(entries) : 1.0);
+    r.deviation_squared_sum =  0.0;
+    r.deviation_squared_sum_fourth = 0.0;
+    for (int b = 1; b <= h->GetNbinsX(); ++b) {
+        double x = h->GetBinCenter(b);
+        double dev = (f.GetParameter(2) > 0.0 ? (x - f.GetParameter(1)) : -1.0);
+        dev *= h->GetBinContent(b);
+        if (dev > 0) {
+            r.deviation_squared_sum += dev * dev;
+            r.deviation_squared_sum_fourth += dev * dev * dev * dev;
+        }
+    }
+    r.deviation_squared_sum = (entries > 0) ? r.deviation_squared_sum / entries : -1.0;
+    r.deviation_squared_sum_fourth = (entries > 0) ? r.deviation_squared_sum_fourth / entries : -1.0;
+    return r;
 }
 
 static FitOut fitPedestalGaussian(TH1D* h,
@@ -207,14 +274,6 @@ static FitOut fitPedestalGaussian(TH1D* h,
   return r;
 }
 
-// Accumulation data for linear regression
-struct Acc {
-    // Store points for HG-binned profile fit:
-    // fit LG = c*HG + d with sigma from RMS(LG) in each HG bin.
-    std::vector<std::pair<double, double>> points_hg_lg; // (HG, LG)
-    long long n  = 0;
-};
-
 // Linear fit result (HG = p0 + p1*LG)
 struct FitResult {
     double p0 = -999.0;
@@ -224,6 +283,8 @@ struct FitResult {
     double chi2_ndf = -1.0;
     int status = 999;
     bool ok = false;
+    int n_fit_points = 0;
+    int n_fit_points_over500 = 0;
 };
 
 struct ProfilePoint {
@@ -232,13 +293,59 @@ struct ProfilePoint {
     double lg_err = 0.0;
 };
 
-static std::vector<ProfilePoint> buildHGProfilePoints(const Acc& a, double hgBinWidth) {
+// Extract ProfilePoints from TH2D histogram
+static std::vector<ProfilePoint> buildHGProfilePointsFromHist(const TH2D* hist, double hgBinWidth, int min_hg_bins_for_fit = 8) {
     std::vector<ProfilePoint> pts;
-    if (a.points_hg_lg.empty() || hgBinWidth <= 0.0) return pts;
+    if (!hist || hgBinWidth <= 0.0) return pts;
+    
+    struct BinStats { 
+        int n = 0; 
+        double sum_lg = 0.0; 
+        double sum_lg2 = 0.0; 
+        double sum_hg = 0.0; 
+    };
+    std::unordered_map<int, BinStats> bins;
+    
+    // Iterate through all histogram bins
+    for (int iy = 1; iy <= hist->GetNbinsY(); ++iy) {
+        double hg_center = hist->GetYaxis()->GetBinCenter(iy);
+        for (int ix = 1; ix <= hist->GetNbinsX(); ++ix) {
+            double content = hist->GetBinContent(ix, iy);
+            if (content <= 0) continue;
+            
+            double lg_center = hist->GetXaxis()->GetBinCenter(ix);
+            const int ibin = static_cast<int>(std::floor(hg_center / hgBinWidth));
+            auto& b = bins[ibin];
+            
+            // Each bin count acts as weight
+            for (int k = 0; k < static_cast<int>(content); ++k) {
+                b.n++;
+                b.sum_hg += hg_center;
+                b.sum_lg += lg_center;
+                b.sum_lg2 += lg_center * lg_center;
+            }
+        }
+    }
+    
+    pts.reserve(bins.size());
+    for (const auto& [_, b] : bins) {
+        if (b.n < min_hg_bins_for_fit) continue;
+        const double mean_hg = b.sum_hg / b.n;
+        const double mean_lg = b.sum_lg / b.n;
+        const double var_lg = std::max(0.0, b.sum_lg2 / b.n - mean_lg * mean_lg);
+        pts.push_back(ProfilePoint{mean_hg, mean_lg, std::max(std::sqrt(var_lg), 1.0)});
+    }
+    std::sort(pts.begin(), pts.end(), [](const ProfilePoint& l, const ProfilePoint& r) { return l.hg < r.hg; });
+    return pts;
+}
+
+static std::vector<ProfilePoint> buildHGProfilePoints(const std::vector<std::pair<double, double>>& points_hg_lg, double hgBinWidth, int min_hg_bins_for_fit = 8) {
+    std::vector<ProfilePoint> pts;
+    if (points_hg_lg.empty() || hgBinWidth <= 0.0) return pts;
     struct BinStats { int n = 0; double sum_lg = 0.0; double sum_lg2 = 0.0; double sum_hg = 0.0; };
     std::unordered_map<int, BinStats> bins;
-    bins.reserve(a.points_hg_lg.size() / 8 + 1);
-    for (const auto& p : a.points_hg_lg) {
+    bins.reserve(points_hg_lg.size() / 8 + 1);
+    for (const auto& p : points_hg_lg) {
         const int ibin = static_cast<int>(std::floor(p.first / hgBinWidth));
         auto& b = bins[ibin];
         b.n++;
@@ -248,7 +355,7 @@ static std::vector<ProfilePoint> buildHGProfilePoints(const Acc& a, double hgBin
     }
     pts.reserve(bins.size());
     for (const auto& [_, b] : bins) {
-        if (b.n < 3) continue;
+        if (b.n < min_hg_bins_for_fit) continue;
         const double mean_hg = b.sum_hg / b.n;
         const double mean_lg = b.sum_lg / b.n;
         const double var_lg = std::max(0.0, b.sum_lg2 / b.n - mean_lg * mean_lg);
@@ -272,11 +379,17 @@ static void drawLayerLabel(int layer, double x=0.10, double y=0.92) {
     l.DrawLatex(x, y, Form("L%d", layer));
 }
 
-static FitResult fitLinearFromHGBinnedProfile(const Acc& a, int minPoints, double hgBinWidth, int minBins) {
+static FitResult fitLinearFromHGBinnedProfile(const std::vector<std::pair<double, double>>& points_hg_lg, long long n, int minPoints, double hgBinWidth, int minBins, int min_hg_bins_for_fit = 8) {
     FitResult r;
-    if (a.n < minPoints || a.points_hg_lg.empty() || hgBinWidth <= 0.0) return r;
+    r.n_fit_points = 0;
+    r.n_fit_points_over500 = 0;
+    for (const auto& p : points_hg_lg) {
+        r.n_fit_points++;
+        if (p.first > 500.0) r.n_fit_points_over500++;
+    }
+    if (n < minPoints || points_hg_lg.empty() || hgBinWidth <= 0.0) return r;
 
-    const auto profile_pts = buildHGProfilePoints(a, hgBinWidth);
+    const auto profile_pts = buildHGProfilePoints(points_hg_lg, hgBinWidth, min_hg_bins_for_fit);
     if (static_cast<int>(profile_pts.size()) < minBins) return r;
 
     // Weighted fit of LG = c*HG + d
@@ -326,6 +439,61 @@ static FitResult fitLinearFromHGBinnedProfile(const Acc& a, int minPoints, doubl
     return r;
 }
 
+static FitResult fitLinearFromHGBinnedProfile(const TH2D* hist, int minPoints, double hgBinWidth, int minBins, int min_hg_bins_for_fit = 8) {
+    FitResult r;
+    if (!hist || hgBinWidth <= 0.0) return r;
+    
+    long long total_entries = static_cast<long long>(hist->GetEntries());
+    if (total_entries < minPoints) return r;
+    
+    const auto profile_pts = buildHGProfilePointsFromHist(hist, hgBinWidth, min_hg_bins_for_fit);
+    if (static_cast<int>(profile_pts.size()) < minBins) return r;
+
+    // Same weighted fit logic as before
+    double S = 0.0, SX = 0.0, SY = 0.0, SXX = 0.0, SXY = 0.0;
+    int used_bins = 0;
+    for (const auto& p : profile_pts) {
+        const double mean_hg = p.hg;
+        const double mean_lg = p.lg;
+        const double sigma_eff = p.lg_err;
+        const double w = 1.0 / (sigma_eff * sigma_eff);
+        S += w;
+        SX += w * mean_hg;
+        SY += w * mean_lg;
+        SXX += w * mean_hg * mean_hg;
+        SXY += w * mean_hg * mean_lg;
+        used_bins++;
+    }
+    if (used_bins < minBins) return r;
+    const double denom = S * SXX - SX * SX;
+    if (denom <= 0.0) {
+        r.status = 1;
+        return r;
+    }
+    const double c = (S * SXY - SX * SY) / denom;
+    const double d = (SY * SXX - SX * SXY) / denom;
+    if (std::abs(c) < 1e-9) {
+        r.status = 2;
+        return r;
+    }
+    r.p1 = 1.0 / c;
+    r.p0 = -d / c;
+    r.ndf = used_bins - 2;
+    if (r.ndf <= 0) return r;
+    r.chi2 = 0.0;
+    for (const auto& p : profile_pts) {
+        const double mean_hg = p.hg;
+        const double mean_lg = p.lg;
+        const double sigma_lg = p.lg_err;
+        const double resid = mean_lg - (c * mean_hg + d);
+        r.chi2 += (resid * resid) / (sigma_lg * sigma_lg);
+    }
+    r.chi2_ndf = r.chi2 / r.ndf;
+    r.status = 0;
+    r.ok = true;
+    return r;
+}
+
 static int countAndMarkOutliers(
     const std::vector<std::pair<double, double>>& raw_pts,
     double c, double d, double sigmaThr,
@@ -350,15 +518,15 @@ static int countAndMarkOutliers(
 }
 
 static FitResult fitLinearFromHGBinnedProfileRejectOutliers(
-    const Acc& a, int minPoints, double hgBinWidth, int minBins, double sigmaThr, int& n_outlier_points) {
+    const std::vector<std::pair<double, double>>& points_hg_lg, long long n, int minPoints, double hgBinWidth, int minBins, double sigmaThr, int& n_outlier_points, int min_hg_bins_for_fit = 8) {
     n_outlier_points = 0;
     FitResult r;
-    if (a.n < minPoints || a.points_hg_lg.empty() || hgBinWidth <= 0.0) return r;
-    const auto profile_pts = buildHGProfilePoints(a, hgBinWidth);
+    if (n < minPoints || points_hg_lg.empty() || hgBinWidth <= 0.0) return r;
+    const auto profile_pts = buildHGProfilePoints(points_hg_lg, hgBinWidth, min_hg_bins_for_fit);
     if (static_cast<int>(profile_pts.size()) < minBins) return r;
 
     // First pass
-    auto first = fitLinearFromHGBinnedProfile(a, minPoints, hgBinWidth, minBins);
+    auto first = fitLinearFromHGBinnedProfile(points_hg_lg, n, minPoints, hgBinWidth, minBins, min_hg_bins_for_fit);
     if (!first.ok) return first;
     const double c1 = 1.0 / first.p1;
     const double d1 = -first.p0 / first.p1;
@@ -368,18 +536,21 @@ static FitResult fitLinearFromHGBinnedProfileRejectOutliers(
         sigma_by_bin[static_cast<int>(std::floor(p.hg / hgBinWidth))] = p.lg_err;
     }
     std::vector<bool> is_outlier;
-    n_outlier_points = countAndMarkOutliers(a.points_hg_lg, c1, d1, sigmaThr, sigma_by_bin, hgBinWidth, is_outlier);
+    n_outlier_points = countAndMarkOutliers(points_hg_lg, c1, d1, sigmaThr, sigma_by_bin, hgBinWidth, is_outlier);
     if (n_outlier_points == 0) return first;
 
-    Acc inlier_acc;
-    inlier_acc.points_hg_lg.reserve(a.points_hg_lg.size());
-    for (size_t i = 0; i < a.points_hg_lg.size(); ++i) {
+    std::vector<std::pair<double, double>> inlier_points;
+    inlier_points.reserve(points_hg_lg.size());
+    for (size_t i = 0; i < points_hg_lg.size(); ++i) {
         if (is_outlier[i]) continue;
-        inlier_acc.points_hg_lg.push_back(a.points_hg_lg[i]);
+        inlier_points.push_back(points_hg_lg[i]);
     }
-    inlier_acc.n = static_cast<long long>(inlier_acc.points_hg_lg.size());
-    if (inlier_acc.n < minPoints) return first;
-    return fitLinearFromHGBinnedProfile(inlier_acc, minPoints, hgBinWidth, minBins);
+    if (static_cast<long long>(inlier_points.size()) < minPoints) return first;
+    r.n_fit_points = static_cast<int>(inlier_points.size());
+    for (const auto& p : inlier_points) {
+        if (p.first > 500.0) r.n_fit_points_over500++;
+    }
+    return fitLinearFromHGBinnedProfile(inlier_points, static_cast<long long>(inlier_points.size()), minPoints, hgBinWidth, minBins, min_hg_bins_for_fit);
 }
 
 // Compute Pearson correlation coefficient between two vectors
@@ -464,8 +635,16 @@ struct InterCalibAlg::Impl {
         int n_outlier_points = 0;
         int n_hg_lt_2lg_aftercut = 0;
         int n_noise_points = 0;
+
+        int n_fit_points = 0;
+        int n_fit_points_over500 = 0;
         double hg_adc_saturation = 0.0;
         double lg_adc_saturation = 0.0;
+
+        double distance_avg = -1.0;
+        double distance_rms = -1.0;
+        double distance_sigma = -1.0;
+        std::vector<double> distances;  // Distance of each raw point to the fitted line in HG-LG space
         std::vector<double> residuals_lg;  // LG residuals for each raw point (measured - fitted)
         std::vector<double> residuals_hg;  // HG residuals for each raw point (measured - fitted)
     };
@@ -521,9 +700,19 @@ struct InterCalibAlg::Impl {
         ped_map_ = reader.getPedestalMap();
         LOG_INFO("InterCalibAlg: loaded {} pedestal entries from DB", ped_map_.size());
     }
+    std::unique_ptr<TH2D> createAccumHistogram(int layer, int chip, int channel) {
+        auto hist = std::make_unique<TH2D>(
+            Form("h_accum_L%02d_C%02d_ch%02d", layer, chip, channel),
+            Form("Accumulated L%d C%d ch%d; LG (ped-sub) [ADC]; HG (ped-sub) [ADC]",
+                 layer, chip, channel),
+            cfg_.accum_hist_x_nbins, cfg_.accum_hist_x_min, cfg_.accum_hist_x_max,
+            cfg_.accum_hist_y_nbins, cfg_.accum_hist_y_min, cfg_.accum_hist_y_max);
+        hist->SetDirectory(nullptr);
+        return hist;
+    }
     void fill(const AHCALRawHit& h) {
         int cellid = h.cellID;
-
+        if (cfg_.require_hittag && h.hittag != 1) return;
         // Find pedestal for this cell
         auto itp = ped_map_.find(cellid);
         if (itp == ped_map_.end()) {
@@ -537,6 +726,16 @@ struct InterCalibAlg::Impl {
 
         int hg = h.hg_adc;
         int lg = h.lg_adc;
+        if (hg_saturation_map_.find(cellid) == hg_saturation_map_.end()) {
+            hg_saturation_map_[cellid] = hg;
+        } else {
+            hg_saturation_map_[cellid] = std::max(static_cast<int>(hg_saturation_map_[cellid]), static_cast<int>(hg));
+        }
+        if (lg_saturation_map_.find(cellid) == lg_saturation_map_.end()) {
+            lg_saturation_map_[cellid] = lg;
+        } else {            
+            lg_saturation_map_[cellid] = std::max(static_cast<int>(lg_saturation_map_[cellid]), static_cast<int>(lg));
+        }
         // Pedestal subtraction
         double hg_sub = hg - itp->second.HighGainPeak;
         double lg_sub = lg - itp->second.LowGainPeak;
@@ -583,21 +782,35 @@ struct InterCalibAlg::Impl {
             it->second->Fill(lg_sub, hg_sub);
         }
 
-        // Accumulate all points for linear regression (cuts applied later during fit)
-        Acc& a = acc_[cellid];
-        a.points_hg_lg.emplace_back(hg_sub, lg_sub);
-        a.n++;
+        // Accumulate all points into TH2D histogram (cuts applied later during fit)
+        auto it = h_accum_.find(cellid);
+        if (it == h_accum_.end()) {
+            // Create histogram on first fill
+            int tmp_layer2, tmp_chip2, tmp_channel2;
+            AHCALGeometry::CellIDToLC(cellid, tmp_layer2, tmp_chip2, tmp_channel2);
+            auto hist = createAccumHistogram(tmp_layer2, tmp_chip2, tmp_channel2);
+            h_accum_[cellid] = std::move(hist);
+            it = h_accum_.find(cellid);
+        }
+        it->second->Fill(lg_sub, hg_sub);
 
         n_used_++;
     }
-    bool applyFitCut(const AHCALRawHit* h_ptr, double hg_sub, double lg_sub, int tmp_layer, int tmp_chip, int tmp_channel) {
+    bool applyFitCut(const AHCALRawHit* h_ptr, double hg_sub, double lg_sub, int tmp_layer, int tmp_chip, int tmp_channel, double hg_saturation) {
         // Apply cfg-based cuts that were deferred from fill()
         if (tmp_layer < 0 || tmp_chip < 0 || tmp_channel < 0) return false;
         if (hg_sub <= cfg_.hg_fit_min) return false;
         if (lg_sub <= cfg_.lg_fit_min) return false;
-        if (hg_sub > cfg_.hg_fit_max) return false;
-        if (cfg_.require_hittag && h_ptr && h_ptr->hittag != 1) return false;
+        if (cfg_.use_fit_max_saturation_minus_margin) {
+            double local_hg_fit_max = hg_saturation - cfg_.saturation_margin;
+            if (hg_sub > local_hg_fit_max) return false;
+        } else {
+            if (hg_sub > cfg_.hg_fit_max) return false;
+        }
         if (cfg_.require_yperx_over1 && hg_sub <= lg_sub) return false;
+        if (cfg_.remove_HGLG_outliers_before_fit) {
+            if (hg_sub < 1000 && lg_sub > 50 && hg_sub < 5.0 * lg_sub) return false;
+        }
         if (cfg_.use_specific_fit_range_toL39C8) {
             if (tmp_layer == 39 && tmp_chip == 8) {
                 if (hg_sub > cfg_.hg_fit_max_L39C8) return false;
@@ -611,14 +824,14 @@ struct InterCalibAlg::Impl {
         cache_built_ = true;
 
         ic_cache_.clear();
-        ic_cache_.reserve(acc_.size());
+        ic_cache_.reserve(h_accum_.size());
 
         n_fit_ok_ = 0;
         n_fit_all_ = 0;
         double min_p0 = 1e10, max_p0 = -1e10;
         double min_p1 = 1e10, max_p1 = -1e10;
 
-        for (const auto& [cid, a] : acc_) {
+        for (const auto& [cid, hist] : h_accum_) {
             CellInterCalibResult res;
             res.cellid = cid;
 
@@ -631,27 +844,49 @@ struct InterCalibAlg::Impl {
             res.x_mm = AHCALGeometry::Pos_X(tmp_channel, tmp_chip);
             res.y_mm = AHCALGeometry::Pos_Y(tmp_channel, tmp_chip);
 
-            double hg_saturation_adc_sub = max_element(a.points_hg_lg.begin(), a.points_hg_lg.end(), [](const std::pair<double, double>& p1, const std::pair<double, double>& p2) { return p1.first < p2.first; })->first;
-            double lg_saturation_adc_sub = max_element(a.points_hg_lg.begin(), a.points_hg_lg.end(), [](const std::pair<double, double>& p1, const std::pair<double, double>& p2) { return p1.second < p2.second; })->second;
-            res.hg_adc_saturation = hg_saturation_adc_sub + ped_map_[cid].HighGainPeak;
-            res.lg_adc_saturation = lg_saturation_adc_sub + ped_map_[cid].LowGainPeak;
-            // Apply fit cuts to create filtered accumulation
-            Acc filtered_a;
-            filtered_a.points_hg_lg.reserve(a.points_hg_lg.size());
-            for (const auto& p : a.points_hg_lg) {
-                if (applyFitCut(nullptr, p.first, p.second, tmp_layer, tmp_chip, tmp_channel)) {
-                    filtered_a.points_hg_lg.push_back(p);
+            // Recalculate saturation detection from histogram
+            res.hg_adc_saturation = hg_saturation_map_[cid];
+            res.lg_adc_saturation = lg_saturation_map_[cid];
+
+            // Calculate HGLG cluster points regardless of fit status
+            int n_hg_lt_2lg = 0;
+            int n_noise_points_calc = 0;
+
+            // Extract points from histogram with fit cuts applied
+            std::vector<std::pair<double, double>> filtered_points;
+            for (int iy = 1; iy <= hist->GetNbinsY(); ++iy) {
+                double hg_center = hist->GetYaxis()->GetBinCenter(iy);
+                for (int ix = 1; ix <= hist->GetNbinsX(); ++ix) {
+                    double content = hist->GetBinContent(ix, iy);
+                    if (content <= 0) continue;
+                    double lg_center = hist->GetXaxis()->GetBinCenter(ix);
+                    if (applyFitCut(nullptr, hg_center, lg_center, tmp_layer, tmp_chip, tmp_channel, res.hg_adc_saturation)) {
+                        // Add this point 'content' times (content is the bin count)
+                        for (int k = 0; k < static_cast<int>(content); ++k) {
+                            filtered_points.push_back({hg_center, lg_center});
+                            if (hg_center < 2.0 * lg_center) {
+                                n_hg_lt_2lg++;
+                            }
+                        }
+                    }
+                    if (hg_center < 1000 && lg_center > 50 && hg_center < 5.0 * lg_center) {
+                        n_noise_points_calc += static_cast<int>(content);
+                    }
                 }
             }
-            filtered_a.n = static_cast<long long>(filtered_a.points_hg_lg.size());
+
+            // Mark bad cells for JSON output if saturation detected
+            res.n_points = static_cast<long long>(filtered_points.size());
             
-            res.n_points = filtered_a.n;
-            if (filtered_a.n >= cfg_.min_points) {
+            res.n_hg_lt_2lg_aftercut = n_hg_lt_2lg;
+            res.n_noise_points = n_noise_points_calc;
+            
+            if (res.n_points >= cfg_.min_points) {
                 n_fit_all_++;
                 int n_outlier_points = 0;
 
                 FitResult fr = fitLinearFromHGBinnedProfileRejectOutliers(
-                    filtered_a, cfg_.min_points, cfg_.hg_bin_width, cfg_.min_hg_bins_for_fit, cfg_.outlier_sigma_threshold, n_outlier_points);
+                    filtered_points, res.n_points, cfg_.min_points, cfg_.hg_bin_width, cfg_.min_hg_bins_for_fit, cfg_.outlier_sigma_threshold, n_outlier_points, cfg_.min_hg_bins_for_fit);
                 res.p0 = fr.p0;
                 res.p1 = fr.p1;
                 res.chi2 = fr.chi2;
@@ -660,12 +895,8 @@ struct InterCalibAlg::Impl {
                 res.fit_status = fr.status;
                 res.fit_ok = fr.ok;
                 res.n_outlier_points = n_outlier_points;
-                int n_hg_lt_2lg_aftercut = std::count_if(filtered_a.points_hg_lg.begin(), filtered_a.points_hg_lg.end(),
-                    [](const std::pair<double, double>& p) { return p.first < 2.0 * p.second; });
-                int n_noise_points = std::count_if(filtered_a.points_hg_lg.begin(), filtered_a.points_hg_lg.end(),
-                    [](const std::pair<double, double>& p) { return p.first < 1000 && p.second > 50 && p.first < 2.0 * p.second; });
-                res.n_hg_lt_2lg_aftercut = n_hg_lt_2lg_aftercut;
-                res.n_noise_points = n_noise_points;
+                res.n_fit_points = fr.n_fit_points;
+                res.n_fit_points_over500 = fr.n_fit_points_over500;
                 if (fr.ok) {
                     n_fit_ok_++;
                     min_p0 = std::min(min_p0, fr.p0);
@@ -674,14 +905,33 @@ struct InterCalibAlg::Impl {
                     max_p1 = std::max(max_p1, fr.p1);
                 }
 
+                res.distance_avg = -1.0;
+                res.distance_rms = -1.0;
+                if (fr.ok) {
+                    std::vector<double> distances;
+                    distances.reserve(filtered_points.size());
+                    for (const auto& p : filtered_points) {
+                        const double hg_val = p.first;
+                        const double lg_val = p.second;
+                        // Distance from point to line in HG-LG space: |c*HG - LG + d| / sqrt(c^2 + 1), where c=1/p1 and d=-p0/p1
+                        const double c = 1.0 / fr.p1;
+                        const double d = -fr.p0 / fr.p1;
+                        const double dist = (c * hg_val - lg_val + d) / std::sqrt(c * c + 1.0);
+                        distances.push_back(dist);
+                    }
+                    res.distance_avg = std::accumulate(distances.begin(), distances.end(), 0.0) / distances.size();
+                    double sq_sum = std::inner_product(distances.begin(), distances.end(), distances.begin(), 0.0);
+                    res.distance_rms = std::sqrt(sq_sum / distances.size());
+                    res.distances = std::move(distances);
+                }
                 // Calculate residuals if fit is ok and save_residual_histograms is enabled
                 if (fr.ok && cfg_.save_residual_histograms) {
                     // Convert fit result: HG = p0 + p1*LG -> LG = (HG - p0) / p1
                     const double p1_inv = 1.0 / fr.p1;  // This is equivalent to c in the fit equation
                     const double p0_neg_p1_inv = -fr.p0 / fr.p1;  // This is equivalent to d
-                    res.residuals_lg.reserve(filtered_a.points_hg_lg.size());
-                    res.residuals_hg.reserve(filtered_a.points_hg_lg.size());
-                    for (const auto& p : filtered_a.points_hg_lg) {
+                    res.residuals_lg.reserve(filtered_points.size());
+                    res.residuals_hg.reserve(filtered_points.size());
+                    for (const auto& p : filtered_points) {
                         const double hg_val = p.first;
                         const double lg_val = p.second;
                         const double lg_fitted = p1_inv * hg_val + p0_neg_p1_inv;  // fitted LG = c*HG + d
@@ -736,24 +986,38 @@ struct InterCalibAlg::Impl {
             qr.n_points_total = res.n_points;
             qr.n_points_used = res.n_points - res.n_outlier_points;
             qr.n_points_outlier = res.n_outlier_points;
-
+            qr.n_points_HGLG_cluster = res.n_noise_points;
             if (res.n_points > 0) {
                 qr.outlier_fraction = static_cast<double>(res.n_outlier_points) / res.n_points;
             }
 
-            // Compute correlation coefficient from accumulated points
-            auto acc_it = acc_.find(cid);
-            if (acc_it != acc_.end() && !acc_it->second.points_hg_lg.empty()) {
+            qr.n_fit_points = res.n_fit_points;
+            qr.n_fit_points_over500 = res.n_fit_points_over500;
+
+            qr.distance_avg = res.distance_avg;
+            qr.distance_rms = res.distance_rms;
+            qr.distances = res.distances;
+            if (qr.distances.size() == 0) {
+                LOG_WARN("InterCalibAlg: cellid {} has zero distances calculated, check fit and point extraction logic", cid);
+            }
+            // Compute correlation coefficient from accumulated histogram
+            auto hist_it = h_accum_.find(cid);
+            if (hist_it != h_accum_.end()) {
                 std::vector<double> hg_vals, lg_vals;
-                hg_vals.reserve(acc_it->second.points_hg_lg.size());
-                lg_vals.reserve(acc_it->second.points_hg_lg.size());
-                for (const auto& p : acc_it->second.points_hg_lg) {
-                    hg_vals.push_back(p.first);  // HG_sub
-                    lg_vals.push_back(p.second); // LG_sub
+                for (int iy = 1; iy <= hist_it->second->GetNbinsY(); ++iy) {
+                    double hg_center = hist_it->second->GetYaxis()->GetBinCenter(iy);
+                    for (int ix = 1; ix <= hist_it->second->GetNbinsX(); ++ix) {
+                        double content = hist_it->second->GetBinContent(ix, iy);
+                        if (content <= 0) continue;
+                        double lg_center = hist_it->second->GetXaxis()->GetBinCenter(ix);
+                        for (int k = 0; k < static_cast<int>(content); ++k) {
+                            hg_vals.push_back(hg_center);
+                            lg_vals.push_back(lg_center);
+                        }
+                    }
                 }
                 qr.correlation = computeCorrelation(hg_vals, lg_vals);
             }
-
             quality_results_.push_back(std::move(qr));
         }
     }
@@ -810,36 +1074,46 @@ struct InterCalibAlg::Impl {
             if (qr.fit_status != 0 || !std::isfinite(qr.slope)) {
                 qr.quality_flag |= FIT_FAILED;
             }
-
-            if (qr.correlation < cfg_.quality_bad_correlation_threshold && qr.correlation > -999.0) {
-                qr.quality_flag |= BAD_CORRELATION;
+            if (qr.distance_rms / qr.distance_sigma > cfg_.quality_bad_rms_persigma_threshold) {
+                qr.quality_flag |= BAD_RMSPERSIGMA;
             }
-
-            if (qr.outlier_fraction > cfg_.quality_outlier_fraction_threshold) {
-                qr.quality_flag |= MANY_OUTLIERS;
-            }
-
-            if (std::abs(qr.slope_z_layer) > cfg_.quality_slope_layer_z_threshold) {
-                qr.quality_flag |= BAD_SLOPE_LAYER_Z;
-            }
-
-            if (qr.chi2_ndf > cfg_.quality_chi2_ndf_threshold) {
-                qr.quality_flag |= BAD_CHI2;
-            }
-
             // Determine is_hglg_calib_bad based on flags
             if ((qr.quality_flag & LOW_STAT) ||
                 (qr.quality_flag & FIT_FAILED) ||
-                (qr.quality_flag & BAD_CORRELATION) ||
-                (qr.quality_flag & MANY_OUTLIERS) ||
-                (qr.quality_flag & BAD_SLOPE_LAYER_Z) ||
-                (qr.quality_flag & BAD_CHI2)) {
+                (qr.quality_flag & BAD_RMSPERSIGMA)) {
                 qr.is_hglg_calib_bad = true;
             }
 
             // Determine is_physics_mask_candidate: only if pedestal-masked or manually marked bad
             qr.is_physics_mask_candidate = qr.is_pedestal_masked || qr.manual_bad;
         }
+    }
+    void assignQualityFlags_one(HGLGCalibResult& qr) {
+        qr.quality_flag = GOOD;
+
+        if (qr.is_pedestal_masked) {
+            qr.quality_flag |= PEDESTAL_MASKED;
+        }
+
+        if (qr.n_points_used < cfg_.quality_minimum_points) {
+            qr.quality_flag |= LOW_STAT;
+        }
+
+        if (qr.fit_status != 0 || !std::isfinite(qr.slope)) {
+            qr.quality_flag |= FIT_FAILED;
+        }
+        if (qr.distance_rms / qr.distance_sigma > cfg_.quality_bad_rms_persigma_threshold) {
+            qr.quality_flag |= BAD_RMSPERSIGMA;
+        }
+        // Determine is_hglg_calib_bad based on flags
+        if ((qr.quality_flag & LOW_STAT) ||
+            (qr.quality_flag & FIT_FAILED) ||
+            (qr.quality_flag & BAD_RMSPERSIGMA)) {
+            qr.is_hglg_calib_bad = true;
+        }
+
+        // Determine is_physics_mask_candidate: only if pedestal-masked or manually marked bad
+        qr.is_physics_mask_candidate = qr.is_pedestal_masked || qr.manual_bad;
     }
 
     void writeQualityTree() {
@@ -850,7 +1124,7 @@ struct InterCalibAlg::Impl {
             LOG_ERROR("InterCalibAlg: cannot open quality output file: {}", cfg_.quality_out_filename);
             return;
         }
-
+    
         TTree tree("HGLGCalibQuality", "HG:LG Calibration Quality Metrics");
 
         // Temporary variables for branches
@@ -862,10 +1136,20 @@ struct InterCalibAlg::Impl {
         int n_points_total, n_points_used, n_points_outlier;
         double outlier_fraction;
         double correlation;
+        int n_points_HGLG_cluster = 0;
+        double distance_avg, distance_rms, distance_sigma;
+        double distance_asymmetry;
+        double distance_deviation_squared_sum;
+        double distance_deviation_squared_sum_fourth;
+        double distance_3sig_tail_fraction;
+        double distance_5sig_tail_fraction;
         double slope_median_layer, slope_mad_layer, slope_z_layer;
         uint32_t quality_flag;
         int is_pedestal_masked, is_hglg_calib_bad, is_physics_mask_candidate;
         int manual_bad, manual_good;
+
+        int n_fit_points, n_fit_points_over500;
+
 
         tree.Branch("run", &run, "run/I");
         tree.Branch("layer", &layer, "layer/I");
@@ -890,6 +1174,20 @@ struct InterCalibAlg::Impl {
         tree.Branch("n_points_used", &n_points_used, "n_points_used/I");
         tree.Branch("n_points_outlier", &n_points_outlier, "n_points_outlier/I");
         tree.Branch("outlier_fraction", &outlier_fraction, "outlier_fraction/D");
+        tree.Branch("n_points_HGLG_cluster", &n_points_HGLG_cluster, "n_points_HGLG_cluster/I");
+
+        tree.Branch("n_fit_points", &n_fit_points, "n_fit_points/I");
+        tree.Branch("n_fit_points_over500", &n_fit_points_over500, "n_fit_points_over500/I");
+        
+        tree.Branch("distance_avg", &distance_avg, "distance_avg/D");
+        tree.Branch("distance_rms", &distance_rms, "distance_rms/D");
+
+        tree.Branch("distance_sigma", &distance_sigma, "distance_sigma/D");
+        tree.Branch("distance_asymmetry", &distance_asymmetry, "distance_asymmetry/D");
+        tree.Branch("distance_deviation_squared_sum", &distance_deviation_squared_sum, "distance_deviation_squared_sum/D");
+        tree.Branch("distance_deviation_squared_sum_fourth", &distance_deviation_squared_sum_fourth, "distance_deviation_squared_sum_fourth/D");
+        tree.Branch("distance_3sig_tail_fraction", &distance_3sig_tail_fraction, "distance_3sig_tail_fraction/D");
+        tree.Branch("distance_5sig_tail_fraction", &distance_5sig_tail_fraction, "distance_5sig_tail_fraction/D");
 
         tree.Branch("correlation", &correlation, "correlation/D");
 
@@ -904,6 +1202,15 @@ struct InterCalibAlg::Impl {
         tree.Branch("is_physics_mask_candidate", &is_physics_mask_candidate, "is_physics_mask_candidate/I");
         tree.Branch("manual_bad", &manual_bad, "manual_bad/I");
         tree.Branch("manual_good", &manual_good, "manual_good/I");
+        if (cfg_.quality_output_distance_histograms) {
+            fout->mkdir("DistanceHistograms");
+            fout->cd("DistanceHistograms");
+            for (int i= 0; i <AHCALGeometry::Layer_No; ++i) {
+                for (int j = 0; j < AHCALGeometry::chip_No; ++j) {
+                    fout->mkdir(Form("L%02d_C%02d", i, j));
+                }
+            }
+        }
 
         for (const auto& qr : quality_results_) {
             run = qr.run;
@@ -930,12 +1237,51 @@ struct InterCalibAlg::Impl {
             n_points_outlier = qr.n_points_outlier;
             outlier_fraction = qr.outlier_fraction;
 
+            n_points_HGLG_cluster = qr.n_points_HGLG_cluster;
+            n_fit_points = qr.n_fit_points;
+            n_fit_points_over500 = qr.n_fit_points_over500;
+
+            distance_avg = qr.distance_avg;
+            distance_rms = qr.distance_rms;
+            // distance_sigma = qr.distance_sigma;
+            if (qr.distances.empty()) {
+                distance_sigma = -1.0;
+                distance_asymmetry = -1.0;
+                distance_deviation_squared_sum = -1.0;
+                distance_deviation_squared_sum_fourth = -1.0;
+                distance_3sig_tail_fraction = -1.0;
+                distance_5sig_tail_fraction = -1.0;
+            } 
+            if (cfg_.quality_output_distance_histograms && !qr.distances.empty()) {
+                std::unique_ptr<TH1D> h_distances = std::make_unique<TH1D>(
+                    Form("h_distance_L%02d_C%02d_ch%02d", qr.layer, qr.chip, qr.channel),
+                    Form("Distance of points to fit line for L%d C%d ch%d; Distance [ADC]; Entries",
+                         qr.layer, qr.chip, qr.channel),
+                    40, -10*distance_rms, 10 * distance_rms);
+                for (double d : qr.distances) {
+                    h_distances->Fill(d);
+                }
+                h_distances->SetDirectory(nullptr);
+                fout->cd("DistanceHistograms");
+                fout->cd(Form("L%02d_C%02d", qr.layer, qr.chip));
+                h_distances->Write(Form("h_distance_L%02d_C%02d_ch%02d", qr.layer, qr.chip, qr.channel));
+                FitOut fo = fitSimpleGaussian(h_distances.get(),200, 2, 5 * distance_rms);
+                distance_sigma = fo.sigma;
+                distance_asymmetry = fo.asymmetry;
+                distance_deviation_squared_sum = fo.deviation_squared_sum;
+                distance_deviation_squared_sum_fourth = fo.deviation_squared_sum_fourth;
+                distance_3sig_tail_fraction = fo.tail_3sig_fraction;
+                distance_5sig_tail_fraction = fo.tail_5sig_fraction;
+            }
+            
+
             correlation = qr.correlation;
+
 
             slope_median_layer = qr.slope_median_layer;
             slope_mad_layer = qr.slope_mad_layer;
             slope_z_layer = qr.slope_z_layer;
-
+            assignQualityFlags_one(const_cast<HGLGCalibResult&>(qr));  // Update flags based on criteria
             quality_flag = qr.quality_flag;
 
             is_pedestal_masked = qr.is_pedestal_masked ? 1 : 0;
@@ -1147,9 +1493,9 @@ struct InterCalibAlg::Impl {
                     fit_results_example[i].chi2 = res.chi2;
                     fit_results_example[i].ndf = res.ndf;
                     fit_results_example[i].chi2_ndf = res.chi2_ndf;
-                    auto itacc = acc_.find(res.cellid);
-                    if (itacc != acc_.end()) {
-                        const auto prof_pts = buildHGProfilePoints(itacc->second, cfg_.hg_bin_width);
+                    auto ithist = h_accum_.find(res.cellid);
+                    if (ithist != h_accum_.end()) {
+                        const auto prof_pts = buildHGProfilePointsFromHist(ithist->second.get(), cfg_.hg_bin_width);
                         if (!prof_pts.empty()) {
                             auto g = std::make_unique<TGraphErrors>(static_cast<int>(prof_pts.size()));
                             int layer_tmp, chip_tmp, ch_tmp;
@@ -1337,6 +1683,18 @@ struct InterCalibAlg::Impl {
             }
         }
         
+        // Save accumulated histograms if requested
+        if (cfg_.save_accumulated_histograms && !h_accum_.empty()) {
+            TDirectory* accum_dir = ensureDir(fout.get(), "AccumulatedHistograms");
+            if (accum_dir) {
+                accum_dir->cd();
+                for (auto& [cellid, hist] : h_accum_) {
+                    if (hist) hist->Write();
+                }
+                fout->cd();
+            }
+        }
+        
         tIC.Write();
 
         if (dCan) {
@@ -1511,10 +1869,10 @@ struct InterCalibAlg::Impl {
     double intercept_max_ = 500.0;
 
     std::unordered_map<int, CalibDBIO::Pedestal> ped_map_;
-    std::unordered_map<int, Acc> acc_;
+    std::unordered_map<int, std::unique_ptr<TH2D>> h_accum_;  // cellid -> accumulated 2D histogram
     std::unordered_map<int, CellInterCalibResult> ic_cache_;
-    std::unordered_map<int, double> hg_saturation_map_; // cellid -> saturation level in HG
-    std::unordered_map<int, double> lg_saturation_map_; // cellid -> saturation level in LG 
+    std::unordered_map<int, int> hg_saturation_map_; // cellid -> saturation level in HG
+    std::unordered_map<int, int> lg_saturation_map_; // cellid -> saturation level in LG 
     std::vector<std::unique_ptr<TH2D>> h_example_;
     std::vector<std::unique_ptr<TLine>> example_fit_lines_;
     std::vector<std::tuple<int, int, int>> bad_fit_cells_;
@@ -1611,6 +1969,11 @@ void InterCalibAlg::parse_cfg(const YAML::Node& n) {
     cfg_.out_json_dirname = get_or<std::string>(n, "out_json_dirname", cfg_.out_json_dirname);
 
     cfg_.hg_fit_max = get_or<double>(n, "hg_fit_max", cfg_.hg_fit_max);
+    cfg_.use_fit_max_saturation_minus_margin = get_or<bool>(n, "use_fit_max_saturation_minus_margin", cfg_.use_fit_max_saturation_minus_margin);
+    if (cfg_.use_fit_max_saturation_minus_margin) {
+        LOG_INFO("InterCalibAlg: use_fit_max_saturation_minus_margin is enabled - will set hg_fit_max to (saturation level - margin) for each channel");
+        cfg_.saturation_margin = get_or<double>(n, "saturation_margin", cfg_.saturation_margin);
+    }
     // cfg_.lg_fit_max = get_or<double>(n, "lg_fit_max", cfg_.lg_fit_max);
     cfg_.hg_fit_min = get_or<double>(n, "hg_fit_min", cfg_.hg_fit_min);
     cfg_.lg_fit_min = get_or<double>(n, "lg_fit_min", cfg_.lg_fit_min);
@@ -1642,13 +2005,15 @@ void InterCalibAlg::parse_cfg(const YAML::Node& n) {
     // Quality metrics and TTree output
     cfg_.compute_quality_metrics = get_or<bool>(n, "compute_quality_metrics", cfg_.compute_quality_metrics);
     cfg_.quality_minimum_points = get_or<int>(n, "quality_minimum_points", cfg_.quality_minimum_points);
-    cfg_.quality_bad_correlation_threshold = get_or<double>(n, "quality_bad_correlation_threshold", cfg_.quality_bad_correlation_threshold);
-    cfg_.quality_outlier_fraction_threshold = get_or<double>(n, "quality_outlier_fraction_threshold", cfg_.quality_outlier_fraction_threshold);
-    cfg_.quality_slope_layer_z_threshold = get_or<double>(n, "quality_slope_layer_z_threshold", cfg_.quality_slope_layer_z_threshold);
-    cfg_.quality_chi2_ndf_threshold = get_or<double>(n, "quality_chi2_ndf_threshold", cfg_.quality_chi2_ndf_threshold);
+    // cfg_.quality_bad_correlation_threshold = get_or<double>(n, "quality_bad_correlation_threshold", cfg_.quality_bad_correlation_threshold);
+    // cfg_.quality_outlier_fraction_threshold = get_or<double>(n, "quality_outlier_fraction_threshold", cfg_.quality_outlier_fraction_threshold);
+    // cfg_.quality_slope_layer_z_threshold = get_or<double>(n, "quality_slope_layer_z_threshold", cfg_.quality_slope_layer_z_threshold);
+    // cfg_.quality_chi2_ndf_threshold = get_or<double>(n, "quality_chi2_ndf_threshold", cfg_.quality_chi2_ndf_threshold);
+    cfg_.quality_bad_rms_persigma_threshold = get_or<double>(n, "quality_bad_rms_persigma_threshold", cfg_.quality_bad_rms_persigma_threshold);
     cfg_.quality_output_ttree = get_or<bool>(n, "quality_output_ttree", cfg_.quality_output_ttree);
     cfg_.quality_out_filename = get_or<std::string>(n, "quality_out_filename", cfg_.quality_out_filename);
     cfg_.quality_save_summary_plots = get_or<bool>(n, "quality_save_summary_plots", cfg_.quality_save_summary_plots);
+    cfg_.quality_output_distance_histograms = get_or<bool>(n, "quality_output_distance_histograms", cfg_.quality_output_distance_histograms);
 
     // Interactive mode
     cfg_.interactive_fit = get_or<bool>(n, "interactive_fit", cfg_.interactive_fit);

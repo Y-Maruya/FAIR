@@ -5,6 +5,7 @@
 #include <sstream>
 #include <stdexcept>
 #include <fstream>
+#include <cstdio>
 #include <curl/curl.h>
 #include <nlohmann/json.hpp>
 #include <yaml-cpp/yaml.h>
@@ -132,16 +133,22 @@ int PedestalReader::selectNearestPedestalRun(int runNumber) {
         }
     }
     std::sort(pedestalRuns.begin(), pedestalRuns.end(), [](const auto& a, const auto& b){ return a.second < b.second; });
-    // output the pedestal run table
-    std::ofstream outfile(pedestal_runs_file_, std::ios::out);
+    // output the pedestal run table using atomic rename for thread-safety
+    std::string tmpFile = pedestal_runs_file_ + ".tmp";
+    std::ofstream outfile(tmpFile, std::ios::out);
     if (outfile.is_open()) {
         for (const auto& p : pedestalRuns) {
             outfile << p.first << " " << p.second << "\n";
         }
         outfile.close();
+        // atomic rename to ensure readers always see complete file
+        if (std::rename(tmpFile.c_str(), pedestal_runs_file_.c_str()) != 0) {
+            LOG_ERROR("Could not rename {} to {}", tmpFile, pedestal_runs_file_);
+            throw std::runtime_error("Could not rename " + tmpFile + " to " + pedestal_runs_file_);
+        }
     } else {
-        LOG_ERROR("Could not open {} to write pedestal run information", pedestal_runs_file_);
-        throw std::runtime_error("Could not open " + pedestal_runs_file_ + " to write pedestal run information");
+        LOG_ERROR("Could not open {} to write pedestal run information", tmpFile);
+        throw std::runtime_error("Could not open " + tmpFile + " to write pedestal run information");
     }
     if (std::find_if(pedestalRuns.begin(), pedestalRuns.end(), [runNumber](const auto& p){ return p.first == runNumber - 1 ; }) != pedestalRuns.end()) {
         return runNumber - 1; // the previous run is a pedestal run

@@ -18,7 +18,7 @@ while True:
         print("Reached run number 30000, exiting.")
         break
     result = subprocess.run(
-        ["bash","run_intercalib_muon.sh", f"{start_run_number}"],
+        ["bash","run_intercalib_mip.sh", f"{start_run_number}"],
         cwd="/afs/cern.ch/user/y/ymaruya/private/FASERlink/AHCAL/FAIR/auto/InterCalib",
         stdout=subprocess.PIPE,
         stderr=subprocess.PIPE,

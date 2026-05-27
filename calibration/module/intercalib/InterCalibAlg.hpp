@@ -20,12 +20,26 @@ namespace AHCALRecoAlg {
 
         // Fit parameters
         double hg_fit_max = 1800.0;
+        bool use_fit_max_saturation_minus_margin = true; // if true, set hg_fit_max to (HG saturation value - saturation margin) for each channel, instead of using the global hg_fit_max for all channels
+        double saturation_margin = 600.0; // margin to subtract from HG saturation value when
         double lg_fit_min = -30.0;
         double hg_fit_min = -100.0;
         int    min_points = 200;
         double hg_bin_width = 25.0;
-        int    min_hg_bins_for_fit = 8;
-        double outlier_sigma_threshold = 3.0;
+        int    min_hg_bins_for_fit = 10;
+        double outlier_sigma_threshold = 2.0;
+
+        // Accumulated histogram binning parameters
+        int accum_hist_x_nbins = 500;      // LG_sub axis
+        double accum_hist_x_min = -100.0;
+        double accum_hist_x_max = 900.0;
+        
+        int accum_hist_y_nbins = 120;       // HG_sub axis
+        double accum_hist_y_min = -100.0;
+        double accum_hist_y_max = 2900.0;
+        
+        // Histogram persistence
+        bool save_accumulated_histograms = true;
 
         // Example cells for visualization (using cellid directly)
         std::vector<int> example_cellids = {
@@ -51,16 +65,20 @@ namespace AHCALRecoAlg {
         std::string string_track_struct = "SimpleFittedTrack"; // or "Track"
         std::string track_selection_string = ""; // optional selection string for tracks, e.g. "nHits >= 5 && chi2/ndf < 5"
 
+        bool remove_HGLG_outliers_before_fit = true; // if true, apply outlier removal cut before fitting, otherwise just save outlier info in TTree branches
+
         // Quality metrics and TTree output
         bool compute_quality_metrics = true;
         int quality_minimum_points = 10;
-        double quality_bad_correlation_threshold = 0.8;
-        double quality_outlier_fraction_threshold = 0.2;
-        double quality_slope_layer_z_threshold = 5.0;
-        double quality_chi2_ndf_threshold = 10.0;
+        double quality_bad_rms_persigma_threshold = 1.15;
+        // double quality_bad_correlation_threshold = 0.8;
+        // double quality_outlier_fraction_threshold = 0.2;
+        // double quality_slope_layer_z_threshold = 5.0;
+        // double quality_chi2_ndf_threshold = 10.0;
         bool quality_output_ttree = true;
         std::string quality_out_filename = "hglg_calib_quality.root";
         bool quality_save_summary_plots = true;
+        bool quality_output_distance_histograms = true; // if true, save histograms of distances to fitted line for good vs bad channels, for visual inspection and validation of quality metrics
 
         // Interactive mode
         bool interactive_fit = false;
