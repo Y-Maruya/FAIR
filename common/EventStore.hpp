@@ -24,6 +24,10 @@ public:
     Item item;
     item.type = std::type_index(typeid(T));
     item.payload = value;  // copy
+    if (m_map.find(key) != m_map.end()) {
+      LOG_ERROR("EventStore::put: key '{}' already exists", key);
+      throw std::runtime_error("EventStore::put: key '" + key + "' already exists");
+    }
     m_map.emplace(std::move(key), std::move(item));
   }
 
@@ -33,6 +37,10 @@ public:
     Item item;
     item.type = std::type_index(typeid(T));
     item.payload = std::forward<T>(value);  // move if possible
+    if (m_map.find(key) != m_map.end()) {
+      LOG_ERROR("EventStore::put: key '{}' already exists", key);
+      throw std::runtime_error("EventStore::put: key '" + key + "' already exists");
+    }
     m_map.emplace(std::move(key), std::move(item));
   }
 
