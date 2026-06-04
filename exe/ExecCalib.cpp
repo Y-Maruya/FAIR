@@ -8,6 +8,7 @@
 #include "common/RunContext.hpp"
 #include "common/ContextPutter.hpp"
 #include "common/AlgFactory.hpp"
+#include "common/config/ExpandConfig.hpp"
 #include "common/config/ParseRunConfig.hpp"
 #include "IO/reader/RootRawHitReader.hpp"
 #include "IO/reader/BinaryRawHitReader.hpp"
@@ -243,6 +244,7 @@ int main(int argc, char* argv[]) {
     replace_config_run_numbers(argv[1], run_numbers_str, random_suffix);
     replace_config_run_number("/tmp/temp_config" + random_suffix + ".yaml", start_runNumber, random_suffix);
     YAML::Node config = YAML::LoadFile("/tmp/temp_config" + random_suffix + "_2.yaml");
+    expand_env_in_yaml(config);
     RunContext ctx;
     ctx.config = parse_run_config(config);
     if (ctx.config.log_level == "debug" || ctx.config.log_level == "DEBUG") {
@@ -265,6 +267,7 @@ int main(int argc, char* argv[]) {
     for (size_t i = 0; i < runNumbers.size(); ++i) {
         replace_config_run_number("/tmp/temp_config" + random_suffix + ".yaml", runNumbers[i], random_suffix);
         YAML::Node config = YAML::LoadFile("/tmp/temp_config" + random_suffix + "_2.yaml");
+        expand_env_in_yaml(config);
         ctx.config = parse_run_config(config);
         ctx.conditions = parse_condition_store(ctx.config.runNumber);
         LOG_INFO("Processing run number: {}", ctx.config.runNumber);

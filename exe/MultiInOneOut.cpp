@@ -8,6 +8,7 @@
 #include "common/RunContext.hpp"
 #include "common/ContextPutter.hpp"
 #include "common/AlgFactory.hpp"
+#include "common/config/ExpandConfig.hpp"
 #include "common/config/ParseRunConfig.hpp"
 #include "IO/reader/RootRawHitReader.hpp"
 #include "IO/reader/BinaryRawHitReader.hpp"
@@ -35,6 +36,7 @@ int main(int argc, char* argv[]) {
         return 1;
     }
     YAML::Node config = YAML::LoadFile(argv[1]);
+    expand_env_in_yaml(config);
     RunContext ctx;
     ctx.config = parse_run_config(config);
     if (ctx.config.log_level == "debug" || ctx.config.log_level == "DEBUG") {

@@ -8,6 +8,7 @@
 #include "common/RunContext.hpp"
 #include "common/ContextPutter.hpp"
 #include "common/AlgFactory.hpp"
+#include "common/config/ExpandConfig.hpp"
 #include "common/config/ParseRunConfig.hpp"
 #include "IO/reader/RootRawHitReader.hpp"
 #include "IO/reader/BinaryRawHitReader.hpp"
@@ -130,6 +131,7 @@ int main(int argc, char* argv[]) {
     for (int iinput = 0; iinput < ninputs; ++iinput) {
         replaceRunNumberPoolIndexInFile(argv[1],runNumbers[iinput],poolIndexes[iinput]);
         YAML::Node config_i = YAML::LoadFile("/tmp/"+std::to_string(runNumbers[iinput])+".yaml");
+        expand_env_in_yaml(config_i);
         RunContext ctx_i;
         ctx_i.config = parse_run_config(config_i);
         if (ctx_i.config.log_level == "debug" || ctx_i.config.log_level == "DEBUG") {

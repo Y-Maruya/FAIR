@@ -39,6 +39,26 @@ Example using an LCG view on CERN LXPLUS (required for ROOT and related HEP depe
 source /cvmfs/sft.cern.ch/lcg/views/LCG_105/x86_64-el9-gcc11-opt/setup.sh
 ```
 
+### Local path setup
+
+FAIR YAML configs support environment-variable expansion for values written as `${VAR_NAME}`.
+For now, shared configs should use `${FAIR_BASE}` for paths inside the FAIR checkout.
+
+Copy the example setup script and source your local copy:
+
+```bash
+cp setup_example.sh setup_local.sh
+vim setup_local.sh
+source setup_local.sh
+```
+
+`setup_example.sh` sets:
+
+- `FAIR_BASE`: FAIR repository root
+
+Private configs should be placed under `config/local/`, which is ignored by git.
+Committed example configs should avoid user-specific paths such as `/afs/cern.ch/user/...`.
+
 ## Download & build
 
 ```bash
@@ -54,12 +74,12 @@ Run from the repository root after build (`bin/` is generated under the source t
 
 Multi input, single output:
 ```bash
-./bin/fair_single config/first.yaml -i config/Input/Input_test.txt
+./bin/fair_single config/example.yaml -i config/Input/Input_test.txt
 ```
 
 Multi input, multi output:
 ```bash
-./bin/fair_multi config/first.yaml -i config/Input/Input_test.txt
+./bin/fair_multi config/example.yaml -i config/Input/Input_test.txt
 ```
 
 Run-by-run processing:

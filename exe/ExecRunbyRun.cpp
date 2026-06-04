@@ -8,6 +8,7 @@
 #include "common/RunContext.hpp"
 #include "common/ContextPutter.hpp"
 #include "common/AlgFactory.hpp"
+#include "common/config/ExpandConfig.hpp"
 #include "common/config/ParseRunConfig.hpp"
 #include "IO/reader/RootRawHitReader.hpp"
 #include "IO/reader/BinaryRawHitReader.hpp"
@@ -92,6 +93,7 @@ int main(int argc, char* argv[]) {
         std::cout << "Run number: " << run << "," << i <<"/" << runNumbers.size()<<" is processing..." << std::endl;
         replace_config_run_number(argv[1], run);
         YAML::Node config = YAML::LoadFile("/tmp/temp_config.yaml");
+        expand_env_in_yaml(config);
         RunContext ctx;
         ctx.config = parse_run_config(config);
         if (ctx.config.log_level == "debug" || ctx.config.log_level == "DEBUG") {

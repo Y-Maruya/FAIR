@@ -16,3 +16,6 @@ eventdisplay*/*
 out_calibration/*_calib/log
 out_calibration/*_calib/*/*
 *ymaruya.cc
+setup_local.sh
+.env
+config/local/
