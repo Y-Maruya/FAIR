@@ -18,6 +18,7 @@
 #include <TPad.h>
 #include <TLatex.h>
 #include <TString.h>
+#include <TParameter.h>
 
 #include <algorithm>
 #include <chrono>
@@ -75,7 +76,7 @@ namespace AHCALRecoAlg{
         double sv[4], pllo[4], plhi[4], fps[4], fpe[4];
         double chisqr;
         int ndf;
-        fr[0] = 0;fr[1] = 1500;
+        fr[0] = 50;fr[1] = 1000;
         pllo[0] = 0;  pllo[1] = 0; pllo[2] = 100; pllo[3] = 0;
         plhi[0] = 300;plhi[1] = 1200;plhi[2] = 100000;plhi[3] = 300;
         sv[0] = 50; sv[1] = 300; sv[2] = 30000;   sv[3] = 60;
@@ -166,6 +167,8 @@ namespace AHCALRecoAlg{
             double x_mm = -999.0;
             double y_mm = -999.0;
             int entries = 0;
+            int entries_adc_le50 = 0;
+            double ratio_adc_le50 = -1.0;
             FitOut out;
         };
 
@@ -244,7 +247,16 @@ namespace AHCALRecoAlg{
                     n_missing_ped_++;
                     return;
                 }
+                if (itp->second.HighGainStatus != 0) {
+                    n_missing_ped_++;
+                    return;
+                }
                 hg_value -= itp->second.HighGainPeak;
+            }
+
+            // Count ADC <= 50 regardless of xmin/xmax range
+            if (hg_value <= 50.0) {
+                adc_le50_count_[cellid]++;
             }
 
             if (hg_value >= cfg_.xmin && hg_value <= cfg_.xmax) {
@@ -287,6 +299,16 @@ namespace AHCALRecoAlg{
                 cellid_to_xy(res.chip, res.channel, res.x_mm, res.y_mm);
 
                 res.entries = hist_ptr ? static_cast<int>(hist_ptr->GetEntries()) : 0;
+                
+                // Calculate ratio of ADC <= 50
+                auto adc_le50_it = adc_le50_count_.find(cid);
+                if (adc_le50_it != adc_le50_count_.end()) {
+                    res.entries_adc_le50 = adc_le50_it->second;
+                    if (res.entries > 0) {
+                        res.ratio_adc_le50 = static_cast<double>(res.entries_adc_le50) / res.entries;
+                    }
+                }
+                
                 if (hist_ptr && cfg_.fit) {
                     nFitAll_++;
                     res.out = fitLandauGaus(hist_ptr.get(), cfg_.min_entries, cfg_.calculate_fwhm);
@@ -303,17 +325,23 @@ namespace AHCALRecoAlg{
                                 std::vector<std::unique_ptr<TH2D>>& hWidth,
                                 std::vector<std::unique_ptr<TH2D>>& hEntries,
                                 std::vector<std::unique_ptr<TH2D>>& hTotal,
-                                std::vector<std::unique_ptr<TH2D>>& hGausSigma) {
+                                std::vector<std::unique_ptr<TH2D>>& hGausSigma,
+                                std::vector<std::unique_ptr<TH2D>>& hRatioADCLe50) {
             for (const auto& [cid, res] : fit_cache_) {
-                if (res.out.fit_ok && res.layer >= 0 && res.layer < AHCALGeometry::Layer_No) {
+                if (res.layer >= 0 && res.layer < AHCALGeometry::Layer_No) {
                     const int binx = hMPV[res.layer]->GetXaxis()->FindBin(res.x_mm);
                     const int biny = hMPV[res.layer]->GetYaxis()->FindBin(res.y_mm);
                     if (binx > 0 && binx <= NBIN_XY && biny > 0 && biny <= NBIN_XY) {
-                        hMPV[res.layer]->SetBinContent(binx, biny, res.out.mpv);
-                        hWidth[res.layer]->SetBinContent(binx, biny, res.out.width);
-                        hEntries[res.layer]->SetBinContent(binx, biny, res.entries);
-                        hTotal[res.layer]->SetBinContent(binx, biny, res.out.total_area);
-                        hGausSigma[res.layer]->SetBinContent(binx, biny, res.out.gaus_sigma);
+                        // Fill ratio map for all cells
+                        hRatioADCLe50[res.layer]->SetBinContent(binx, biny, res.ratio_adc_le50);
+                        
+                        if (res.out.fit_ok) {
+                            hMPV[res.layer]->SetBinContent(binx, biny, res.out.mpv);
+                            hWidth[res.layer]->SetBinContent(binx, biny, res.out.width);
+                            hEntries[res.layer]->SetBinContent(binx, biny, res.entries);
+                            hTotal[res.layer]->SetBinContent(binx, biny, res.out.total_area);
+                            hGausSigma[res.layer]->SetBinContent(binx, biny, res.out.gaus_sigma);
+                        }
                     }
                 }
             }
@@ -341,10 +369,23 @@ namespace AHCALRecoAlg{
 
             // Write histograms
             if (dHist) {
+                TTree * tree_ntrack = new TTree("ntrack_pass_through_channel", "Number of tracks passing through each channel");
+                int cellid_ = -1;
+                int ntracks_ = 0;
+                tree_ntrack->Branch("cellid", &cellid_, "cellid/I");
+                tree_ntrack->Branch("ntracks", &ntracks_, "ntracks/I");
                 for (const auto& [cellid, h] : hg_hist_) {
                     fout->cd(Form("MIP/Layer%02d/Chip%d", cellid/100000, (cellid/10000)%10));
                     if (h) h->Write();
+                    TParameter<int> pNtracks_pass_through_channel(Form("Ntracks_pass_through_channel_%d", cellid), Ntrack_pass_through_channel_[cellid]);
+                    pNtracks_pass_through_channel.Write();
+                    cellid_ = cellid;
+                    ntracks_ = Ntrack_pass_through_channel_[cellid];
+                    tree_ntrack->Fill();
                 }
+                fout->cd("MIP");
+                tree_ntrack->Write();
+
             }
 
             fout->cd();
@@ -360,6 +401,7 @@ namespace AHCALRecoAlg{
             std::vector<std::unique_ptr<TH2D>> hEntries(AHCALGeometry::Layer_No);
             std::vector<std::unique_ptr<TH2D>> hTotal(AHCALGeometry::Layer_No);
             std::vector<std::unique_ptr<TH2D>> hGausSigma(AHCALGeometry::Layer_No);
+            std::vector<std::unique_ptr<TH2D>> hRatioADCLe50(AHCALGeometry::Layer_No);
             
             auto makeMap = [&](const char* base, int L, const char* title) {
                 auto h = std::make_unique<TH2D>(
@@ -378,10 +420,11 @@ namespace AHCALRecoAlg{
                 hEntries[L] = makeMap("Entries", L, "MIP Entries");
                 hTotal[L] = makeMap("TotalArea", L, "MIP Total Area");
                 hGausSigma[L] = makeMap("GausSigma", L, "MIP Gaussian Sigma");
+                hRatioADCLe50[L] = makeMap("RatioADCLe50", L, "Ratio ADC <= 50");
             }
 
             // Fill maps from cache
-            fillMapsFromCache(hMPV, hWidth, hEntries, hTotal, hGausSigma);
+            fillMapsFromCache(hMPV, hWidth, hEntries, hTotal, hGausSigma, hRatioADCLe50);
 
             // Build and fill tree
             TTree tp("mip", "MIP fit results");
@@ -396,6 +439,8 @@ namespace AHCALRecoAlg{
             int fit_ok = 0;
             double max_x=-1.0, FWHM=-1.0;
             double x_mm=-999, y_mm=-999;
+            int entries_adc_le50 = 0;
+            double ratio_adc_le50 = -1.0;
             tp.Branch("cellid", &cellid);
             tp.Branch("MPV", &mpv);
             tp.Branch("width", &width);
@@ -411,6 +456,8 @@ namespace AHCALRecoAlg{
             tp.Branch("fit_ok", &fit_ok);
             tp.Branch("x_mm", &x_mm);
             tp.Branch("y_mm", &y_mm);
+            tp.Branch("entries_adc_le50", &entries_adc_le50);
+            tp.Branch("ratio_adc_le50", &ratio_adc_le50);
 
             for (const auto& [cid, res] : fit_cache_) {
                 cellid = res.cellid;
@@ -428,6 +475,8 @@ namespace AHCALRecoAlg{
                 entries = res.entries;
                 x_mm = res.x_mm;
                 y_mm = res.y_mm;
+                entries_adc_le50 = res.entries_adc_le50;
+                ratio_adc_le50 = res.ratio_adc_le50;
                 tp.Fill();
             }
 
@@ -465,6 +514,7 @@ namespace AHCALRecoAlg{
                 hEntries[L]->Write();
                 hTotal[L]->Write();
                 hGausSigma[L]->Write();
+                hRatioADCLe50[L]->Write();
             }
             if (dCan) dCan->cd();
             cAllMPV->Write();
@@ -503,6 +553,8 @@ namespace AHCALRecoAlg{
                     std::vector<double> max_x_arr(n_channels_per_layer, -1.0);
                     std::vector<double> FWHM_arr(n_channels_per_layer, -1.0);
                     std::vector<int> entries_arr(n_channels_per_layer, 0);
+                    std::vector<int> entries_adc_le50_arr(n_channels_per_layer, 0);
+                    std::vector<double> ratio_adc_le50_arr(n_channels_per_layer, -1.0);
                     std::vector<double> chi2_arr(n_channels_per_layer, -1.0);
                     std::vector<int> ndf_arr(n_channels_per_layer, 0);
                     std::vector<int> fit_status_arr(n_channels_per_layer, 999);
@@ -523,6 +575,8 @@ namespace AHCALRecoAlg{
                         max_x_arr[idx] = res.out.max_x;
                         FWHM_arr[idx] = res.out.FWHM;
                         entries_arr[idx] = res.entries;
+                        entries_adc_le50_arr[idx] = res.entries_adc_le50;
+                        ratio_adc_le50_arr[idx] = res.ratio_adc_le50;
                         chi2_arr[idx] = res.out.chi2;
                         ndf_arr[idx] = res.out.ndf;
                         fit_status_arr[idx] = res.out.fit_status;
@@ -555,6 +609,8 @@ namespace AHCALRecoAlg{
                     j["PerChannel"]["MaxX"] = max_x_arr;
                     j["PerChannel"]["FWHM"] = FWHM_arr;
                     j["PerChannel"]["Entries"] = entries_arr;
+                    j["PerChannel"]["EntriesADCLe50"] = entries_adc_le50_arr;
+                    j["PerChannel"]["RatioADCLe50"] = ratio_adc_le50_arr;
                     j["PerChannel"]["Chi2"] = chi2_arr;
                     j["PerChannel"]["NDF"] = ndf_arr;
                     j["PerChannel"]["FitStatus"] = fit_status_arr;
@@ -604,6 +660,17 @@ namespace AHCALRecoAlg{
             return h;
         }
 
+        void initialize(){
+            Ntrack_pass_through_channel_.clear();
+            for (int layer = 0; layer < AHCALGeometry::Layer_No; ++layer) {
+                for (int chip = 0; chip < AHCALGeometry::chip_No; ++chip) {
+                    for (int channel = 0; channel < AHCALGeometry::channel_No; ++channel) {
+                        int cellid = layer * 100000 + chip * 10000 + channel;
+                        Ntrack_pass_through_channel_[cellid] = 0;
+                    }
+                }
+            }
+        }
         MIPAlgCfg cfg_;
         RunContext ctx_;
         bool written_ = false;
@@ -614,7 +681,9 @@ namespace AHCALRecoAlg{
         std::vector<RunContext> run_contexts_;
         std::unordered_map<int, CalibDBIO::Pedestal> ped_map_;
         std::unordered_map<int, std::unique_ptr<TH1D>> hg_hist_;
+        std::unordered_map<int, int> adc_le50_count_;
         std::unordered_map<int, FitResult> fit_cache_;
+        std::unordered_map<int, int> Ntrack_pass_through_channel_;
     };
 
     void MIPAlg::ImplDeleter::operator()(Impl* p) const {
@@ -653,22 +722,51 @@ namespace AHCALRecoAlg{
                     return;
                 }
             }
-            if (!track.inTrackHitsIndices.size()) {
-                LOG_WARN("MIPAlg: track has no associated hits.");
-                return;
+            for (int i_layer = 0; i_layer < AHCALGeometry::Layer_No; ++i_layer) {
+                double x = track.init_pos_x + track.direction_x * (AHCALGeometry::Pos_Z(i_layer));
+                double y = track.init_pos_y + track.direction_y * (AHCALGeometry::Pos_Z(i_layer));
+                // double z = AHCALGeometry::Pos_Z(i_layer);
+                int chip = -1;
+                int channel = -1;
+                AHCALGeometry::inverse(x, y, chip, channel);
+                if (abs(x) > AHCALGeometry::x_max || abs(y) > AHCALGeometry::y_max) {
+                    LOG_DEBUG("MuonEffAlg: track extrapolation out of bounds for layer {}: x={}, y={}", i_layer, x, y);
+                    continue;
+                }
+                double rh_x = AHCALGeometry::Pos_X(channel, chip);
+                double rh_y = AHCALGeometry::Pos_Y(channel, chip);
+                if (abs(x-rh_x) <= cfg_.xy_size_threshold && abs(y-rh_y) <= cfg_.xy_size_threshold) {
+                    int cellid = i_layer * 100000 + chip * 10000 + channel;
+                    impl_->Ntrack_pass_through_channel_[cellid]++;
+                    auto hit_it = std::find_if(rawhits.begin(), rawhits.end(), [&](const AHCALRawHit& rh){
+                        return rh.layer() == i_layer && rh.chip() == chip && rh.channel() == channel && rh.hittag == 1;
+                    });
+                    if (hit_it != rawhits.end()) {
+                        AHCALRawHit matched_hit = *hit_it;
+                        if (matched_hit.layer() == i_layer && matched_hit.chip() == chip && matched_hit.channel() == channel) {
+                            impl_->fill(std::move(matched_hit));
+                        } else {
+                            LOG_DEBUG("MIPAlg: no matching hit found for track extrapolation at layer {} (x={}, y={})", i_layer, x, y);
+                        }
+                    }
+                }                
             }
-            for (const int index : track.inTrackHitsIndices) {
-                if (index < 0 || index >= static_cast<int>(rawhits.size())) {
-                    LOG_WARN("MIPAlg: track hit index {} out of range [0, {})", index, rawhits.size());
-                    continue;
-                }
-                const auto& rh = rawhits.at(index);
-                if (rh.index != index) {
-                    LOG_WARN("MIPAlg: rawhit index {} does not match track hit index {}", rh.index, index);
-                    continue;
-                }
-                impl_->fill(rh);
-            }    
+            // if (!track.inTrackHitsIndices.size()) {
+            //     LOG_WARN("MIPAlg: track has no associated hits.");
+            //     return;
+            // }
+            // for (const int index : track.inTrackHitsIndices) {
+            //     if (index < 0 || index >= static_cast<int>(rawhits.size())) {
+            //         LOG_WARN("MIPAlg: track hit index {} out of range [0, {})", index, rawhits.size());
+            //         continue;
+            //     }
+            //     const auto& rh = rawhits.at(index);
+            //     if (rh.index != index) {
+            //         LOG_WARN("MIPAlg: rawhit index {} does not match track hit index {}", rh.index, index);
+            //         continue;
+            //     }
+            //     impl_->fill(rh);
+            // }    
         } else if (cfg_.string_track_struct == "Track") {
             auto track = evt.get<Track>(cfg_.in_track_key);
             if (!cfg_.track_selection_string.empty()) {
@@ -728,5 +826,6 @@ namespace AHCALRecoAlg{
         cfg_.read_pedestal_from_ROOT = get_or<bool>(cfg, "read_pedestal_from_ROOT", cfg_.read_pedestal_from_ROOT);
         cfg_.in_pedestal_file = get_or<std::string>(cfg, "in_pedestal_file", cfg_.in_pedestal_file);
         cfg_.read_pedestal_from_DB = get_or<bool>(cfg, "read_pedestal_from_DB", cfg_.read_pedestal_from_DB);
+        cfg_.xy_size_threshold = get_or<double>(cfg, "xy_size_threshold", cfg_.xy_size_threshold);
     }
 } // namespace AHCALRecoAlg

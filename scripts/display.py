@@ -485,14 +485,16 @@ if __name__=="__main__":
     # Check if specific event_counter is provided
     if len(sys.argv) > 3:
         # Specific event_counter mode
-        event_counter = int(sys.argv[3])
-        events = 1
-        filters = defaultdict(bool)
-        ed = eventdisplay(iPath,oDir,run=run,events=events,filters=filters,event_counter=event_counter)
-        if ed.events:
-            event = ed.events[0]
-            print(f"Drawing event_counter {event_counter} from tree entry {event}")
-            ed.drawEvent(event_counter, ed.data[event])
+        for i in range(3, len(sys.argv)):
+
+            event_counter = int(sys.argv[i])
+            events = 1
+            filters = defaultdict(bool)
+            ed = eventdisplay(iPath,oDir,run=run,events=events,filters=filters,event_counter=event_counter)
+            if ed.events:
+                event = ed.events[0]
+                print(f"Drawing event_counter {event_counter} from tree entry {event}")
+                ed.drawEvent(event_counter, ed.data[event])
     else:
         # Default mode: multiple event sets
         events = 30

@@ -86,14 +86,14 @@ algs: # Define the sequence of algorithms to be executed. The order matters.
       in_rawhit_key: RawHits
       in_track_key: FittedTrack
       string_track_struct: SimpleFittedTrack
-      track_selection_string: (valid>0)*(chi2xperndf<5)*(chi2xperndf>0)*(chi2yperndf<5)*(chi2yperndf>0)*(direction_y<0.1)*(direction_y>-0.1)*(direction_x<0.1)*(direction_x>-0.1)
+      track_selection_string: (valid>0)*(chi2xperndf<5)*(chi2xperndf>0)*(chi2yperndf<5)*(chi2yperndf>0)*(direction_y<0.1)*(direction_y>-0.1)*(direction_x<0.1)*(direction_x>-0.1)*(abs(direction_x)>0.001)*(abs(direction_y)>0.001)
       mip_to_file: true
-      out_mip_filename: /afs/cern.ch/user/y/ymaruya/private/FASERlink/AHCAL/FAIR/out_calibration/mip_calib/###run-numbers###/mip.root
+      out_mip_filename: /afs/cern.ch/user/y/ymaruya/private/FASERlink/AHCAL/FAIR/out_calibration/mip_calib/###run-numbers###/mip_nofit.root
       output_to_png: true
-      out_png_dir: /afs/cern.ch/user/y/ymaruya/private/FASERlink/AHCAL/FAIR/out_calibration/mip_calib/###run-numbers###/png/
-      fit: true
+      out_png_dir: /afs/cern.ch/user/y/ymaruya/private/FASERlink/AHCAL/FAIR/out_calibration/mip_calib/###run-numbers###/png_nofit/
+      fit: false
       mip_to_json: true
-      out_json_dirname: /afs/cern.ch/user/y/ymaruya/private/FASERlink/AHCAL/FAIR/out_calibration/mip_calib/###run-numbers###/json/
+      out_json_dirname: /afs/cern.ch/user/y/ymaruya/private/FASERlink/AHCAL/FAIR/out_calibration/mip_calib/###run-numbers###/json_nofit/
       substrate_pedestal: true
       read_pedestal_from_ROOT: false
       read_pedestal_from_DB: true

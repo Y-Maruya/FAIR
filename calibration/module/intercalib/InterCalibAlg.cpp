@@ -974,6 +974,8 @@ struct InterCalibAlg::Impl {
                 qr.hg_pedestal = ped_it->second.HighGainPeak;
                 qr.lg_pedestal = ped_it->second.LowGainPeak;
                 qr.is_pedestal_masked = (ped_it->second.HighGainStatus != 0 || ped_it->second.LowGainStatus != 0);
+            }else {
+                qr.is_pedestal_masked = true; // Treat missing pedestal as masked
             }
 
             qr.slope = res.p1;

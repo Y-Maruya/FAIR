@@ -23,9 +23,9 @@ namespace AHCALRecoAlg{
         bool output_to_png = false;
         std::string out_png_dir = "png/";
         bool fit = true;
-        int nbin = 4096;
-        double xmin = 0.0;
-        double xmax = 4096.0;
+        int nbin = 2096;
+        double xmin = -96.0;
+        double xmax = 2000.0;
 
         int min_entries = 200;
 
@@ -37,6 +37,8 @@ namespace AHCALRecoAlg{
         bool read_pedestal_from_ROOT = false;
         std::string in_pedestal_file = "pedestal.root";
         bool read_pedestal_from_DB = true; 
+
+        double xy_size_threshold = 15.0; // mm
 
     };
 
