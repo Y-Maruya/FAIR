@@ -7,6 +7,7 @@
 #include "CalibDBIO/PedestalReader/PedestalReader.hpp"
 #include "common/edm/SimpleFittedTrack.hpp"
 #include "common/edm/Track.hpp"
+#include "calibration/RefValues.hpp"
 
 #include <TFile.h>
 #include <TTree.h>
@@ -247,7 +248,7 @@ namespace AHCALRecoAlg{
                     n_missing_ped_++;
                     return;
                 }
-                if (itp->second.HighGainStatus != 0) {
+                if (!AHCALRefValues::HGPedestalStatus_is_ok(itp->second.HighGainStatus)) {
                     n_missing_ped_++;
                     return;
                 }

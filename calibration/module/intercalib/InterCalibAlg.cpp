@@ -5,6 +5,7 @@
 #include "common/config/YAMLUtil.hpp"
 #include "common/AlgRegistry.hpp"
 #include "CalibDBIO/PedestalReader/PedestalReader.hpp"
+#include "calibration/RefValues.hpp"
 #include <TFile.h>
 #include <TTree.h>
 #include <TF1.h>
@@ -439,60 +440,60 @@ static FitResult fitLinearFromHGBinnedProfile(const std::vector<std::pair<double
     return r;
 }
 
-static FitResult fitLinearFromHGBinnedProfile(const TH2D* hist, int minPoints, double hgBinWidth, int minBins, int min_hg_bins_for_fit = 8) {
-    FitResult r;
-    if (!hist || hgBinWidth <= 0.0) return r;
+// static FitResult fitLinearFromHGBinnedProfile(const TH2D* hist, int minPoints, double hgBinWidth, int minBins, int min_hg_bins_for_fit = 8) {
+//     FitResult r;
+//     if (!hist || hgBinWidth <= 0.0) return r;
     
-    long long total_entries = static_cast<long long>(hist->GetEntries());
-    if (total_entries < minPoints) return r;
+//     long long total_entries = static_cast<long long>(hist->GetEntries());
+//     if (total_entries < minPoints) return r;
     
-    const auto profile_pts = buildHGProfilePointsFromHist(hist, hgBinWidth, min_hg_bins_for_fit);
-    if (static_cast<int>(profile_pts.size()) < minBins) return r;
+//     const auto profile_pts = buildHGProfilePointsFromHist(hist, hgBinWidth, min_hg_bins_for_fit);
+//     if (static_cast<int>(profile_pts.size()) < minBins) return r;
 
-    // Same weighted fit logic as before
-    double S = 0.0, SX = 0.0, SY = 0.0, SXX = 0.0, SXY = 0.0;
-    int used_bins = 0;
-    for (const auto& p : profile_pts) {
-        const double mean_hg = p.hg;
-        const double mean_lg = p.lg;
-        const double sigma_eff = p.lg_err;
-        const double w = 1.0 / (sigma_eff * sigma_eff);
-        S += w;
-        SX += w * mean_hg;
-        SY += w * mean_lg;
-        SXX += w * mean_hg * mean_hg;
-        SXY += w * mean_hg * mean_lg;
-        used_bins++;
-    }
-    if (used_bins < minBins) return r;
-    const double denom = S * SXX - SX * SX;
-    if (denom <= 0.0) {
-        r.status = 1;
-        return r;
-    }
-    const double c = (S * SXY - SX * SY) / denom;
-    const double d = (SY * SXX - SX * SXY) / denom;
-    if (std::abs(c) < 1e-9) {
-        r.status = 2;
-        return r;
-    }
-    r.p1 = 1.0 / c;
-    r.p0 = -d / c;
-    r.ndf = used_bins - 2;
-    if (r.ndf <= 0) return r;
-    r.chi2 = 0.0;
-    for (const auto& p : profile_pts) {
-        const double mean_hg = p.hg;
-        const double mean_lg = p.lg;
-        const double sigma_lg = p.lg_err;
-        const double resid = mean_lg - (c * mean_hg + d);
-        r.chi2 += (resid * resid) / (sigma_lg * sigma_lg);
-    }
-    r.chi2_ndf = r.chi2 / r.ndf;
-    r.status = 0;
-    r.ok = true;
-    return r;
-}
+//     // Same weighted fit logic as before
+//     double S = 0.0, SX = 0.0, SY = 0.0, SXX = 0.0, SXY = 0.0;
+//     int used_bins = 0;
+//     for (const auto& p : profile_pts) {
+//         const double mean_hg = p.hg;
+//         const double mean_lg = p.lg;
+//         const double sigma_eff = p.lg_err;
+//         const double w = 1.0 / (sigma_eff * sigma_eff);
+//         S += w;
+//         SX += w * mean_hg;
+//         SY += w * mean_lg;
+//         SXX += w * mean_hg * mean_hg;
+//         SXY += w * mean_hg * mean_lg;
+//         used_bins++;
+//     }
+//     if (used_bins < minBins) return r;
+//     const double denom = S * SXX - SX * SX;
+//     if (denom <= 0.0) {
+//         r.status = 1;
+//         return r;
+//     }
+//     const double c = (S * SXY - SX * SY) / denom;
+//     const double d = (SY * SXX - SX * SXY) / denom;
+//     if (std::abs(c) < 1e-9) {
+//         r.status = 2;
+//         return r;
+//     }
+//     r.p1 = 1.0 / c;
+//     r.p0 = -d / c;
+//     r.ndf = used_bins - 2;
+//     if (r.ndf <= 0) return r;
+//     r.chi2 = 0.0;
+//     for (const auto& p : profile_pts) {
+//         const double mean_hg = p.hg;
+//         const double mean_lg = p.lg;
+//         const double sigma_lg = p.lg_err;
+//         const double resid = mean_lg - (c * mean_hg + d);
+//         r.chi2 += (resid * resid) / (sigma_lg * sigma_lg);
+//     }
+//     r.chi2_ndf = r.chi2 / r.ndf;
+//     r.status = 0;
+//     r.ok = true;
+//     return r;
+// }
 
 static int countAndMarkOutliers(
     const std::vector<std::pair<double, double>>& raw_pts,
@@ -719,7 +720,7 @@ struct InterCalibAlg::Impl {
             n_missing_ped_++;
             return;
         }
-        if (itp->second.HighGainStatus != 0 || itp->second.LowGainStatus != 0) {
+        if (!AHCALRefValues::HGPedestalStatus_is_ok(itp->second.HighGainStatus) || !AHCALRefValues::LGPedestalStatus_is_ok(itp->second.LowGainStatus)) {
             n_missing_ped_++;
             return;
         }
@@ -796,7 +797,7 @@ struct InterCalibAlg::Impl {
 
         n_used_++;
     }
-    bool applyFitCut(const AHCALRawHit* h_ptr, double hg_sub, double lg_sub, int tmp_layer, int tmp_chip, int tmp_channel, double hg_saturation) {
+    bool applyFitCut(double hg_sub, double lg_sub, int tmp_layer, int tmp_chip, int tmp_channel, double hg_saturation) {
         // Apply cfg-based cuts that were deferred from fill()
         if (tmp_layer < 0 || tmp_chip < 0 || tmp_channel < 0) return false;
         if (hg_sub <= cfg_.hg_fit_min) return false;
@@ -860,7 +861,7 @@ struct InterCalibAlg::Impl {
                     double content = hist->GetBinContent(ix, iy);
                     if (content <= 0) continue;
                     double lg_center = hist->GetXaxis()->GetBinCenter(ix);
-                    if (applyFitCut(nullptr, hg_center, lg_center, tmp_layer, tmp_chip, tmp_channel, res.hg_adc_saturation)) {
+                    if (applyFitCut(hg_center, lg_center, tmp_layer, tmp_chip, tmp_channel, res.hg_adc_saturation)) {
                         // Add this point 'content' times (content is the bin count)
                         for (int k = 0; k < static_cast<int>(content); ++k) {
                             filtered_points.push_back({hg_center, lg_center});
@@ -973,7 +974,7 @@ struct InterCalibAlg::Impl {
             if (ped_it != ped_map_.end()) {
                 qr.hg_pedestal = ped_it->second.HighGainPeak;
                 qr.lg_pedestal = ped_it->second.LowGainPeak;
-                qr.is_pedestal_masked = (ped_it->second.HighGainStatus != 0 || ped_it->second.LowGainStatus != 0);
+                qr.is_pedestal_masked = !AHCALRefValues::HGPedestalStatus_is_ok(ped_it->second.HighGainStatus) || !AHCALRefValues::LGPedestalStatus_is_ok(ped_it->second.LowGainStatus);
             }else {
                 qr.is_pedestal_masked = true; // Treat missing pedestal as masked
             }
