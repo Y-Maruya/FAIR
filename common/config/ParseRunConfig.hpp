@@ -226,8 +226,16 @@ inline ConditionStore parse_condition_store(const int runNumber){
             LOG_WARN("RunContext::parse_condition_store: 'configuration' not found in response from {}, skipping trigger logic and settings", url);
         }
         LOG_INFO("Successfully parsed condition store for run number {} from {}", runNumber, url);
+        std::string thresholds_str = std::to_string(cs.thresholds[0]);
+        std::string triggerStretch_str = std::to_string(cs.triggerStretch[0]);
+        std::string triggerDelay_str = std::to_string(cs.triggerDelay[0]);
+        for (size_t i = 1; i < cs.thresholds.size(); ++i) {
+            thresholds_str += ", " + std::to_string(cs.thresholds[i]);
+            triggerStretch_str += ", " + std::to_string(cs.triggerStretch[i]);
+            triggerDelay_str += ", " + std::to_string(cs.triggerDelay[i]);
+        }
         LOG_INFO("ConditionStore for run number {}: starttime={}, stoptime={}, triggerLogic='{}', thresholds=[{}], triggerStretch=[{}], triggerDelay=[{}], calibRate={}", 
-            runNumber, cs.starttime, cs.endtime, cs.triggerLogic, fmt::join(cs.thresholds, ", "), fmt::join(cs.triggerStretch, ", "), fmt::join(cs.triggerDelay, ", "), cs.calibRate);
+            runNumber, cs.starttime, cs.endtime, cs.triggerLogic, thresholds_str, triggerStretch_str, triggerDelay_str, cs.calibRate);
     } catch (const std::exception& ex) {
         throw std::runtime_error("Failed to parse condition store for run number " + std::to_string(runNumber) + ": " + ex.what());
     }

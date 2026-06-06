@@ -36,8 +36,10 @@ FAIR is designed to be flexible and modular, allowing users to configure and run
 
 Example using an LCG view on CERN LXPLUS (required for ROOT and related HEP dependencies):
 ```bash
-source /cvmfs/sft.cern.ch/lcg/views/LCG_105/x86_64-el9-gcc11-opt/setup.sh
+source /cvmfs/sft.cern.ch/lcg/views/LCG_109/x86_64-el9-gcc13-opt/setup.sh
 ```
+- Note: Release of ROOT should be latest, old one has a issue on the memory handling at fitting. 
+- Note: GCC 13 is needed for adjusting the release to hard coded one `/LHCDataReader/CMakeLists.txt` (TODO)
 
 ### Local path setup
 

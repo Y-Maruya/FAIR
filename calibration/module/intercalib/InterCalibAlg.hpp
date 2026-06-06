@@ -30,7 +30,7 @@ namespace AHCALRecoAlg {
         double outlier_sigma_threshold = 2.0;
 
         // Accumulated histogram binning parameters
-        int accum_hist_x_nbins = 500;      // LG_sub axis
+        int accum_hist_x_nbins = 250;      // LG_sub axis
         double accum_hist_x_min = -100.0;
         double accum_hist_x_max = 900.0;
         

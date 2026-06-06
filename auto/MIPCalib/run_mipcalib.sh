@@ -2,8 +2,8 @@
 
 start_run_number=$1
 
-source /cvmfs/sft.cern.ch/lcg/views/LCG_105/x86_64-el9-gcc11-opt/setup.sh
 cd ../../
+source setup.sh
 ./bin/fair_calib config/MIP.yaml -r $start_run_number
 cd auto/MIPCalib/
 

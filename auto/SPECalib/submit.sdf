@@ -1,7 +1,7 @@
 universe = vanilla
 
 executable = /eos/user/y/ymaruya/FASER/AHCAL/FAIR/auto/SPECalib/submit.sh
-arguments  = 22135 22500
+arguments  = 21987 22286
 
 output = /eos/user/y/ymaruya/FASER/AHCAL/FAIR/auto/SPECalib/condor_logs/spe.$(ClusterId).$(ProcId).out
 error  = /eos/user/y/ymaruya/FASER/AHCAL/FAIR/auto/SPECalib/condor_logs/spe.$(ClusterId).$(ProcId).err

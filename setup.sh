@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-# Copy this file to setup.sh and edit it for your environment.
+# Copy this file to setup_local.sh and edit it for your environment.
 source /cvmfs/sft.cern.ch/lcg/views/LCG_109/x86_64-el9-gcc13-opt/setup.sh
 
 export FAIR_BASE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

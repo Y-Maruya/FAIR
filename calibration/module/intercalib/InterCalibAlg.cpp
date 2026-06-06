@@ -85,7 +85,6 @@ struct HGLGCalibResult {
     double distance_avg = -1.0;
     double distance_rms = -1.0;
     double distance_sigma = -1.0;
-    std::vector<double> distances;  // Distance of each raw point to the fitted line in HG-LG space
     
     int n_points_HGLG_cluster = 0; // lg>50 & HG<1000 & HG<2*LG
     
@@ -645,7 +644,6 @@ struct InterCalibAlg::Impl {
         double distance_avg = -1.0;
         double distance_rms = -1.0;
         double distance_sigma = -1.0;
-        std::vector<double> distances;  // Distance of each raw point to the fitted line in HG-LG space
         std::vector<double> residuals_lg;  // LG residuals for each raw point (measured - fitted)
         std::vector<double> residuals_hg;  // HG residuals for each raw point (measured - fitted)
     };
@@ -745,15 +743,15 @@ struct InterCalibAlg::Impl {
         if (hg <= 0 || lg <= 0 || hg >= 4095 || lg >= 4095) return;
 
         // Detect saturation for later analysis but don't reject
-        if (lg_sub > 200 && hg_sub < cfg_.hg_fit_max) {
-            int tmp_layer, tmp_chip, tmp_channel;
-            AHCALGeometry::CellIDToLC(cellid, tmp_layer, tmp_chip, tmp_channel);
-            if (cfg_.output_bad_cells_json) {
-                if (std::find(bad_fit_cells_.begin(), bad_fit_cells_.end(), std::make_tuple(tmp_layer, tmp_chip, tmp_channel)) == bad_fit_cells_.end()) {
-                    bad_fit_cells_.emplace_back(std::make_tuple(tmp_layer, tmp_chip, tmp_channel));
-                }
-            }
-        }
+        // if (lg_sub > 200 && hg_sub < cfg_.hg_fit_max) {
+        //     int tmp_layer, tmp_chip, tmp_channel;
+        //     AHCALGeometry::CellIDToLC(cellid, tmp_layer, tmp_chip, tmp_channel);
+        //     if (cfg_.output_bad_cells_json) {
+        //         if (std::find(bad_fit_cells_.begin(), bad_fit_cells_.end(), std::make_tuple(tmp_layer, tmp_chip, tmp_channel)) == bad_fit_cells_.end()) {
+        //             bad_fit_cells_.emplace_back(std::make_tuple(tmp_layer, tmp_chip, tmp_channel));
+        //         }
+        //     }
+        // }
         
         // Fill example 2D histogram (all points collected, cuts applied at fit time)
         int tmp_layer, tmp_chip, tmp_channel;
@@ -909,21 +907,35 @@ struct InterCalibAlg::Impl {
                 res.distance_avg = -1.0;
                 res.distance_rms = -1.0;
                 if (fr.ok) {
-                    std::vector<double> distances;
-                    distances.reserve(filtered_points.size());
+                    double distance_sum = 0.0;
+                    double distance_sq_sum = 0.0;
+                    const double c = 1.0 / fr.p1;
+                    const double d = -fr.p0 / fr.p1;
+                    const double distance_normalization = std::sqrt(c * c + 1.0);
                     for (const auto& p : filtered_points) {
                         const double hg_val = p.first;
                         const double lg_val = p.second;
                         // Distance from point to line in HG-LG space: |c*HG - LG + d| / sqrt(c^2 + 1), where c=1/p1 and d=-p0/p1
-                        const double c = 1.0 / fr.p1;
-                        const double d = -fr.p0 / fr.p1;
-                        const double dist = (c * hg_val - lg_val + d) / std::sqrt(c * c + 1.0);
-                        distances.push_back(dist);
+                        const double dist = (c * hg_val - lg_val + d) / distance_normalization;
+                        distance_sum += dist;
+                        distance_sq_sum += dist * dist;
                     }
-                    res.distance_avg = std::accumulate(distances.begin(), distances.end(), 0.0) / distances.size();
-                    double sq_sum = std::inner_product(distances.begin(), distances.end(), distances.begin(), 0.0);
-                    res.distance_rms = std::sqrt(sq_sum / distances.size());
-                    res.distances = std::move(distances);
+                    res.distance_avg = distance_sum / filtered_points.size();
+                    res.distance_rms = std::sqrt(distance_sq_sum / filtered_points.size());
+
+                    if (cfg_.quality_output_distance_histograms) {
+                        auto h_distances = std::make_unique<TH1D>(
+                            Form("h_distance_L%02d_C%02d_ch%02d", tmp_layer, tmp_chip, tmp_channel),
+                            Form("Distance of points to fit line for L%d C%d ch%d; Distance [ADC]; Entries",
+                                 tmp_layer, tmp_chip, tmp_channel),
+                            40, -10 * res.distance_rms, 10 * res.distance_rms);
+                        h_distances->SetDirectory(nullptr);
+                        for (const auto& p : filtered_points) {
+                            const double dist = (c * p.first - p.second + d) / distance_normalization;
+                            h_distances->Fill(dist);
+                        }
+                        distance_histograms_[cid] = std::move(h_distances);
+                    }
                 }
                 // Calculate residuals if fit is ok and save_residual_histograms is enabled
                 if (fr.ok && cfg_.save_residual_histograms) {
@@ -999,8 +1011,8 @@ struct InterCalibAlg::Impl {
 
             qr.distance_avg = res.distance_avg;
             qr.distance_rms = res.distance_rms;
-            qr.distances = res.distances;
-            if (qr.distances.size() == 0) {
+            if (res.fit_ok && distance_histograms_.find(cid) == distance_histograms_.end() &&
+                cfg_.quality_output_distance_histograms) {
                 LOG_WARN("InterCalibAlg: cellid {} has zero distances calculated, check fit and point extraction logic", cid);
             }
             // Compute correlation coefficient from accumulated histogram
@@ -1247,28 +1259,19 @@ struct InterCalibAlg::Impl {
             distance_avg = qr.distance_avg;
             distance_rms = qr.distance_rms;
             // distance_sigma = qr.distance_sigma;
-            if (qr.distances.empty()) {
-                distance_sigma = -1.0;
-                distance_asymmetry = -1.0;
-                distance_deviation_squared_sum = -1.0;
-                distance_deviation_squared_sum_fourth = -1.0;
-                distance_3sig_tail_fraction = -1.0;
-                distance_5sig_tail_fraction = -1.0;
-            } 
-            if (cfg_.quality_output_distance_histograms && !qr.distances.empty()) {
-                std::unique_ptr<TH1D> h_distances = std::make_unique<TH1D>(
-                    Form("h_distance_L%02d_C%02d_ch%02d", qr.layer, qr.chip, qr.channel),
-                    Form("Distance of points to fit line for L%d C%d ch%d; Distance [ADC]; Entries",
-                         qr.layer, qr.chip, qr.channel),
-                    40, -10*distance_rms, 10 * distance_rms);
-                for (double d : qr.distances) {
-                    h_distances->Fill(d);
-                }
-                h_distances->SetDirectory(nullptr);
+            distance_sigma = -1.0;
+            distance_asymmetry = -1.0;
+            distance_deviation_squared_sum = -1.0;
+            distance_deviation_squared_sum_fourth = -1.0;
+            distance_3sig_tail_fraction = -1.0;
+            distance_5sig_tail_fraction = -1.0;
+            auto distance_hist_it = distance_histograms_.find(qr.cellid);
+            if (cfg_.quality_output_distance_histograms && distance_hist_it != distance_histograms_.end()) {
+                TH1D* h_distances = distance_hist_it->second.get();
                 fout->cd("DistanceHistograms");
                 fout->cd(Form("L%02d_C%02d", qr.layer, qr.chip));
                 h_distances->Write(Form("h_distance_L%02d_C%02d_ch%02d", qr.layer, qr.chip, qr.channel));
-                FitOut fo = fitSimpleGaussian(h_distances.get(),200, 2, 5 * distance_rms);
+                FitOut fo = fitSimpleGaussian(h_distances,200, 2, 5 * distance_rms);
                 distance_sigma = fo.sigma;
                 distance_asymmetry = fo.asymmetry;
                 distance_deviation_squared_sum = fo.deviation_squared_sum;
@@ -1886,6 +1889,7 @@ struct InterCalibAlg::Impl {
     
     // Quality metrics results
     std::vector<HGLGCalibResult> quality_results_;
+    std::unordered_map<int, std::unique_ptr<TH1D>> distance_histograms_;
     
 };
 

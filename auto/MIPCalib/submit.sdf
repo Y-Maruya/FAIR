@@ -1,12 +1,11 @@
 universe = vanilla
 
 executable = /eos/user/y/ymaruya/FASER/AHCAL/FAIR/auto/MIPCalib/submit.sh
-arguments  = 21987 22500
+arguments  = 22135 23312
 
 output = /eos/user/y/ymaruya/FASER/AHCAL/FAIR/auto/MIPCalib/condor_logs/mip.$(ClusterId).$(ProcId).out
 error  = /eos/user/y/ymaruya/FASER/AHCAL/FAIR/auto/MIPCalib/condor_logs/mip.$(ClusterId).$(ProcId).err
 log    = /eos/user/y/ymaruya/FASER/AHCAL/FAIR/auto/MIPCalib/condor_logs/mip.$(ClusterId).log
 
 +JobFlavour = "testmatch"
-request_memory = 24GB
 queue
