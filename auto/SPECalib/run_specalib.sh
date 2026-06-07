@@ -1,4 +1,5 @@
 #!bin/bash
+set -e
 
 start_run_number=$1
 

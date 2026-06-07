@@ -230,9 +230,9 @@ bool SimHitReader::next(std::vector<AHCALSimHit>& out_hits, SimData& out_simdata
     if (vecTruthBranchExist){
       out_simdata.injected_pdgId = vecTruth_pdgID->empty() ? 0 : vecTruth_pdgID->at(0);
       out_simdata.injected_energy = ParticleEnergy;
-      if (ParticleEnergy != vecTruth_energy->at(0)) {
-          LOG_WARN("SimHitReader: ParticleEnergy does not match vecTruth_energy[0]");
-      }
+    //   if (ParticleEnergy != vecTruth_energy->at(0)) {
+    //       LOG_WARN("SimHitReader: ParticleEnergy does not match vecTruth_energy[0]");
+    //   }
       out_simdata.injected_time = 0; // not available in current TTree, set to -1 as default
       out_simdata.injected_z = -999999; // not available in current TTree, set to -1 as default
       out_simdata.injected_x = -999999; // not available in current TTree, set to -1 as default

@@ -134,7 +134,8 @@ int PedestalReader::selectNearestPedestalRun(int runNumber) {
     }
     std::sort(pedestalRuns.begin(), pedestalRuns.end(), [](const auto& a, const auto& b){ return a.second < b.second; });
     // output the pedestal run table using atomic rename for thread-safety
-    std::string tmpFile = pedestal_runs_file_ + ".tmp";
+    std::string rand = std::to_string(std::rand());
+    std::string tmpFile = pedestal_runs_file_ + ".tmp"+"."+rand;
     std::ofstream outfile(tmpFile, std::ios::out);
     if (outfile.is_open()) {
         for (const auto& p : pedestalRuns) {
@@ -143,8 +144,9 @@ int PedestalReader::selectNearestPedestalRun(int runNumber) {
         outfile.close();
         // atomic rename to ensure readers always see complete file
         if (std::rename(tmpFile.c_str(), pedestal_runs_file_.c_str()) != 0) {
-            LOG_ERROR("Could not rename {} to {}", tmpFile, pedestal_runs_file_);
-            throw std::runtime_error("Could not rename " + tmpFile + " to " + pedestal_runs_file_);
+            // LOG_ERROR("Could not rename {} to {}", tmpFile, pedestal_runs_file_);
+            LOG_ERROR("Could not rename {} to {}, but the pedestal run information is updated in {}", tmpFile, pedestal_runs_file_, tmpFile);
+            // throw std::runtime_error("Could not rename " + tmpFile + " to " + pedestal_runs_file_);
         }
     } else {
         LOG_ERROR("Could not open {} to write pedestal run information", tmpFile);

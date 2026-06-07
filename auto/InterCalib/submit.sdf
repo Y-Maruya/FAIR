@@ -1,11 +1,11 @@
 universe = vanilla
 
 executable = /eos/user/y/ymaruya/FASER/AHCAL/FAIR/auto/InterCalib/submit.sh
-arguments  = 22135 23312
+arguments  = $(start_run)
 
-output = /eos/user/y/ymaruya/FASER/AHCAL/FAIR/auto/InterCalib/condor_logs/intercalib.$(ClusterId).$(ProcId).out
-error  = /eos/user/y/ymaruya/FASER/AHCAL/FAIR/auto/InterCalib/condor_logs/intercalib.$(ClusterId).$(ProcId).err
+output = /eos/user/y/ymaruya/FASER/AHCAL/FAIR/auto/InterCalib/condor_logs/intercalib.$(start_run).$(ClusterId).$(ProcId).out
+error  = /eos/user/y/ymaruya/FASER/AHCAL/FAIR/auto/InterCalib/condor_logs/intercalib.$(start_run).$(ClusterId).$(ProcId).err
 log    = /eos/user/y/ymaruya/FASER/AHCAL/FAIR/auto/InterCalib/condor_logs/intercalib.$(ClusterId).log
 
-+JobFlavour = "testmatch"
-queue
++JobFlavour = "workday"
+queue start_run from run_starts.txt

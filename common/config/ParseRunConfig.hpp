@@ -2,6 +2,7 @@
 #include <yaml-cpp/yaml.h>
 #include "common/RunContext.hpp"
 #include "common/config/YAMLUtil.hpp"
+#include <chrono>
 #include <curl/curl.h>
 #include <cstdio>
 #include <ctime>
@@ -9,6 +10,7 @@
 #include <memory>
 #include <stdexcept>
 #include <string>
+#include <thread>
 inline RunConfig parse_run_config(const YAML::Node& root) {
     RunConfig rc;
     const auto& run = require_node(root, "run");
@@ -49,34 +51,64 @@ inline size_t curl_write_to_string(char* ptr, size_t size, size_t nmemb, void* u
   return size * nmemb;
 }
 
+inline bool is_transient_fetch_failure(CURLcode code, long http_code) {
+  if (code == CURLE_HTTP_RETURNED_ERROR) {
+    return http_code == 429 || http_code >= 500;
+  }
+  return code == CURLE_COULDNT_RESOLVE_HOST ||
+         code == CURLE_COULDNT_CONNECT ||
+         code == CURLE_OPERATION_TIMEDOUT ||
+         code == CURLE_SEND_ERROR ||
+         code == CURLE_RECV_ERROR ||
+         code == CURLE_GOT_NOTHING ||
+         code == CURLE_PARTIAL_FILE;
+}
+
 inline std::string fetch_text_from_url(const std::string& url) {
   ensure_curl_initialized();
 
-  std::unique_ptr<CURL, decltype(&curl_easy_cleanup)> handle(curl_easy_init(), &curl_easy_cleanup);
-  if (!handle) {
-    throw std::runtime_error("curl_easy_init failed");
-  }
+  constexpr int max_attempts = 3;
+  for (int attempt = 1; attempt <= max_attempts; ++attempt) {
+    std::unique_ptr<CURL, decltype(&curl_easy_cleanup)> handle(curl_easy_init(), &curl_easy_cleanup);
+    if (!handle) {
+      throw std::runtime_error("curl_easy_init failed");
+    }
 
-  std::string response;
-  char error_buffer[CURL_ERROR_SIZE] = {0};
+    std::string response;
+    char error_buffer[CURL_ERROR_SIZE] = {0};
 
-  curl_easy_setopt(handle.get(), CURLOPT_URL, url.c_str());
-  curl_easy_setopt(handle.get(), CURLOPT_FOLLOWLOCATION, 1L);
-  curl_easy_setopt(handle.get(), CURLOPT_FAILONERROR, 1L);
-  curl_easy_setopt(handle.get(), CURLOPT_CONNECTTIMEOUT, 10L);
-  curl_easy_setopt(handle.get(), CURLOPT_TIMEOUT, 30L);
-  curl_easy_setopt(handle.get(), CURLOPT_USERAGENT, "FAIR/0.1");
-  curl_easy_setopt(handle.get(), CURLOPT_WRITEFUNCTION, &curl_write_to_string);
-  curl_easy_setopt(handle.get(), CURLOPT_WRITEDATA, &response);
-  curl_easy_setopt(handle.get(), CURLOPT_ERRORBUFFER, error_buffer);
+    curl_easy_setopt(handle.get(), CURLOPT_URL, url.c_str());
+    curl_easy_setopt(handle.get(), CURLOPT_FOLLOWLOCATION, 1L);
+    curl_easy_setopt(handle.get(), CURLOPT_FAILONERROR, 1L);
+    curl_easy_setopt(handle.get(), CURLOPT_CONNECTTIMEOUT, 10L);
+    curl_easy_setopt(handle.get(), CURLOPT_TIMEOUT, 30L);
+    curl_easy_setopt(handle.get(), CURLOPT_USERAGENT, "FAIR/0.1");
+    curl_easy_setopt(handle.get(), CURLOPT_WRITEFUNCTION, &curl_write_to_string);
+    curl_easy_setopt(handle.get(), CURLOPT_WRITEDATA, &response);
+    curl_easy_setopt(handle.get(), CURLOPT_ERRORBUFFER, error_buffer);
 
-  const CURLcode code = curl_easy_perform(handle.get());
-  if (code != CURLE_OK) {
+    const CURLcode code = curl_easy_perform(handle.get());
+    if (code == CURLE_OK) {
+      return response;
+    }
+
+    long http_code = 0;
+    curl_easy_getinfo(handle.get(), CURLINFO_RESPONSE_CODE, &http_code);
     const std::string detail = error_buffer[0] != '\0' ? error_buffer : curl_easy_strerror(code);
-    throw std::runtime_error("Failed to fetch URL '" + url + "': " + detail);
+    if (!is_transient_fetch_failure(code, http_code) || attempt == max_attempts) {
+      throw std::runtime_error(
+          "Failed to fetch URL '" + url + "' after " + std::to_string(attempt) +
+          (attempt == 1 ? " attempt: " : " attempts: ") + detail);
+    }
+
+    const int delay_seconds = attempt;
+    std::fprintf(stderr,
+                 "Transient failure fetching '%s' (attempt %d/%d): %s. Retrying in %d second(s).\n",
+                 url.c_str(), attempt, max_attempts, detail.c_str(), delay_seconds);
+    std::this_thread::sleep_for(std::chrono::seconds(delay_seconds));
   }
 
-  return response;
+  throw std::runtime_error("Failed to fetch URL '" + url + "'");
 }
 inline bool has_suffix(const std::string& s, const std::string& suffix) {
   return s.size() >= suffix.size() &&

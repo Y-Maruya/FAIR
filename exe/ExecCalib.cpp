@@ -182,7 +182,7 @@ class AHCALRuns{
 };
 
 using namespace AHCALRecoAlg;
-int main(int argc, char* argv[]) {
+int run_fair_calib(int argc, char* argv[]) {
     if (argc < 4) {
         LOG_ERROR("Usage: {} <config_yaml> -r <start_run> [-n <num_veto_events> -e <excluded_runs_file>]", argv[0]);
         return 1;
@@ -447,4 +447,16 @@ int main(int argc, char* argv[]) {
     algs.clear();
     LOG_INFO("AHCAL Application finished.");
     return 0;
+}
+
+int main(int argc, char* argv[]) {
+    try {
+        return run_fair_calib(argc, argv);
+    } catch (const std::exception& ex) {
+        std::cerr << "fair_calib failed: " << ex.what() << std::endl;
+        return 1;
+    } catch (...) {
+        std::cerr << "fair_calib failed with an unknown error." << std::endl;
+        return 1;
+    }
 }
