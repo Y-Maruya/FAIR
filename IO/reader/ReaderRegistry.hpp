@@ -1,6 +1,7 @@
 #pragma once
 #include <any>
 #include <functional>
+#include <stdexcept>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -44,7 +45,11 @@ public:
   }
 
   std::any read_any(const std::string& type_name, const std::string& prefix, RootInput& in) const {
-    return m_readers.at(type_name)(prefix, in);
+    const auto it = m_readers.find(type_name);
+    if (it == m_readers.end()) {
+      throw std::runtime_error("Reader type is not registered: " + type_name);
+    }
+    return it->second(prefix, in);
   }
   template <class T>
   T read(const std::string& type_name, const std::string& prefix, RootInput& in) const {

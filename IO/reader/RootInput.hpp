@@ -30,7 +30,6 @@ public:
 
   Long64_t entries() const { return m_entries; }
 
-  // 直近に GetEntry したエントリ番号（未読なら -1）
   Long64_t current_entry() const { return m_entry - 1; }
 
   bool read_entry(Long64_t i) {
@@ -42,7 +41,9 @@ public:
 
   bool next() {
     if (m_entry >= m_entries) return false;
+    LOG_DEBUG("Reading entry {} / {}", m_entry, m_entries);
     m_tree->GetEntry(m_entry++);
+    LOG_DEBUG("Read entry {} / {}", m_entry - 1, m_entries);
     return true;
   }
 

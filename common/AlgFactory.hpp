@@ -87,10 +87,9 @@ inline ReaderRegistry parse_reader_registry(const YAML::Node& n) {
       throw std::runtime_error("Invalid inputlist entry size");
     }
     const auto& type = type_array[0];
-    const auto& key  = type_array[1];
 
     if (auto fn = IOTypeRegistry::instance().get_reader(type)) {
-      fn(reg, key);
+      fn(reg, type);
       continue;
     }
 
@@ -160,5 +159,4 @@ inline std::vector<std::unique_ptr<IAlg>> build_pipeline(RunContext& ctx, const 
   for (const auto& a : algs) v.emplace_back(make_alg(ctx, a));
   return v;
 }
-
 
