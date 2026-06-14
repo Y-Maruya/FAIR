@@ -106,7 +106,8 @@ int main(int argc, char* argv[]) {
             FAIR::init_logger("AHCALApp", ctx.config.log_file, spdlog::level::err);
         } else {
             FAIR::init_logger("AHCALApp", ctx.config.log_file, spdlog::level::info);
-        } 
+        }
+        std::cout << "Log file: " << ctx.config.log_file << std::endl;
         LOG_INFO("RunConfig parsed successfully.");
         auto algs = build_pipeline(ctx, config);
         for (auto& alg : algs) {
@@ -238,6 +239,7 @@ int main(int argc, char* argv[]) {
         } else if (type == "RootInput") {
             int nEvent = 0;
             int nInputs = 0;
+            LOG_DEBUG("RootInput reader initialization started.");
             for (std::string input_file : raw_inputs_path) {
                 nInputs++;
                 if (max_pool_size > 0 && nInputs > max_pool_size) {
@@ -251,16 +253,26 @@ int main(int argc, char* argv[]) {
                 LOG_INFO("Total entries in input file: {}", total_entries);
                 int nEvent_current = 0;
                 while (true) {
-                    if (!in.next()) {
-                        break; // No more events
+                    LOG_DEBUG("Attempting to read next entry for event {}", nEvent);
+                    try {
+                        if (!in.next()) {
+                            LOG_DEBUG("No more entries to read for event {}", nEvent);
+                            break; // No more events
+                        }
+                    } catch (const std::exception& e) {
+                        LOG_ERROR("Error reading entry for event {}: {}", nEvent, e.what());
+                        break;
                     }
                     if (ctx.config.nEvents > 0 && nEvent >= ctx.config.nEvents) {
                         break; // Reached the maximum number of events to process
                     }
                     EventStore eventStore;
                     eventStore.set_event_counter(nEvent);
+                    LOG_DEBUG("Reading and putting data into EventStore for event {}", nEvent);
                     readandput(cfg, eventStore, rr, in);
+                    LOG_DEBUG("Data read and put into EventStore successfully for event {}", nEvent);
                     for (auto& alg : algs) {
+                        LOG_DEBUG("Executing algorithm: {}", typeid(*alg).name());
                         alg->execute(eventStore);
                     }
                     nEvent++;

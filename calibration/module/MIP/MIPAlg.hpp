@@ -6,6 +6,7 @@
 #include "common/RunContext.hpp"
 #include <string>
 #include <memory>
+#include <utility>
 #include <vector>
 #include <cmath>
 #include <stdexcept>
@@ -39,6 +40,15 @@ namespace AHCALRecoAlg{
         bool read_pedestal_from_DB = true; 
 
         double xy_size_threshold = 15.0; // mm
+
+        bool enable_neighbor_layer_crossing_selection = true;
+        int mip_neighbor_upstream_layers = 2;
+        int mip_neighbor_downstream_layers = 2;
+        bool mip_edge_layer_policy = true;
+        bool mip_reject_if_neighbor_cell_hit = true;
+        int mip_neighbor_cell_search_radius = 1;
+        std::vector<int> mip_skip_layers;
+        std::vector<std::pair<int, int>> mip_skip_chips;
 
     };
 

@@ -90,6 +90,14 @@ int PedestalReader::selectNearestPedestalRun(int runNumber) {
     // Then find the nearest pedestal run to the given runNumber based on the timestamp
     std::vector<std::pair<int, std::time_t>> pedestalRuns; // pair of (runNumber, timestamp)
     std::ifstream infile(pedestal_runs_file_, std::ios::in);
+    int i = 0;
+    int max_retries = 5;
+    while (!infile.is_open() && i < max_retries) {
+        i++;
+        LOG_WARN("Could not open {} to read pedestal run information, retrying in 1 second...", pedestal_runs_file_);
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+        infile.open(pedestal_runs_file_, std::ios::in);
+    }
     if (infile.is_open()) {
         std::string line;
         while (std::getline(infile, line)) {

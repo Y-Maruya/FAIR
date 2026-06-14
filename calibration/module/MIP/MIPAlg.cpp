@@ -31,6 +31,7 @@
 #include <memory>
 #include <sstream>
 #include <string>
+#include <utility>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -159,6 +160,25 @@ namespace AHCALRecoAlg{
     }
 
     struct MIPAlg::Impl {
+        struct LayerCutflow {
+            long long skipped_layer = 0;
+            long long out_of_active_area = 0;
+            long long skipped_chip = 0;
+            long long outside_xy_threshold = 0;
+            long long failed_neighbor_support = 0;
+            long long neighbor_cell_hit = 0;
+            long long selected_crossing = 0;
+            long long target_hit_fill = 0;
+            long long no_exact_target_hit = 0;
+        };
+
+        struct ProjectedCell {
+            double x = 0.0;
+            double y = 0.0;
+            int chip = -1;
+            int channel = -1;
+        };
+
         struct FitResult {
             int cellid = -1;
             int layer = -1;
@@ -177,6 +197,115 @@ namespace AHCALRecoAlg{
             : cfg_(std::move(cfg)), ctx_(ctx) {
             loadPedestals();
             run_contexts_.push_back(ctx);
+        }
+
+        bool isSkippedLayer(int layer) const {
+            return std::find(cfg_.mip_skip_layers.begin(), cfg_.mip_skip_layers.end(), layer)
+                != cfg_.mip_skip_layers.end();
+        }
+
+        bool isSkippedChip(int layer, int chip) const {
+            return std::find(cfg_.mip_skip_chips.begin(), cfg_.mip_skip_chips.end(),
+                             std::make_pair(layer, chip))
+                != cfg_.mip_skip_chips.end();
+        }
+
+        bool projectTrackToCell(const SimpleFittedTrack& track, int layer,
+                                ProjectedCell& projected) const {
+            if (layer < 0 || layer >= AHCALGeometry::Layer_No || isSkippedLayer(layer)) {
+                return false;
+            }
+            projected.x = track.init_pos_x + track.direction_x * AHCALGeometry::Pos_Z(layer);
+            projected.y = track.init_pos_y + track.direction_y * AHCALGeometry::Pos_Z(layer);
+            if (std::abs(projected.x) > AHCALGeometry::x_max ||
+                std::abs(projected.y) > AHCALGeometry::y_max) {
+                return false;
+            }
+            AHCALGeometry::inverse(projected.x, projected.y, projected.chip, projected.channel);
+            return !isSkippedChip(layer, projected.chip);
+        }
+
+        bool hasExactHit(const std::vector<AHCALRawHit>& rawhits, int layer,
+                         int chip, int channel) const {
+            return std::any_of(rawhits.begin(), rawhits.end(), [&](const AHCALRawHit& rh) {
+                return rh.layer() == layer && rh.chip() == chip &&
+                       rh.channel() == channel && rh.hittag == 1;
+            });
+        }
+
+        std::pair<int, int> requiredSupportLayers(const SimpleFittedTrack& track,
+                                                  int target_layer) const {
+            int required_up = std::max(0, cfg_.mip_neighbor_upstream_layers);
+            int required_down = std::max(0, cfg_.mip_neighbor_downstream_layers);
+            if (!cfg_.mip_edge_layer_policy) {
+                return {required_up, required_down};
+            }
+
+            auto countValidLayers = [&](int first_layer, int step) {
+                int count = 0;
+                for (int layer = first_layer;
+                     layer >= 0 && layer < AHCALGeometry::Layer_No;
+                     layer += step) {
+                    ProjectedCell projected;
+                    if (projectTrackToCell(track, layer, projected)) {
+                        ++count;
+                    }
+                }
+                return count;
+            };
+
+            const int required_total = required_up + required_down;
+            const int available_up = countValidLayers(target_layer - 1, -1);
+            const int available_down = countValidLayers(target_layer + 1, +1);
+
+            required_up = std::min(required_up, available_up);
+            required_down = required_total - required_up;
+            if (required_down > available_down) {
+                required_down = available_down;
+                required_up = required_total - required_down;
+            }
+            return {required_up, required_down};
+        }
+
+        bool hasRequiredSupport(const std::vector<AHCALRawHit>& rawhits,
+                                const SimpleFittedTrack& track, int target_layer,
+                                int required_up, int required_down) const {
+            auto directionHasSupport = [&](int first_layer, int step, int required) {
+                int valid_layers = 0;
+                for (int layer = first_layer;
+                     layer >= 0 && layer < AHCALGeometry::Layer_No && valid_layers < required;
+                     layer += step) {
+                    ProjectedCell projected;
+                    if (!projectTrackToCell(track, layer, projected)) {
+                        continue;
+                    }
+                    ++valid_layers;
+                    if (!hasExactHit(rawhits, layer, projected.chip, projected.channel)) {
+                        return false;
+                    }
+                }
+                return valid_layers == required;
+            };
+
+            return directionHasSupport(target_layer - 1, -1, required_up) &&
+                   directionHasSupport(target_layer + 1, +1, required_down);
+        }
+
+        bool hasNeighborCellHit(const std::vector<AHCALRawHit>& rawhits, int target_layer,
+                                int target_chip, int target_channel) const {
+            const double target_x = AHCALGeometry::Pos_X(target_channel, target_chip);
+            const double target_y = AHCALGeometry::Pos_Y(target_channel, target_chip);
+            const double window = std::max(0, cfg_.mip_neighbor_cell_search_radius) * 40.3;
+            return std::any_of(rawhits.begin(), rawhits.end(), [&](const AHCALRawHit& rh) {
+                if (rh.hittag != 1 || rh.layer() != target_layer ||
+                    (rh.chip() == target_chip && rh.channel() == target_channel)) {
+                    return false;
+                }
+                const double hit_x = AHCALGeometry::Pos_X(rh.channel(), rh.chip());
+                const double hit_y = AHCALGeometry::Pos_Y(rh.channel(), rh.chip());
+                return std::abs(hit_x - target_x) <= window &&
+                       std::abs(hit_y - target_y) <= window;
+            });
         }
 
         void loadPedestals() {
@@ -380,12 +509,54 @@ namespace AHCALRecoAlg{
                     if (h) h->Write();
                     TParameter<int> pNtracks_pass_through_channel(Form("Ntracks_pass_through_channel_%d", cellid), Ntrack_pass_through_channel_[cellid]);
                     pNtracks_pass_through_channel.Write();
-                    cellid_ = cellid;
-                    ntracks_ = Ntrack_pass_through_channel_[cellid];
-                    tree_ntrack->Fill();
+                }
+                for (int layer = 0; layer < AHCALGeometry::Layer_No; ++layer) {
+                    for (int chip = 0; chip < AHCALGeometry::chip_No; ++chip) {
+                        for (int channel = 0; channel < AHCALGeometry::channel_No; ++channel) {
+                            cellid_ = AHCALGeometry::CellID(layer, chip, channel);
+                            ntracks_ = Ntrack_pass_through_channel_[cellid_];
+                            tree_ntrack->Fill();
+                        }
+                    }
                 }
                 fout->cd("MIP");
                 tree_ntrack->Write();
+
+                TTree tree_cutflow("mip_crossing_cutflow", "MIP crossing selection cutflow by layer");
+                int layer_ = -1;
+                long long skipped_layer_ = 0;
+                long long out_of_active_area_ = 0;
+                long long skipped_chip_ = 0;
+                long long outside_xy_threshold_ = 0;
+                long long failed_neighbor_support_ = 0;
+                long long neighbor_cell_hit_ = 0;
+                long long selected_crossing_ = 0;
+                long long target_hit_fill_ = 0;
+                long long no_exact_target_hit_ = 0;
+                tree_cutflow.Branch("layer", &layer_);
+                tree_cutflow.Branch("skipped_layer", &skipped_layer_);
+                tree_cutflow.Branch("out_of_active_area", &out_of_active_area_);
+                tree_cutflow.Branch("skipped_chip", &skipped_chip_);
+                tree_cutflow.Branch("outside_xy_threshold", &outside_xy_threshold_);
+                tree_cutflow.Branch("failed_neighbor_support", &failed_neighbor_support_);
+                tree_cutflow.Branch("neighbor_cell_hit", &neighbor_cell_hit_);
+                tree_cutflow.Branch("selected_crossing", &selected_crossing_);
+                tree_cutflow.Branch("target_hit_fill", &target_hit_fill_);
+                tree_cutflow.Branch("no_exact_target_hit", &no_exact_target_hit_);
+                for (layer_ = 0; layer_ < AHCALGeometry::Layer_No; ++layer_) {
+                    const auto& c = layer_cutflow_[layer_];
+                    skipped_layer_ = c.skipped_layer;
+                    out_of_active_area_ = c.out_of_active_area;
+                    skipped_chip_ = c.skipped_chip;
+                    outside_xy_threshold_ = c.outside_xy_threshold;
+                    failed_neighbor_support_ = c.failed_neighbor_support;
+                    neighbor_cell_hit_ = c.neighbor_cell_hit;
+                    selected_crossing_ = c.selected_crossing;
+                    target_hit_fill_ = c.target_hit_fill;
+                    no_exact_target_hit_ = c.no_exact_target_hit;
+                    tree_cutflow.Fill();
+                }
+                tree_cutflow.Write();
 
             }
 
@@ -685,6 +856,7 @@ namespace AHCALRecoAlg{
         std::unordered_map<int, int> adc_le50_count_;
         std::unordered_map<int, FitResult> fit_cache_;
         std::unordered_map<int, int> Ntrack_pass_through_channel_;
+        LayerCutflow layer_cutflow_[AHCALGeometry::Layer_No];
     };
 
     void MIPAlg::ImplDeleter::operator()(Impl* p) const {
@@ -724,33 +896,72 @@ namespace AHCALRecoAlg{
                 }
             }
             for (int i_layer = 0; i_layer < AHCALGeometry::Layer_No; ++i_layer) {
-                double x = track.init_pos_x + track.direction_x * (AHCALGeometry::Pos_Z(i_layer));
-                double y = track.init_pos_y + track.direction_y * (AHCALGeometry::Pos_Z(i_layer));
-                // double z = AHCALGeometry::Pos_Z(i_layer);
+                auto& cutflow = impl_->layer_cutflow_[i_layer];
+                if (impl_->isSkippedLayer(i_layer)) {
+                    ++cutflow.skipped_layer;
+                    LOG_DEBUG("MIPAlg: target layer {} skipped", i_layer);
+                    continue;
+                }
+
+                const double x = track.init_pos_x + track.direction_x * AHCALGeometry::Pos_Z(i_layer);
+                const double y = track.init_pos_y + track.direction_y * AHCALGeometry::Pos_Z(i_layer);
+                if (std::abs(x) > AHCALGeometry::x_max || std::abs(y) > AHCALGeometry::y_max) {
+                    ++cutflow.out_of_active_area;
+                    LOG_DEBUG("MIPAlg: track extrapolation out of active area for layer {}: x={}, y={}",
+                              i_layer, x, y);
+                    continue;
+                }
+
                 int chip = -1;
                 int channel = -1;
                 AHCALGeometry::inverse(x, y, chip, channel);
-                if (abs(x) > AHCALGeometry::x_max || abs(y) > AHCALGeometry::y_max) {
-                    LOG_DEBUG("MuonEffAlg: track extrapolation out of bounds for layer {}: x={}, y={}", i_layer, x, y);
+                if (impl_->isSkippedChip(i_layer, chip)) {
+                    ++cutflow.skipped_chip;
+                    LOG_DEBUG("MIPAlg: predicted chip skipped for layer {} chip {}", i_layer, chip);
                     continue;
                 }
-                double rh_x = AHCALGeometry::Pos_X(channel, chip);
-                double rh_y = AHCALGeometry::Pos_Y(channel, chip);
-                if (abs(x-rh_x) <= cfg_.xy_size_threshold && abs(y-rh_y) <= cfg_.xy_size_threshold) {
-                    int cellid = i_layer * 100000 + chip * 10000 + channel;
-                    impl_->Ntrack_pass_through_channel_[cellid]++;
-                    auto hit_it = std::find_if(rawhits.begin(), rawhits.end(), [&](const AHCALRawHit& rh){
-                        return rh.layer() == i_layer && rh.chip() == chip && rh.channel() == channel && rh.hittag == 1;
-                    });
-                    if (hit_it != rawhits.end()) {
-                        AHCALRawHit matched_hit = *hit_it;
-                        if (matched_hit.layer() == i_layer && matched_hit.chip() == chip && matched_hit.channel() == channel) {
-                            impl_->fill(std::move(matched_hit));
-                        } else {
-                            LOG_DEBUG("MIPAlg: no matching hit found for track extrapolation at layer {} (x={}, y={})", i_layer, x, y);
-                        }
+
+                const double rh_x = AHCALGeometry::Pos_X(channel, chip);
+                const double rh_y = AHCALGeometry::Pos_Y(channel, chip);
+                if (std::abs(x - rh_x) > cfg_.xy_size_threshold ||
+                    std::abs(y - rh_y) > cfg_.xy_size_threshold) {
+                    ++cutflow.outside_xy_threshold;
+                    LOG_DEBUG("MIPAlg: track extrapolation outside xy threshold for layer {}", i_layer);
+                    continue;
+                }
+
+                if (cfg_.enable_neighbor_layer_crossing_selection) {
+                    const auto [required_up, required_down] =
+                        impl_->requiredSupportLayers(track, i_layer);
+                    if (!impl_->hasRequiredSupport(rawhits, track, i_layer, required_up, required_down)) {
+                        ++cutflow.failed_neighbor_support;
+                        LOG_DEBUG("MIPAlg: failed neighboring-layer support for layer {}", i_layer);
+                        continue;
                     }
-                }                
+                }
+
+                if (cfg_.mip_reject_if_neighbor_cell_hit &&
+                    impl_->hasNeighborCellHit(rawhits, i_layer, chip, channel)) {
+                    ++cutflow.neighbor_cell_hit;
+                    LOG_DEBUG("MIPAlg: rejected neighboring-cell hit for layer {}", i_layer);
+                    continue;
+                }
+
+                const int cellid = AHCALGeometry::CellID(i_layer, chip, channel);
+                ++impl_->Ntrack_pass_through_channel_[cellid];
+                ++cutflow.selected_crossing;
+
+                auto hit_it = std::find_if(rawhits.begin(), rawhits.end(), [&](const AHCALRawHit& rh) {
+                    return rh.layer() == i_layer && rh.chip() == chip &&
+                           rh.channel() == channel && rh.hittag == 1;
+                });
+                if (hit_it != rawhits.end()) {
+                    impl_->fill(*hit_it);
+                    ++cutflow.target_hit_fill;
+                } else {
+                    ++cutflow.no_exact_target_hit;
+                    LOG_DEBUG("MIPAlg: no exact target hit for layer {} (x={}, y={})", i_layer, x, y);
+                }
             }
             // if (!track.inTrackHitsIndices.size()) {
             //     LOG_WARN("MIPAlg: track has no associated hits.");
@@ -828,5 +1039,31 @@ namespace AHCALRecoAlg{
         cfg_.in_pedestal_file = get_or<std::string>(cfg, "in_pedestal_file", cfg_.in_pedestal_file);
         cfg_.read_pedestal_from_DB = get_or<bool>(cfg, "read_pedestal_from_DB", cfg_.read_pedestal_from_DB);
         cfg_.xy_size_threshold = get_or<double>(cfg, "xy_size_threshold", cfg_.xy_size_threshold);
+        cfg_.enable_neighbor_layer_crossing_selection = get_or<bool>(
+            cfg, "enable_neighbor_layer_crossing_selection", cfg_.enable_neighbor_layer_crossing_selection);
+        cfg_.mip_neighbor_upstream_layers = get_or<int>(
+            cfg, "mip_neighbor_upstream_layers", cfg_.mip_neighbor_upstream_layers);
+        cfg_.mip_neighbor_downstream_layers = get_or<int>(
+            cfg, "mip_neighbor_downstream_layers", cfg_.mip_neighbor_downstream_layers);
+        cfg_.mip_edge_layer_policy = get_or<bool>(
+            cfg, "mip_edge_layer_policy", cfg_.mip_edge_layer_policy);
+        cfg_.mip_reject_if_neighbor_cell_hit = get_or<bool>(
+            cfg, "mip_reject_if_neighbor_cell_hit", cfg_.mip_reject_if_neighbor_cell_hit);
+        cfg_.mip_neighbor_cell_search_radius = get_or<int>(
+            cfg, "mip_neighbor_cell_search_radius", cfg_.mip_neighbor_cell_search_radius);
+        cfg_.mip_skip_layers = get_or<std::vector<int>>(cfg, "mip_skip_layers", cfg_.mip_skip_layers);
+        cfg_.mip_skip_chips.clear();
+        if (cfg["mip_skip_chips"]) {
+            for (const auto& entry : cfg["mip_skip_chips"]) {
+                if (!entry.IsSequence() || entry.size() != 2) {
+                    throw std::runtime_error("MIPAlg: each mip_skip_chips entry must be [layer, chip]");
+                }
+                cfg_.mip_skip_chips.emplace_back(entry[0].as<int>(), entry[1].as<int>());
+            }
+        }
+        if (cfg_.mip_neighbor_upstream_layers < 0 || cfg_.mip_neighbor_downstream_layers < 0 ||
+            cfg_.mip_neighbor_cell_search_radius < 0) {
+            throw std::runtime_error("MIPAlg: neighbor layer counts and cell search radius must be non-negative");
+        }
     }
 } // namespace AHCALRecoAlg

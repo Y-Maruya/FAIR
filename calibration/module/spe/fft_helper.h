@@ -54,7 +54,8 @@ TH1D* doFFT(const std::vector<double>& vin, int Npad, const char* name) {
     fft->GetPointsComplex(re.data(), im.data());
     delete fft;
 
-    TH1D* h = new TH1D(name, name, Npad / 2, 0, Npad / 2);
+    // ROOT bin q + 1 stores FFT frequency index q.
+    TH1D* h = new TH1D(name, name, Npad / 2, -0.5, Npad / 2 - 0.5);
     h->SetDirectory(nullptr);
     for (int k = 0; k < Npad / 2; ++k) {
         h->SetBinContent(k + 1, hypot(re[k], im[k]));
@@ -63,17 +64,17 @@ TH1D* doFFT(const std::vector<double>& vin, int Npad, const char* name) {
 }
 
 /// Convert FFT spectrum to gain-space histogram
-TH1D* makeFFTgainHist(const TH1D* hFFT, int Npad, double gain_min, 
-                      double gain_max, const char* name) {
+TH1D* makeFFTgainHist(const TH1D* hFFT, int Npad, double adc_bin_width,
+                      double gain_min, double gain_max, const char* name) {
     TH1D* hG = new TH1D(name, "FFT spectrum vs gain;gain [ADC/p.e.];amplitude",
                         250, gain_min, gain_max);
     hG->SetDirectory(nullptr);
     if (!hFFT) return hG;
 
-    for (int k = 1; k <= hFFT->GetNbinsX(); ++k) {
-        double a = hFFT->GetBinContent(k);
-        if (k <= 0) continue;
-        double g = (double)Npad / (double)k;
+    for (int bin = 2; bin <= hFFT->GetNbinsX(); ++bin) {
+        const int q = bin - 1;
+        double a = hFFT->GetBinContent(bin);
+        double g = (double)Npad * adc_bin_width / (double)q;
         if (g < gain_min || g > gain_max) continue;
         int bg = hG->FindBin(g);
         hG->SetBinContent(bg, hG->GetBinContent(bg) + a);
@@ -82,9 +83,9 @@ TH1D* makeFFTgainHist(const TH1D* hFFT, int Npad, double gain_min,
 }
 
 /// Gain error estimation (simplified)
-inline double gainErr_simple(double Npad, double k0) {
-    const double sigk = 0.5 / std::sqrt(12.0);
-    return (k0 > 0 ? (Npad * sigk) / (k0 * k0) : -1.0);
+inline double gainErr_simple(double Npad, double adc_bin_width, double q0) {
+    const double sigq = 0.5 / std::sqrt(12.0);
+    return (q0 > 0 ? (Npad * adc_bin_width * sigq) / (q0 * q0) : -1.0);
 }
 
 // ============ Peak Detection ============
@@ -100,17 +101,22 @@ struct KPick {
 };
 
 /// Find FFT peak and extract gain + SNR
-KPick pickK0(const TH1D* h, int Npad, double gain_min, double gain_max,
-             double edge_gain_tol = 0.01, int kedge_skip = 4) {
+KPick pickK0(const TH1D* h, int Npad, double adc_bin_width,
+             double gain_min, double gain_max, double edge_gain_tol = 0.01,
+             int kedge_skip = 4) {
     KPick r;
-    if (!h) return r;
+    if (!h || Npad <= 0 || adc_bin_width <= 0 || gain_min <= 0 ||
+        gain_max <= gain_min) {
+        return r;
+    }
 
-    int kmin = std::max(1, (int)std::floor((double)Npad / gain_max));
-    int kmax = std::min(h->GetNbinsX(), (int)std::ceil((double)Npad / gain_min));
-    if (kmax < kmin) std::swap(kmax, kmin);
+    const double adc_span = (double)Npad * adc_bin_width;
+    int kmin = std::max(1, (int)std::floor(adc_span / gain_max));
+    int kmax = std::min(h->GetNbinsX() - 1, (int)std::ceil(adc_span / gain_min));
+    if (kmax < kmin) return r;
 
-    auto amp = [&](int k) {
-        return (k >= 1 && k <= h->GetNbinsX()) ? h->GetBinContent(k) : 0.0;
+    auto amp = [&](int q) {
+        return (q >= 0 && q < h->GetNbinsX()) ? h->GetBinContent(q + 1) : 0.0;
     };
 
     auto argmax = [&](int a, int b) {
@@ -130,7 +136,7 @@ KPick pickK0(const TH1D* h, int Npad, double gain_min, double gain_max,
         int best = -1;
         double bestA = -1;
         a = std::max(a, 2);
-        b = std::min(b, h->GetNbinsX() - 1);
+        b = std::min(b, h->GetNbinsX() - 2);
         for (int k = a; k <= b; ++k) {
             double c = amp(k);
             if (c > amp(k - 1) && c >= amp(k + 1)) {
@@ -146,7 +152,7 @@ KPick pickK0(const TH1D* h, int Npad, double gain_min, double gain_max,
     int kp = argmax(kmin, kmax);
     double pk = amp(kp);
 
-    double gain0 = (kp > 0 ? (double)Npad / kp : -1);
+    double gain0 = (kp > 0 ? adc_span / kp : -1);
     bool edgeLike = (kp <= kmin + 1) || 
                     (gain0 >= gain_max * (1.0 - edge_gain_tol));
 
@@ -160,11 +166,11 @@ KPick pickK0(const TH1D* h, int Npad, double gain_min, double gain_max,
         }
     }
 
-    // Parabolic interpolation around peak
+    // Amplitude-weighted interpolation around the peak
     double w = 0, kw = 0;
     for (int dk = -1; dk <= +1; ++dk) {
         int kk = kp + dk;
-        if (kk < 1 || kk > h->GetNbinsX()) continue;
+        if (kk < 1 || kk >= h->GetNbinsX()) continue;
         double a = amp(kk);
         w += a;
         kw += kk * a;
@@ -182,8 +188,8 @@ KPick pickK0(const TH1D* h, int Npad, double gain_min, double gain_max,
 
     r.kp = kp;
     r.k0 = k0;
-    r.gain = (k0 > 0 ? (double)Npad / k0 : -1);
-    r.gainErr = (k0 > 0 ? gainErr_simple((double)Npad, k0) : -1);
+    r.gain = (k0 > 0 ? adc_span / k0 : -1);
+    r.gainErr = (k0 > 0 ? gainErr_simple((double)Npad, adc_bin_width, k0) : -1);
     r.peakAmp = pk;
     r.noiseMed = med;
     r.snr = (med > 0 ? pk / med : -1);

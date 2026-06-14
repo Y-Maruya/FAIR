@@ -387,7 +387,8 @@ std::vector<double> collectDeltaValues(const RunData &ref,
                                        const RunData &target,
                                        const std::string &branch, bool onlyFitOk,
                                        bool mask_L21C1 = true,
-                                       bool mask_L3 = true) {
+                                       bool mask_L3 = true,
+                                       bool npoint_cut = true) {
   std::vector<double> deltas;
   deltas.reserve(ref.byCellId.size());
 
@@ -400,6 +401,7 @@ std::vector<double> collectDeltaValues(const RunData &ref,
     // if (int(cellid/100000) < 20) continue;
     double ref_val;
     if (!getBranchValue(ref_e, branch, onlyFitOk, ref_val)) continue;
+    if (npoint_cut && ref_e.n_points < 10000) continue;
 
     auto it = target.byCellId.find(cellid);
     if (it == target.byCellId.end()) continue;
@@ -407,6 +409,7 @@ std::vector<double> collectDeltaValues(const RunData &ref,
     double val;
     if (!getBranchValue(it->second, branch, onlyFitOk, val)) continue;
 
+    if (npoint_cut && it->second.n_points < 10000) continue;
     deltas.push_back(val - ref_val);
     if (branch == "slope" && std::abs(ref_val) > 1e-6 && std::abs(val - ref_val) > 3) {
       // For slope, also collect relative difference
@@ -893,7 +896,7 @@ void addRMSPerSigmaFlags(std::vector<QualityFlagRunData> &runs, bool onlyFitOk =
       rms_ratio = std::sqrt(sum_sq_diff / run_ratios.size());
     }
     
-    double rms_per_sigma_threshold = mean_ratio + rms_ratio * 10.0;
+    double rms_per_sigma_threshold = mean_ratio + rms_ratio * 8.0;
     std::cout << "  Run " << run.dirName << ": Mean = " << mean_ratio << ", RMS = " << rms_ratio 
               << ", Threshold = " << rms_per_sigma_threshold << std::endl;
     

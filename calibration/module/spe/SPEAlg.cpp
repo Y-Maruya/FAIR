@@ -1,6 +1,5 @@
 #include "SPEAlg.hpp"
 #include "fft_helper.h"
-#include "langaus.h"
 #include "common/AHCALGeometry.hpp"
 #include "common/Logger.hpp"
 #include "common/config/YAMLUtil.hpp"
@@ -14,11 +13,8 @@
 #include <TTree.h>
 #include <TH1D.h>
 #include <TH2D.h>
-#include <TF1.h>
 #include <TDirectory.h>
 #include <TCanvas.h>
-#include <TPad.h>
-#include <TLatex.h>
 #include <TString.h>
 #include <TGraphErrors.h>
 
@@ -44,94 +40,12 @@ AHCAL_REGISTER_ALG(AHCALRecoAlg::SPEAlg, "SPEAlg")
 
 namespace AHCALRecoAlg {
 
-    // ============ Fit output struct ============
-    struct FitOut {
-        double mpv = -1.0;
-        double width = -1.0;
-        double total_area = -1.0;
-        double gaus_sigma = -1.0;
-        double max_x = -1.0;
-        double FWHM = -1.0;
-        int entries = 0;
-        double chi2 = -1.0;
-        int ndf = 0;
-        int fit_status = 999;
-        bool fit_ok = false;
-    };
-
-    // ============ Landau-Gauss fitting ============
-    static FitOut fitLandauGaus(TH1D* h, int minEntries, bool calculate_fwhm = true) {
-        FitOut r;
-        if (!h) return r;
-        if (h->GetEntries() < minEntries) {
-            r.fit_status = -2;
-            r.fit_ok = false;
-            return r;
-        }
-
-        double fr[2];
-        double sv[4], pllo[4], plhi[4], fps[4], fpe[4];
-        double chisqr;
-        int ndf;
-        fr[0] = 0;
-        fr[1] = 1500;
-        pllo[0] = 0;
-        pllo[1] = 0;
-        pllo[2] = 100;
-        pllo[3] = 0;
-        plhi[0] = 300;
-        plhi[1] = 1200;
-        plhi[2] = 100000;
-        plhi[3] = 300;
-        sv[0] = 50;
-        sv[1] = 300;
-        sv[2] = 30000;
-        sv[3] = 60;
-
-        TF1* fLandauGaus = langaufit(h, fr, sv, pllo, plhi, fps, fpe, &chisqr, &ndf);
-        if (!fLandauGaus) return r;
-
-        double maxx = 0, fwhm = -1.0;
-        if (calculate_fwhm) {
-            langaupro(fps, maxx, fwhm);
-        }
-
-        r.mpv = fps[1];
-        r.width = fps[0];
-        r.total_area = fps[2];
-        r.gaus_sigma = fps[3];
-        r.max_x = calculate_fwhm ? maxx : -1.0;
-        r.FWHM = fwhm;
-        r.entries = h->GetEntries();
-        r.chi2 = chisqr;
-        r.ndf = ndf;
-
-        double x = calculate_fwhm ? h->FindBin(maxx) : -1.0;
-        double chi2_ndf = (ndf > 0) ? (chisqr / double(ndf)) : -1.0;
-        if (chi2_ndf > 30 || (x > 0 && x > fr[1] - 40) || r.gaus_sigma < 30 || 
-            r.gaus_sigma > 160 || r.width < 15 || r.width > 80) {
-            r.fit_status = -3;
-            r.fit_ok = false;
-        } else {
-            r.fit_status = 1;
-            r.fit_ok = true;
-        }
-        return r;
-    }
-
     // ============ Directory utilities ============
     static TDirectory* ensureDir(TDirectory* top, const char* name) {
         if (!top) return nullptr;
         auto* d = dynamic_cast<TDirectory*>(top->Get(name));
         if (!d) d = top->mkdir(name);
         return d;
-    }
-
-    static void drawLayerLabel(int layer, double x = 0.10, double y = 0.92) {
-        TLatex l;
-        l.SetNDC(true);
-        l.SetTextSize(0.10);
-        l.DrawLatex(x, y, Form("L%d", layer));
     }
 
     static inline void cellid_to_xy(int chip, int channel, double& x, double& y) {
@@ -161,7 +75,7 @@ namespace AHCALRecoAlg {
 
     // ============ Implementation ============
     struct SPEAlg::Impl {
-        struct FitResult {
+        struct ChannelResult {
             int cellid = -1;
             int layer = -1;
             int chip = -1;
@@ -170,8 +84,6 @@ namespace AHCALRecoAlg {
             double x_mm = -999.0;
             double y_mm = -999.0;
             int entries = 0;
-            FitOut fit_out;
-            
             // FFT analysis results
             int npad = 0;
             double gain = -1.0;
@@ -274,18 +186,15 @@ namespace AHCALRecoAlg {
             }
         }
 
-        void buildFitCache() {
+        void buildResultCache() {
             if (cache_built_) return;
             cache_built_ = true;
 
-            fit_cache_.clear();
-            fit_cache_.reserve(hg_hist_.size());
-
-            nFitAll_ = 0;
-            nFitOK_ = 0;
+            result_cache_.clear();
+            result_cache_.reserve(hg_hist_.size());
 
             for (const auto& [cid, hist_ptr] : hg_hist_) {
-                FitResult res;
+                ChannelResult res;
                 res.cellid = cid;
                 res.layer = cid / 100000;
                 res.chip = (cid / 10000) % 10;
@@ -295,18 +204,10 @@ namespace AHCALRecoAlg {
                 cellid_to_xy(res.chip, res.channel, res.x_mm, res.y_mm);
 
                 res.entries = hist_ptr ? static_cast<int>(hist_ptr->GetEntries()) : 0;
-                if (hist_ptr && cfg_.fit) {
-                    nFitAll_++;
-                    res.fit_out = fitLandauGaus(hist_ptr.get(), cfg_.min_entries, cfg_.calculate_fwhm);
-                    if (res.fit_out.fit_ok) {
-                        nFitOK_++;
-                    }
-                }
-
-                fit_cache_.emplace(cid, std::move(res));
+                result_cache_.emplace(cid, std::move(res));
             }
 
-            LOG_INFO("SPEAlg: built fit cache with {}/{} successful fits", nFitOK_, nFitAll_);
+            LOG_INFO("SPEAlg: built result cache for {} channels", result_cache_.size());
         }
 
         void doFFTAnalysis() {
@@ -314,7 +215,7 @@ namespace AHCALRecoAlg {
             fft_done_ = true;
 
             int count = 0;
-            for (auto& [cid, res] : fit_cache_) {
+            for (auto& [cid, res] : result_cache_) {
                 auto it = hg_hist_.find(cid);
                 if (it == hg_hist_.end()) continue;
                 TH1D* h = it->second.get();
@@ -340,8 +241,9 @@ namespace AHCALRecoAlg {
                 if (!hFFT) continue;
 
                 // Pick peak and extract gain/SNR
-                KPick kp = pickK0(hFFT.get(), Npad, cfg_.gain_min, cfg_.gain_max,
-                                 cfg_.edge_gain_tol, cfg_.kedge_skip);
+                KPick kp = pickK0(hFFT.get(), Npad, h->GetBinWidth(1),
+                                  cfg_.gain_min, cfg_.gain_max,
+                                  cfg_.edge_gain_tol, cfg_.kedge_skip);
 
                 res.npad = Npad;
                 res.gain = kp.gain;
@@ -357,27 +259,19 @@ namespace AHCALRecoAlg {
             LOG_INFO("SPEAlg: FFT analysis completed for {} channels", count);
         }
 
-        void fillMapsFromCache(std::vector<std::unique_ptr<TH2D>>& hMPV,
-                                std::vector<std::unique_ptr<TH2D>>& hWidth,
-                                std::vector<std::unique_ptr<TH2D>>& hEntries,
+        void fillMapsFromCache(std::vector<std::unique_ptr<TH2D>>& hEntries,
                                 std::vector<std::unique_ptr<TH2D>>& hGain,
                                 std::vector<std::unique_ptr<TH2D>>& hSNR) {
-            for (const auto& [cid, res] : fit_cache_) {
-                if (res.fit_out.fit_ok && res.layer >= 0 && res.layer < AHCALGeometry::Layer_No) {
-                    const int binx = hMPV[res.layer]->GetXaxis()->FindBin(res.x_mm);
-                    const int biny = hMPV[res.layer]->GetYaxis()->FindBin(res.y_mm);
-                    if (binx > 0 && binx <= 18 && biny > 0 && biny <= 18) {
-                        hMPV[res.layer]->SetBinContent(binx, biny, res.fit_out.mpv);
-                        hWidth[res.layer]->SetBinContent(binx, biny, res.fit_out.width);
-                        hEntries[res.layer]->SetBinContent(binx, biny, res.entries);
-                    }
-                }
-                if (res.snr >= cfg_.snr_threshold && res.layer >= 0 && res.layer < AHCALGeometry::Layer_No) {
+            for (const auto& [_, res] : result_cache_) {
+                if (res.layer >= 0 && res.layer < AHCALGeometry::Layer_No) {
                     const int binx = hGain[res.layer]->GetXaxis()->FindBin(res.x_mm);
                     const int biny = hGain[res.layer]->GetYaxis()->FindBin(res.y_mm);
                     if (binx > 0 && binx <= 18 && biny > 0 && biny <= 18) {
-                        hGain[res.layer]->SetBinContent(binx, biny, res.gain);
-                        hSNR[res.layer]->SetBinContent(binx, biny, res.snr);
+                        hEntries[res.layer]->SetBinContent(binx, biny, res.entries);
+                        if (res.snr >= cfg_.snr_threshold) {
+                            hGain[res.layer]->SetBinContent(binx, biny, res.gain);
+                            hSNR[res.layer]->SetBinContent(binx, biny, res.snr);
+                        }
                     }
                 }
             }
@@ -406,8 +300,8 @@ namespace AHCALRecoAlg {
                 }
             }
 
-            // Build fit cache if needed
-            if (!cache_built_) buildFitCache();
+            // Build channel result cache if needed
+            if (!cache_built_) buildResultCache();
             if (!fft_done_) doFFTAnalysis();
 
             // Create output maps
@@ -415,8 +309,6 @@ namespace AHCALRecoAlg {
             const double XYMAX = +AHCALGeometry::x_max;
             const int NBIN_XY = 18;
 
-            std::vector<std::unique_ptr<TH2D>> hMPV(AHCALGeometry::Layer_No);
-            std::vector<std::unique_ptr<TH2D>> hWidth(AHCALGeometry::Layer_No);
             std::vector<std::unique_ptr<TH2D>> hEntries(AHCALGeometry::Layer_No);
             std::vector<std::unique_ptr<TH2D>> hGain(AHCALGeometry::Layer_No);
             std::vector<std::unique_ptr<TH2D>> hSNR(AHCALGeometry::Layer_No);
@@ -433,28 +325,19 @@ namespace AHCALRecoAlg {
             };
 
             for (int L = 0; L < AHCALGeometry::Layer_No; ++L) {
-                hMPV[L] = makeMap("MPV", L, "MIP MPV");
-                hWidth[L] = makeMap("Width", L, "Landau Width");
-                hEntries[L] = makeMap("Entries", L, "MIP Entries");
+                hEntries[L] = makeMap("Entries", L, "SPE spectrum entries");
                 hGain[L] = makeMap("Gain", L, "FFT Gain");
                 hSNR[L] = makeMap("SNR", L, "FFT SNR");
             }
 
             // Fill maps from cache
-            fillMapsFromCache(hMPV, hWidth, hEntries, hGain, hSNR);
+            fillMapsFromCache(hEntries, hGain, hSNR);
 
             // Build output tree
             TTree tp("spe", "SPE (Signal-to-noise ratio, Pedestal subtraction, Efficiency) analysis");
             int cellid = -1;
             int layer = -1, chip = -1, channel = -1;
-            double mpv = -1.0, width = -1.0, total_area = -1.0, gaus_sigma = -1.0;
             int entries = 0;
-            double chi2 = -1.0;
-            int ndf = 0;
-            double chi2perndf = -1.0;
-            int fit_status = 999;
-            int fit_ok = 0;
-            double max_x = -1.0, FWHM = -1.0;
             double x_mm = -999, y_mm = -999;
             int npad = 0;
             double gain = -1.0, gainErr = -1.0, snr = -1.0;
@@ -466,18 +349,7 @@ namespace AHCALRecoAlg {
             tp.Branch("layer", &layer);
             tp.Branch("chip", &chip);
             tp.Branch("channel", &channel);
-            tp.Branch("MPV", &mpv);
-            tp.Branch("width", &width);
-            tp.Branch("TotalArea", &total_area);
             tp.Branch("entries", &entries);
-            tp.Branch("gaus_sigma", &gaus_sigma);
-            tp.Branch("max_x", &max_x);
-            tp.Branch("FWHM", &FWHM);
-            tp.Branch("chi2", &chi2);
-            tp.Branch("ndf", &ndf);
-            tp.Branch("chi2perndf", &chi2perndf);
-            tp.Branch("fit_status", &fit_status);
-            tp.Branch("fit_ok", &fit_ok);
             tp.Branch("x_mm", &x_mm);
             tp.Branch("y_mm", &y_mm);
             tp.Branch("npad", &npad);
@@ -489,15 +361,6 @@ namespace AHCALRecoAlg {
             tp.Branch("peakAmp", &peakAmp);
             tp.Branch("noiseMed", &noiseMed);
 
-            // Optional MuonSelect-compatible calibration tree
-            TTree tMipCal("MIP_Calibration", "MIP calibration (MuonSelect compatible)");
-            int calCellID = 0;
-            double calMPV = 0;
-            double calChi2 = 0;
-            tMipCal.Branch("CellID", &calCellID, "CellID/I");
-            tMipCal.Branch("MPV", &calMPV, "MPV/D");
-            tMipCal.Branch("chi2perndf", &calChi2, "chi2perndf/D");
-
             // Layer efficiency stats
             int denLayer[AHCALGeometry::Layer_No] = {0};
             int numLayer[AHCALGeometry::Layer_No] = {0};
@@ -506,22 +369,11 @@ namespace AHCALRecoAlg {
 
             int saved_hists = 0;
 
-            for (const auto& [cid, res] : fit_cache_) {
+            for (const auto& [cid, res] : result_cache_) {
                 cellid = res.cellid;
                 layer = res.layer;
                 chip = res.chip;
                 channel = res.channel;
-                mpv = res.fit_out.mpv;
-                width = res.fit_out.width;
-                total_area = res.fit_out.total_area;
-                gaus_sigma = res.fit_out.gaus_sigma;
-                chi2 = res.fit_out.chi2;
-                ndf = res.fit_out.ndf;
-                max_x = res.fit_out.max_x;
-                FWHM = res.fit_out.FWHM;
-                if (ndf > 0) chi2perndf = res.fit_out.chi2 / double(ndf);
-                fit_status = res.fit_out.fit_status;
-                fit_ok = res.fit_out.fit_ok ? 1 : 0;
                 entries = res.entries;
                 x_mm = res.x_mm;
                 y_mm = res.y_mm;
@@ -535,14 +387,6 @@ namespace AHCALRecoAlg {
                 noiseMed = res.noiseMed;
 
                 tp.Fill();
-
-                // MIP calibration tree
-                if (res.fit_out.fit_ok) {
-                    calCellID = res.cellid;
-                    calMPV = res.fit_out.mpv;
-                    calChi2 = (ndf > 0) ? res.fit_out.chi2 / double(ndf) : -1.0;
-                    tMipCal.Fill();
-                }
 
                 // Layer efficiency counts
                 if (layer >= 0 && layer < AHCALGeometry::Layer_No) {
@@ -566,21 +410,17 @@ namespace AHCALRecoAlg {
                         TDirectory* dNested = dynamic_cast<TDirectory*>(dHist->Get(Form("Layer%02d/Chip%d", layer, chip)));
                         if (!dNested) dNested = dHist;
                         
-                        TH1D* hMIP = it->second.get();
+                        TH1D* hSpectrum = it->second.get();
                         if (dNested) dNested->cd();
-                        hMIP->Write(Form("hMIP_L%d_C%d_ch%d", layer, chip, channel));
+                        hSpectrum->Write(Form("hSPE_L%d_C%d_ch%d", layer, chip, channel));
                         
                         // Compute and save FFT histograms if SNR is good
                         if (res.snr >= cfg_.snr_threshold && res.snr > 0) {
-                            int bmax = hMIP->GetNbinsX();
-                            if (res.fit_out.mpv > 0) {
-                                int b = hMIP->FindBin(res.fit_out.mpv);
-                                if (b >= 1) bmax = b;
-                            }
+                            int bmax = hSpectrum->GetNbinsX();
                             
                             std::vector<double> v(bmax, 0.0);
                             for (int b = 1; b <= bmax; ++b) {
-                                v[b - 1] = hMIP->GetBinContent(b);
+                                v[b - 1] = hSpectrum->GetBinContent(b);
                             }
                             
                             // Remove DC
@@ -594,21 +434,10 @@ namespace AHCALRecoAlg {
                             if (hFFT_k) {
                                 hFFT_k->Write();
                                 
-                                // Convert to gain space
-                                std::unique_ptr<TH1D> hFFT_gain(new TH1D(
-                                    Form("hFFT_gain_L%d_C%d_ch%d", layer, chip, channel),
-                                    "FFT spectrum vs gain;gain [ADC/p.e.];amplitude",
-                                    250, cfg_.gain_min, cfg_.gain_max));
-                                hFFT_gain->SetDirectory(nullptr);
-                                
-                                for (int k = 1; k <= hFFT_k->GetNbinsX(); ++k) {
-                                    double a = hFFT_k->GetBinContent(k);
-                                    if (k <= 0) continue;
-                                    double g = (double)res.npad / (double)k;
-                                    if (g < cfg_.gain_min || g > cfg_.gain_max) continue;
-                                    int bg = hFFT_gain->FindBin(g);
-                                    hFFT_gain->SetBinContent(bg, hFFT_gain->GetBinContent(bg) + a);
-                                }
+                                std::unique_ptr<TH1D> hFFT_gain(makeFFTgainHist(
+                                    hFFT_k.get(), res.npad, hSpectrum->GetBinWidth(1),
+                                    cfg_.gain_min, cfg_.gain_max,
+                                    Form("hFFT_gain_L%d_C%d_ch%d", layer, chip, channel)));
                                 hFFT_gain->Write();
                             }
                         }
@@ -639,28 +468,25 @@ namespace AHCALRecoAlg {
 
             // Save best-SNR channel examples with full FFT analysis
             if (cfg_.save_examples && bestCellID >= 0) {
-                auto it_mip = hg_hist_.find(bestCellID);
-                auto it_fit = fit_cache_.find(bestCellID);
-                if (it_mip != hg_hist_.end() && it_mip->second && it_fit != fit_cache_.end()) {
-                    TH1D* hMIP = it_mip->second.get();
-                    const FitResult& bestRes = it_fit->second;
+                auto it_spectrum = hg_hist_.find(bestCellID);
+                auto it_result = result_cache_.find(bestCellID);
+                if (it_spectrum != hg_hist_.end() && it_spectrum->second &&
+                    it_result != result_cache_.end()) {
+                    TH1D* hSpectrum = it_spectrum->second.get();
+                    const ChannelResult& bestRes = it_result->second;
                     
                     // Create examples subdirectory
                     auto dExamples = ensureDir(fout.get(), "examples/best_channel");
                     
                     dExamples->cd();
-                    hMIP->Write("hMIP_best");
+                    hSpectrum->Write("hSPE_best");
                     
                     // Compute and save FFT histograms for best channel
-                    int bmax = hMIP->GetNbinsX();
-                    if (bestRes.fit_out.mpv > 0) {
-                        int b = hMIP->FindBin(bestRes.fit_out.mpv);
-                        if (b >= 1) bmax = b;
-                    }
+                    int bmax = hSpectrum->GetNbinsX();
                     
                     std::vector<double> v(bmax, 0.0);
                     for (int b = 1; b <= bmax; ++b) {
-                        v[b - 1] = hMIP->GetBinContent(b);
+                        v[b - 1] = hSpectrum->GetBinContent(b);
                     }
                     
                     // Remove DC
@@ -674,21 +500,9 @@ namespace AHCALRecoAlg {
                     if (hFFT_k) {
                         hFFT_k->Write();
                         
-                        // Convert to gain space
-                        std::unique_ptr<TH1D> hFFT_gain(new TH1D(
-                            "hFFT_best_gain",
-                            "FFT spectrum vs gain (best channel);gain [ADC/p.e.];amplitude",
-                            250, cfg_.gain_min, cfg_.gain_max));
-                        hFFT_gain->SetDirectory(nullptr);
-                        
-                        for (int k = 1; k <= hFFT_k->GetNbinsX(); ++k) {
-                            double a = hFFT_k->GetBinContent(k);
-                            if (k <= 0) continue;
-                            double g = (double)bestRes.npad / (double)k;
-                            if (g < cfg_.gain_min || g > cfg_.gain_max) continue;
-                            int bg = hFFT_gain->FindBin(g);
-                            hFFT_gain->SetBinContent(bg, hFFT_gain->GetBinContent(bg) + a);
-                        }
+                        std::unique_ptr<TH1D> hFFT_gain(makeFFTgainHist(
+                            hFFT_k.get(), bestRes.npad, hSpectrum->GetBinWidth(1),
+                            cfg_.gain_min, cfg_.gain_max, "hFFT_best_gain"));
                         hFFT_gain->Write();
                     }
                     
@@ -698,9 +512,9 @@ namespace AHCALRecoAlg {
                         std::error_code ec;
                         std::filesystem::create_directories(png_dir, ec);
                         
-                        auto c_mip = std::make_unique<TCanvas>("c_mip", "c_mip", 900, 650);
-                        hMIP->Draw("E");
-                        c_mip->SaveAs(Form("%s/h_MIP_best.png", cfg_.out_png_dir.c_str()));
+                        auto c_spe = std::make_unique<TCanvas>("c_spe", "c_spe", 900, 650);
+                        hSpectrum->Draw("E");
+                        c_spe->SaveAs(Form("%s/h_SPE_best.png", cfg_.out_png_dir.c_str()));
                         
                         if (hFFT_k) {
                             auto c_fft = std::make_unique<TCanvas>("c_fft", "c_fft", 900, 650);
@@ -711,20 +525,10 @@ namespace AHCALRecoAlg {
                     
                     // Write canvas to ROOT file
                     auto can = std::make_unique<TCanvas>("cBestExample", "Best SNR channel", 800, 600);
-                    hMIP->Draw("E");
+                    hSpectrum->Draw("E");
                     if (dCan) dCan->cd();
                     can->Write();
                 }
-            }
-
-            // Write canvases
-            auto cAllMPV = std::make_unique<TCanvas>("cAllMPV_7x6", "MIP MPV maps (all layers)", 5600, 4200);
-            cAllMPV->Divide(7, 6, 0.001, 0.001);
-            for (int L = 0; L < AHCALGeometry::Layer_No; ++L) {
-                cAllMPV->cd(L + 1);
-                gPad->SetMargin(0.08, 0.14, 0.08, 0.10);
-                hMPV[L]->Draw("COLZ");
-                drawLayerLabel(L);
             }
 
             if (cfg_.output_to_png) {
@@ -740,20 +544,16 @@ namespace AHCALRecoAlg {
             // Write to file
             if (dMap) dMap->cd();
             for (int L = 0; L < AHCALGeometry::Layer_No; ++L) {
-                hMPV[L]->Write();
-                hWidth[L]->Write();
                 hEntries[L]->Write();
                 hGain[L]->Write();
                 hSNR[L]->Write();
             }
 
             if (dCan) dCan->cd();
-            cAllMPV->Write();
             gLayerEff->Write();
 
             fout->cd();
             tp.Write();
-            tMipCal.Write();
             fout->Close();
 
             LOG_INFO("SPEAlg: wrote {} ({} per-channel hists)", cfg_.out_mip_filename, saved_hists);
@@ -761,7 +561,8 @@ namespace AHCALRecoAlg {
 
         void writeJsonOutput() {
             if (!cfg_.mip_to_json) return;
-            if (!cache_built_) buildFitCache();
+            if (!cache_built_) buildResultCache();
+            if (!fft_done_) doFFTAnalysis();
 
             const int n_channels_per_layer = AHCALGeometry::chip_No * AHCALGeometry::channel_No;
             std::filesystem::path out_dir(cfg_.out_json_dirname.empty() ? "." : cfg_.out_json_dirname);
@@ -778,23 +579,11 @@ namespace AHCALRecoAlg {
                 same_data_runs.push_back(rc.config.runNumber);
             }
 
-            // Per run, per layer JSON (MIPAlg format)
+            // Per run, per layer SPE JSON
             for (const auto& rc : run_contexts_) {
                 for (int layer = 0; layer < AHCALGeometry::Layer_No; ++layer) {
                     // Initialize per-channel arrays
-                    std::vector<double> mpv_arr(n_channels_per_layer, -1.0);
-                    std::vector<double> width_arr(n_channels_per_layer, -1.0);
-                    std::vector<double> total_area_arr(n_channels_per_layer, -1.0);
-                    std::vector<double> gaus_sigma_arr(n_channels_per_layer, -1.0);
-                    std::vector<double> max_x_arr(n_channels_per_layer, -1.0);
-                    std::vector<double> fwhm_arr(n_channels_per_layer, -1.0);
                     std::vector<int> entries_arr(n_channels_per_layer, 0);
-                    std::vector<double> chi2_arr(n_channels_per_layer, -1.0);
-                    std::vector<int> ndf_arr(n_channels_per_layer, 0);
-                    std::vector<int> fit_status_arr(n_channels_per_layer, 999);
-                    std::vector<int> fit_ok_arr(n_channels_per_layer, 0);
-                    
-                    // SPE-specific arrays
                     std::vector<double> gain_arr(n_channels_per_layer, -1.0);
                     std::vector<double> gainErr_arr(n_channels_per_layer, -1.0);
                     std::vector<double> snr_arr(n_channels_per_layer, -1.0);
@@ -802,26 +591,14 @@ namespace AHCALRecoAlg {
                     std::vector<double> noiseMed_arr(n_channels_per_layer, -1.0);
 
                     long long total_entries = 0;
-                    int fit_failures = 0;
+                    int successful_channels = 0;
 
-                    for (const auto& [_, res] : fit_cache_) {
+                    for (const auto& [_, res] : result_cache_) {
                         if (res.layer != layer) continue;
                         const int idx = res.chip * AHCALGeometry::channel_No + res.channel;
                         if (idx < 0 || idx >= n_channels_per_layer) continue;
 
-                        mpv_arr[idx] = res.fit_out.mpv;
-                        width_arr[idx] = res.fit_out.width;
-                        total_area_arr[idx] = res.fit_out.total_area;
-                        gaus_sigma_arr[idx] = res.fit_out.gaus_sigma;
-                        max_x_arr[idx] = res.fit_out.max_x;
-                        fwhm_arr[idx] = res.fit_out.FWHM;
                         entries_arr[idx] = res.entries;
-                        chi2_arr[idx] = res.fit_out.chi2;
-                        ndf_arr[idx] = res.fit_out.ndf;
-                        fit_status_arr[idx] = res.fit_out.fit_status;
-                        fit_ok_arr[idx] = res.fit_out.fit_ok ? 1 : 0;
-                        
-                        // SPE-specific
                         gain_arr[idx] = res.gain;
                         gainErr_arr[idx] = res.gainErr;
                         snr_arr[idx] = res.snr;
@@ -829,9 +606,7 @@ namespace AHCALRecoAlg {
                         noiseMed_arr[idx] = res.noiseMed;
                         
                         total_entries += res.entries;
-                        if (!res.fit_out.fit_ok) {
-                            fit_failures++;
-                        }
+                        if (res.snr >= cfg_.snr_threshold) successful_channels++;
                     }
 
                     json j;
@@ -839,29 +614,12 @@ namespace AHCALRecoAlg {
                     j["TimeStamp"] = timestamp;
                     j["Layer"] = layer;
                     j["CalibrationType"] = "SPE";
-                    j["Summary"]["FitOK"] = nFitOK_;
-                    j["Summary"]["FitAll"] = nFitAll_;
+                    j["Summary"]["SuccessfulChannels"] = successful_channels;
                     j["Summary"]["Entries"] = total_entries;
                     j["Summary"]["NumUsedRun"] = static_cast<int>(run_contexts_.size());
                     j["Summary"]["SameDataRuns"] = same_data_runs;
-                    if (!cfg_.fit) {
-                        fit_failures = 0;
-                    }
-                    j["Status"] = (fit_failures == 0) ? 0 : 1;
-
-                    j["PerChannel"]["MPV"] = mpv_arr;
-                    j["PerChannel"]["Width"] = width_arr;
-                    j["PerChannel"]["TotalArea"] = total_area_arr;
-                    j["PerChannel"]["GausSigma"] = gaus_sigma_arr;
-                    j["PerChannel"]["MaxX"] = max_x_arr;
-                    j["PerChannel"]["FWHM"] = fwhm_arr;
+                    j["Status"] = 0;
                     j["PerChannel"]["Entries"] = entries_arr;
-                    j["PerChannel"]["Chi2"] = chi2_arr;
-                    j["PerChannel"]["NDF"] = ndf_arr;
-                    j["PerChannel"]["FitStatus"] = fit_status_arr;
-                    j["PerChannel"]["FitOK"] = fit_ok_arr;
-                    
-                    // SPE-specific per-channel data
                     j["PerChannel"]["Gain"] = gain_arr;
                     j["PerChannel"]["GainErr"] = gainErr_arr;
                     j["PerChannel"]["SNR"] = snr_arr;
@@ -892,7 +650,7 @@ namespace AHCALRecoAlg {
             if (written_) return;
             written_ = true;
 
-            buildFitCache();
+            buildResultCache();
             doFFTAnalysis();
 
             if (cfg_.mip_to_file) {
@@ -906,9 +664,9 @@ namespace AHCALRecoAlg {
         std::unique_ptr<TH1D> make_hist(int cellid) {
             int layer = cellid / 100000;
             int chip = cellid / 10000 % 10;
-            const std::string name = "hMIP_" + std::to_string(cellid);
+            const std::string name = "hSPE_" + std::to_string(cellid);
             const std::string title = "Layer " + std::to_string(layer) + " chip " + 
-                                     std::to_string(chip) + " MIP;ADC (ped-sub);counts";
+                                     std::to_string(chip) + " SPE spectrum;ADC (ped-sub);counts";
             auto h = std::make_unique<TH1D>(name.c_str(), title.c_str(), cfg_.nbin, cfg_.xmin, cfg_.xmax);
             h->SetDirectory(nullptr);
             return h;
@@ -919,13 +677,11 @@ namespace AHCALRecoAlg {
         bool written_ = false;
         bool cache_built_ = false;
         bool fft_done_ = false;
-        int nFitAll_ = 0;
-        int nFitOK_ = 0;
         long long n_missing_ped_ = 0;
         std::vector<RunContext> run_contexts_;
         std::unordered_map<int, CalibDBIO::Pedestal> ped_map_;
         std::unordered_map<int, std::unique_ptr<TH1D>> hg_hist_;
-        std::unordered_map<int, FitResult> fit_cache_;
+        std::unordered_map<int, ChannelResult> result_cache_;
     };
 
     void SPEAlg::ImplDeleter::operator()(Impl* p) const {
@@ -1020,7 +776,6 @@ namespace AHCALRecoAlg {
         cfg_.nbin = get_or<int>(cfg, "nbin", cfg_.nbin);
         cfg_.xmin = get_or<double>(cfg, "xmin", cfg_.xmin);
         cfg_.xmax = get_or<double>(cfg, "xmax", cfg_.xmax);
-        cfg_.min_entries = get_or<int>(cfg, "min_entries", cfg_.min_entries);
         cfg_.npad_req = get_or<int>(cfg, "npad_req", cfg_.npad_req);
         cfg_.gain_min = get_or<double>(cfg, "gain_min", cfg_.gain_min);
         cfg_.gain_max = get_or<double>(cfg, "gain_max", cfg_.gain_max);
@@ -1030,7 +785,6 @@ namespace AHCALRecoAlg {
         cfg_.save_per_channel_hists = get_or<bool>(cfg, "save_per_channel_hists", cfg_.save_per_channel_hists);
         cfg_.save_max_channel_hists = get_or<int>(cfg, "save_max_channel_hists", cfg_.save_max_channel_hists);
         cfg_.do_event_scan = get_or<bool>(cfg, "do_event_scan", cfg_.do_event_scan);
-        cfg_.fit = get_or<bool>(cfg, "fit", cfg_.fit);
         cfg_.save_examples = get_or<bool>(cfg, "save_examples", cfg_.save_examples);
         cfg_.substrate_pedestal = get_or<bool>(cfg, "substrate_pedestal", cfg_.substrate_pedestal);
         cfg_.read_pedestal_from_ROOT = get_or<bool>(cfg, "read_pedestal_from_ROOT", cfg_.read_pedestal_from_ROOT);
@@ -1038,7 +792,6 @@ namespace AHCALRecoAlg {
         cfg_.read_pedestal_from_DB = get_or<bool>(cfg, "read_pedestal_from_DB", cfg_.read_pedestal_from_DB);
         cfg_.processing_mode = get_or<int>(cfg, "processing_mode", cfg_.processing_mode);
         cfg_.snr_threshold = get_or<double>(cfg, "snr_threshold", cfg_.snr_threshold);
-        cfg_.calculate_fwhm = get_or<bool>(cfg, "calculate_fwhm", cfg_.calculate_fwhm);
     }
 
 } // namespace AHCALRecoAlg

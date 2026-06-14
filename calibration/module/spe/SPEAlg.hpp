@@ -31,14 +31,10 @@ namespace AHCALRecoAlg {
         std::string out_png_dir = "png/";
         std::string out_json_dirname = ".";
 
-        // MIP histogram parameters
+        // SPE spectrum parameters
         int nbin = 512;
         double xmin = 0.0;
         double xmax = 1000.0;
-        int min_entries = 200;
-
-        // Fitting control
-        bool fit = true;  // Perform MIP fitting
 
         // FFT parameters
         int npad_req = 8192;
@@ -66,8 +62,6 @@ namespace AHCALRecoAlg {
         // SNR threshold for efficiency calculation
         double snr_threshold = 3.0;
 
-        // Calculate FWHM during fit
-        bool calculate_fwhm = true;
     };
 
     class SPEAlg final : public IAlg {

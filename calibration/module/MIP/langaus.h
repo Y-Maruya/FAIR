@@ -32,6 +32,7 @@
 #ifndef LANGAUS_HH
 #define LANGAUS_HH
 #include "TF1.h"
+#include "TFitResult.h"
 #include "TROOT.h"
 #include "TH1.h"
 Double_t langaufun(Double_t *x, Double_t *par) {
@@ -81,7 +82,7 @@ Double_t langaufun(Double_t *x, Double_t *par) {
       }
       return (par[2] * step * sum * invsq2pi / par[3]);
 }
-TF1 *langaufit(TH1D *his, Double_t *fitrange, Double_t *startvalues, Double_t *parlimitslo, Double_t *parlimitshi, Double_t *fitparams, Double_t *fiterrors, Double_t *ChiSqr, Int_t *NDF, Int_t *fit_status = nullptr)
+TF1 *langaufit(TH1D *his, Double_t *fitrange, Double_t *startvalues, Double_t *parlimitslo, Double_t *parlimitshi, Double_t *fitparams, Double_t *fiterrors, Double_t *ChiSqr, Int_t *NDF, Int_t *fit_status = nullptr, Double_t *covariance_matrix = nullptr)
 {
    // Once again, here are the Landau * Gaussian parameters:
    //   par[0]=Width (scale) parameter of Landau density
@@ -110,7 +111,21 @@ TF1 *langaufit(TH1D *his, Double_t *fitrange, Double_t *startvalues, Double_t *p
    for (i=0; i<4; i++) {
       ffit->SetParLimits(i, parlimitslo[i], parlimitshi[i]);
    }
-   fit_status[0] = his->Fit(FunName,"LqRBN0","",fitrange[0],fitrange[1]);   // fit within specified range, use ParLimits, do not plot
+   auto fitresult = his->Fit(FunName,"LqRBN0","",fitrange[0],fitrange[1]);   // fit within specified range, use ParLimits, do not plot
+   // fit_status[0] = his->Fit(FunName,"LqRBN0","",fitrange[0],fitrange[1]);   // fit within specified range, use ParLimits, do not plot
+   if (fit_status) {
+      fit_status[0] = fitresult;
+   }
+   TFitResult *fitresultObj = fitresult.Get();
+   if (fitresultObj && fitresultObj->IsValid()) {
+      for (int i = 0; i < 4; ++i) {
+         for (int j = 0; j < 4; ++j) {
+            if (covariance_matrix) {
+               covariance_matrix[i*4 + j] = fitresultObj->CovMatrix(i, j); // Store covariance matrix in row-major order
+            }
+         }
+      }
+   }
    ffit->GetParameters(fitparams);    // obtain fit parameters
    for (i=0; i<4; i++) {
       fiterrors[i] = ffit->GetParError(i);     // obtain fit parameter errors

@@ -1,7 +1,7 @@
 universe = vanilla
 
 executable = /eos/user/y/ymaruya/FASER/AHCAL/FAIR/auto/MIPCalib/submit.sh
-arguments  = $(start_run)
+arguments  = $(start_run) $(NUM_VETO_EVENTS)
 
 output = /eos/user/y/ymaruya/FASER/AHCAL/FAIR/auto/MIPCalib/condor_logs/mip.$(start_run).$(ClusterId).$(ProcId).out
 error  = /eos/user/y/ymaruya/FASER/AHCAL/FAIR/auto/MIPCalib/condor_logs/mip.$(start_run).$(ClusterId).$(ProcId).err

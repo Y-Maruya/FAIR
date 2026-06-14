@@ -114,21 +114,7 @@ class AHCALRuns{
             if (AHCALRuns::excluded_runs(run_number)) {
                 return false;
             }
-            const YAML::Node runlist = load_json_from_url(make_runinfo_url(run_number));
-            const bool has_runnumber = has_node(runlist, "runnumber");
-            if (!has_runnumber || runlist["runnumber"].as<int>() != run_number) {
-                if (has_runnumber) {
-                    LOG_ERROR("is_AHCAL_run: run number mismatch in response from {}: expected {}, got {}", make_runinfo_url(run_number), run_number, runlist["runnumber"].as<int>());
-                } else {
-                    LOG_ERROR("is_AHCAL_run: missing runnumber in response from {}. expected {}", make_runinfo_url(run_number), run_number);
-                }
-                throw std::runtime_error("Run number mismatch in response");
-            }
-            if (has_node(runlist, "type") && runlist["type"].as<std::string>() == "AHCAL") {
-                return true;
-            } else {
-                return false;
-            }
+            return get_run_type(run_number) == "AHCAL";
         }
         bool excluded_runs(int run_number){
             if (excluded_run_numbers_.empty()) {
