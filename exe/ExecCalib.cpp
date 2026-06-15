@@ -10,6 +10,7 @@
 #include "common/AlgFactory.hpp"
 #include "common/config/ExpandConfig.hpp"
 #include "common/config/ParseRunConfig.hpp"
+#include "common/config/ResolvedConfig.hpp"
 #include "IO/reader/RootRawHitReader.hpp"
 #include "IO/reader/BinaryRawHitReader.hpp"
 #include "IO/reader/SimHitReader.hpp"
@@ -247,6 +248,7 @@ int run_fair_calib(int argc, char* argv[]) {
     std::cout << "LOG is initialized. Log file: " << ctx.config.log_file << std::endl;
     LOG_INFO("RunConfig parsed successfully.");
     auto algs = build_pipeline(ctx, config);
+    const YAML::Node resolved_pipeline_config = YAML::Clone(config);
     for (auto& alg : algs) {
         alg->initialize();
     }
@@ -260,6 +262,8 @@ int run_fair_calib(int argc, char* argv[]) {
         for (auto& alg : algs) {
             alg->init_by_run();
         }
+        write_input_config(config, ctx.config);
+        write_resolved_config(resolved_pipeline_config, ctx.config);
         std::vector<std::string> raw_inputs_path = glob_inputs(ctx.config.input);
         if (raw_inputs_path.empty()) {
             LOG_WARN("No input files found for run {} with input pattern: {}", ctx.config.runNumber, ctx.config.input);

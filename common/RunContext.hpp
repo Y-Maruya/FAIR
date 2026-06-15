@@ -10,6 +10,8 @@ struct RunConfig {
   std::string input;                 // required
   std::string output = "out.root";
   std::string log_file = "app.log";
+  std::string config_input_output;     // empty = timestamped input config beside log_file
+  std::string config_output;           // empty = timestamped resolved config beside log_file
   int runNumber = 0;
   double luminosity = 0;              // in fb^-1
   int poolIndex = 0;          // for multiple pooling writers
@@ -60,6 +62,8 @@ inline std::vector<FieldDesc> describe(const RunConfig*) {
     field("input", &RunConfig::input),
     field("output", &RunConfig::output),
     field("log_file", &RunConfig::log_file),
+    field("config_input_output", &RunConfig::config_input_output),
+    field("config_output", &RunConfig::config_output),
     field("runNumber", &RunConfig::runNumber),
     field("luminosity", &RunConfig::luminosity),
     field("poolIndex", &RunConfig::poolIndex),

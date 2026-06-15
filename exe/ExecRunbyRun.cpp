@@ -10,6 +10,7 @@
 #include "common/AlgFactory.hpp"
 #include "common/config/ExpandConfig.hpp"
 #include "common/config/ParseRunConfig.hpp"
+#include "common/config/ResolvedConfig.hpp"
 #include "IO/reader/RootRawHitReader.hpp"
 #include "IO/reader/BinaryRawHitReader.hpp"
 #include "IO/reader/SimHitReader.hpp"
@@ -109,7 +110,10 @@ int main(int argc, char* argv[]) {
         }
         std::cout << "Log file: " << ctx.config.log_file << std::endl;
         LOG_INFO("RunConfig parsed successfully.");
+        const YAML::Node input_config = YAML::Clone(config);
         auto algs = build_pipeline(ctx, config);
+        write_input_config(input_config, ctx.config);
+        write_resolved_config(config, ctx.config);
         for (auto& alg : algs) {
             alg->initialize();
         }

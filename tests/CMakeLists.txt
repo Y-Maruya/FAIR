@@ -14,6 +14,22 @@ target_include_directories(test_expand_config
 
 add_test(NAME test_expand_config COMMAND test_expand_config)
 
+add_executable(test_resolved_config
+  test_resolved_config.cpp
+)
+
+target_link_libraries(test_resolved_config
+  PRIVATE
+    fair_options
+)
+
+target_include_directories(test_resolved_config
+  PRIVATE
+    ${CMAKE_SOURCE_DIR}
+)
+
+add_test(NAME test_resolved_config COMMAND test_resolved_config)
+
 add_executable(test_runinfo_snapshot
   test_runinfo_snapshot.cpp
 )

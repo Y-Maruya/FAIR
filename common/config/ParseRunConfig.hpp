@@ -20,6 +20,12 @@ inline RunConfig parse_run_config(const YAML::Node& root) {
     const auto& run = require_node(root, "run");
     rc.input     = require_string(run, "input");
     rc.log_file  = require_string(run, "log_file");
+    if (has_node(run, "config_input_output")) {
+        rc.config_input_output = run["config_input_output"].as<std::string>();
+    }
+    if (has_node(run, "config_output")) {
+        rc.config_output = run["config_output"].as<std::string>();
+    }
     if (has_node(run, "MC")) {
         rc.MC = run["MC"].as<bool>();
     }

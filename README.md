@@ -102,6 +102,8 @@ run:
   input: <INPUT_FILE> # Input file this configuration is used only when not using -i option
   MC: false           # Whether the input is MC or real data
   log_file: <LOG_FILE> # Log output file path
+  config_input_output: <INPUT_CONFIG_OUTPUT> # Optional input YAML snapshot path
+  config_output: <CONFIG_OUTPUT> # Optional resolved YAML output path
   output: <OUTPUT_FILE> # Output ROOT file path
   nEvents: -1         # Number of events to process (-1 for all)
   log_level: INFO     # Log level (TRACE, DEBUG, INFO, WARN, ERROR, CRITICAL)
@@ -125,6 +127,16 @@ algs:                  # List of algorithms to run in sequence
         - SimpleFittedTrack
         - Track
 ```
+
+`fair_run` and `fair_calib` write two YAML configurations per run. The input
+snapshot, after run-number and environment-variable expansion but before
+algorithm `parse_cfg` calls, is written as
+`config_input_run<runNumber>_<YYYYMMDD_HHMMSS_mmm>.yaml`.
+The resolved configuration after all `parse_cfg` calls is written as
+`config_run<runNumber>_<YYYYMMDD_HHMMSS_mmm>.yaml` and includes defaults
+selected through `get_or`. Both files use the same execution timestamp and are
+written beside the log by default. Use `run.config_input_output` and
+`run.config_output` to override their exact paths.
 
 ## Modules
 

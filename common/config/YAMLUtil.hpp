@@ -8,6 +8,8 @@ template <class T>
 inline T get_or(const YAML::Node& n, const char* key, T def) {
     if (!n[key]){
         LOG_WARN("YAMLUtil::get_or: missing key '{}', using default", key);
+        YAML::Node writable = n;
+        writable[key] = def;
         return def;
     }
     return n[key].as<T>();
