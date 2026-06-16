@@ -1,7 +1,21 @@
 #!/usr/bin/env bash
 
-# Copy this file to setup.sh and edit it for your environment.
 source /cvmfs/sft.cern.ch/lcg/views/LCG_109/x86_64-el9-gcc13-opt/setup.sh
+
+# SET UP FRONTIER SERVER and CORAL LOOKUP TO READ ATLAS CONDITIONS DATABASE
+export FRONTIER_SERVER="(proxyurl=http://ca-proxy-atlas.cern.ch:3128)"
+export CORAL_DBLOOKUP_PATH=/cvmfs/atlas.cern.ch/repo/sw/software/24.0/Athena/24.0.41/InstallArea/x86_64-el9-gcc13-opt/XML/AtlasAuthentication
+export CORAL_AUTH_PATH="$CORAL_DBLOOKUP_PATH"
+export COOL_ORA_ENABLE_ADAPTIVE_OPT=Y
+echo "$FRONTIER_SERVER"
+echo "$CORAL_DBLOOKUP_PATH"
+echo "$COOL_ORA_ENABLE_ADAPTIVE_OPT"
+ls "$CORAL_DBLOOKUP_PATH/dblookup.xml"
+ls "$CORAL_AUTH_PATH/authentication.xml"
+
+
+# Copy this file to setup_local.sh and edit it for your environment.
+# Below is an example of how to set up the environment variables for FAIR. Adjust the paths as needed for your setup.
 
 export FAIR_BASE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 echo "Setting up FAIR environment"
