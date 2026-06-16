@@ -1,8 +1,8 @@
 run:
-  input: /eos/experiment/faser/raw/2026/0###run-number###/FaserAHCAL-Physics-0###run-number###-0*.raw
+  input: ${FAIR_DATA}/0###run-number###/FaserAHCAL-Physics-0###run-number###-0*.raw
   MC: false
-  log_file: /afs/cern.ch/user/y/ymaruya/private/FASERlink/AHCAL/FAIR/out/###run-number###/log_tmp
-  output: /eos/project/f/faser-upgrade/AHCAL/FAIR/###run-number###_LHCData.root
+  log_file: ${FAIR_OUT}/###run-number###/log_tmp
+  output: ${FAIR_ROOT_OUT}/###run-number###_LHCData.root
   nEvents: -1
   log_level: INFO
   runNumber: ###run-number###
@@ -22,6 +22,12 @@ algs:
       in_rawdata_key: TLURawData
       out_lhcdata_key: LHCData
       verbose: true
+  - type: LumiRecordReaderAlg
+    cfg:
+      in_rawdata_key: TLURawData
+      out_lumirecord_key: LumiRecord
+      lumi_tag: OflLumiAcct-Run3-008
+      verbose: true
   - type: RootWriterAlg
     cfg: 
       outputlist:
@@ -29,3 +35,4 @@ algs:
         - ConditionStore
         - LHCData
         - AHCALTLURawData
+        - LumiRecord

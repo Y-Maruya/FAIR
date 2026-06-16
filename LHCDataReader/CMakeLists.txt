@@ -17,6 +17,9 @@ set(GCC_ROOT
 add_library(LHCDataReaderAlg STATIC
   LHCDataReaderAlg.cpp
 )
+add_library(LumiRecordReaderAlg STATIC
+  LumiRecordReaderAlg.cpp
+)
 
 # Public include paths for headers used by this target
 target_include_directories(LHCDataReaderAlg
@@ -27,8 +30,23 @@ target_include_directories(LHCDataReaderAlg
     "${BOOST_ROOT}/include"
 )
 
+target_include_directories(LumiRecordReaderAlg
+  PUBLIC
+    ${CMAKE_CURRENT_SOURCE_DIR}
+    ${FAIR_ROOT_DIR}
+    "${TDAQ_EXTERNAL}/include"
+    "${BOOST_ROOT}/include"
+)
+
 # Link directories for COOL/CORAL libraries
 target_link_directories(LHCDataReaderAlg
+  PUBLIC
+    "${TDAQ_EXTERNAL}/lib"
+    "${BOOST_ROOT}/lib"
+    "${GCC_ROOT}/lib64"
+)
+
+target_link_directories(LumiRecordReaderAlg
   PUBLIC
     "${TDAQ_EXTERNAL}/lib"
     "${BOOST_ROOT}/lib"
@@ -50,14 +68,30 @@ target_link_libraries(LHCDataReaderAlg
     pthread
 )
 
+target_link_libraries(LumiRecordReaderAlg
+  PUBLIC
+    lcg_CoolApplication
+    lcg_CoolKernel
+    lcg_RelationalCool
+    lcg_CoralBase
+    lcg_CoralKernel
+    lcg_RelationalAccess
+    boost_thread
+    boost_system
+    boost_chrono
+    pthread
+)
+
 # Use common compile options / include dirs from top-level interface lib (if present)
 if(TARGET fair_options)
   target_link_libraries(LHCDataReaderAlg PUBLIC fair_options)
+  target_link_libraries(LumiRecordReaderAlg PUBLIC fair_options)
 endif()
 
 # Optional: nice warnings locally
 if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
   target_compile_options(LHCDataReaderAlg PRIVATE -Wall -Wextra -Wpedantic)
+  target_compile_options(LumiRecordReaderAlg PRIVATE -Wall -Wextra -Wpedantic)
 endif()
 
 # Set runtime library paths
@@ -67,9 +101,17 @@ set_target_properties(LHCDataReaderAlg
     INSTALL_RPATH "${TDAQ_EXTERNAL}/lib;${BOOST_ROOT}/lib;${GCC_ROOT}/lib64"
 )
 
+set_target_properties(LumiRecordReaderAlg
+  PROPERTIES
+    BUILD_RPATH "${TDAQ_EXTERNAL}/lib;${BOOST_ROOT}/lib;${GCC_ROOT}/lib64"
+    INSTALL_RPATH "${TDAQ_EXTERNAL}/lib;${BOOST_ROOT}/lib;${GCC_ROOT}/lib64"
+)
+
 # Export an alias target name (clean usage)
 add_library(FAIR::LHCDataReaderAlg ALIAS LHCDataReaderAlg)
+add_library(FAIR::LumiRecordReaderAlg ALIAS LumiRecordReaderAlg)
 
 target_link_libraries(calib_io INTERFACE 
     LHCDataReaderAlg
+    LumiRecordReaderAlg
 )

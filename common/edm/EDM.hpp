@@ -10,3 +10,4 @@
 #include "common/edm/EventSummary.hpp"
 #include "common/edm/RmNoiseSummary.hpp"
 #include "common/edm/LHCData.hpp"
+#include "common/edm/LumiRecord.hpp"
