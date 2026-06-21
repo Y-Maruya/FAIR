@@ -29,6 +29,7 @@
 #include <filesystem>
 #include <glob.h>
 #include <sys/resource.h>
+#include <unistd.h>
 
 
 std::string customPad(const std::string& str, size_t totalLength) {
@@ -227,7 +228,7 @@ int run_fair_calib(int argc, char* argv[]) {
     run_numbers_str += "-";
     run_numbers_str += std::to_string(runNumbers.back());
     std::cout << "Run numbers to process: " << run_numbers_str << std::endl;
-    std::string random_suffix = "_" + std::to_string(std::rand() % 10000);
+    std::string random_suffix = "_" + std::to_string(::getpid()) + "_" + std::to_string(start_runNumber);
     replace_config_run_numbers(argv[1], run_numbers_str, random_suffix);
     replace_config_run_number("/tmp/temp_config" + random_suffix + ".yaml", start_runNumber, random_suffix);
     YAML::Node config = YAML::LoadFile("/tmp/temp_config" + random_suffix + "_2.yaml");

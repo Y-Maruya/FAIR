@@ -1,4 +1,8 @@
 #include "PedestalReader.hpp"
+#include <algorithm>
+#include <chrono>
+#include <cmath>
+#include <ctime>
 #include <stdexcept>
 #include <iostream>
 #include <string>
@@ -6,6 +10,11 @@
 #include <stdexcept>
 #include <fstream>
 #include <cstdio>
+#include <filesystem>
+#include <map>
+#include <thread>
+#include <utility>
+#include <vector>
 #include <curl/curl.h>
 #include <nlohmann/json.hpp>
 #include <yaml-cpp/yaml.h>
@@ -13,6 +22,7 @@
 #include "CalibDBIO/Query.hpp"
 #include "common/config/ParseRunConfig.hpp"
 #include "common/AHCALGeometry.hpp"
+#include <unistd.h>
 namespace CalibDBIO {
 PedestalReader::PedestalReader(int runNumber) {
     // Constructor  
@@ -88,7 +98,7 @@ int PedestalReader::selectNearestPedestalRun(int runNumber) {
     // If not select the nearest pedestal run based on the timestamp of the runs
     // make the table of pedestal runs and their timestamps at first. continue from the last content of the table if it is already made.
     // Then find the nearest pedestal run to the given runNumber based on the timestamp
-    std::vector<std::pair<int, std::time_t>> pedestalRuns; // pair of (runNumber, timestamp)
+    std::map<int, std::time_t> pedestalRunMap; // runNumber to timestamp
     std::ifstream infile(pedestal_runs_file_, std::ios::in);
     int i = 0;
     int max_retries = 5;
@@ -104,18 +114,45 @@ int PedestalReader::selectNearestPedestalRun(int runNumber) {
             std::istringstream iss(line);
             int run;
             std::time_t timestamp;
-            if (!(iss >> run >> timestamp)) { break; }  
-            pedestalRuns.emplace_back(run, timestamp);
+            if (!(iss >> run >> timestamp)) { continue; }  
+            pedestalRunMap[run] = timestamp;
         }
         infile.close();
     } else {
-        LOG_ERROR("Could not open {} to read pedestal run information", pedestal_runs_file_);
-        throw std::runtime_error("Could not open " + pedestal_runs_file_ + " to read pedestal run information");
+        LOG_WARN("Could not open {} to read pedestal run information; rebuilding cache from DB queries", pedestal_runs_file_);
     }
-    if (pedestalRuns.empty() || pedestalRuns.back().first < runNumber) {
+    const std::filesystem::path cache_dir = pedestal_runs_file_ + ".d";
+    std::error_code ec;
+    std::filesystem::create_directories(cache_dir, ec);
+    if (ec) {
+        LOG_WARN("Could not create pedestal run cache directory {}: {}", cache_dir.string(), ec.message());
+        ec.clear();
+    }
+    if (std::filesystem::exists(cache_dir, ec) && std::filesystem::is_directory(cache_dir, ec)) {
+        for (const auto& entry : std::filesystem::directory_iterator(cache_dir, ec)) {
+            if (ec) {
+                LOG_WARN("Could not scan pedestal run cache directory {}: {}", cache_dir.string(), ec.message());
+                break;
+            }
+            if (!entry.is_regular_file(ec)) {
+                continue;
+            }
+            std::ifstream cache_file(entry.path());
+            int run;
+            std::time_t timestamp;
+            if (cache_file >> run >> timestamp) {
+                pedestalRunMap[run] = timestamp;
+            }
+        }
+    }
+    const int max_cached_run = pedestalRunMap.empty()
+        ? 0
+        : std::max_element(pedestalRunMap.begin(), pedestalRunMap.end(),
+                           [](const auto& a, const auto& b){ return a.first < b.first; })->first;
+    if (pedestalRunMap.empty() || max_cached_run < runNumber) {
         //load pedestal run info from the runinfo
         for (int r = runNumber - 1; r >= 20000; --r) {
-            if (std::find_if(pedestalRuns.begin(), pedestalRuns.end(), [r](const auto& p){ return p.first == r; }) != pedestalRuns.end()) {
+            if (pedestalRunMap.find(r) != pedestalRunMap.end()) {
                 break; // already have this run in the table
             }
             try {
@@ -130,9 +167,25 @@ int PedestalReader::selectNearestPedestalRun(int runNumber) {
                         struct std::tm tm = {};
                         strptime(timestamp_string.c_str(), "%Y-%m-%d %H:%M:%S", &tm);
                         std::time_t timestamp = mktime(&tm);
-                        pedestalRuns.emplace_back(r, timestamp);
+                        pedestalRunMap[r] = timestamp;
                         LOG_INFO("Found pedestal run {} with timestamp {} for physics run {}", r, timestamp, runNumber);
-                        // break;
+                        if (std::filesystem::exists(cache_dir, ec) && std::filesystem::is_directory(cache_dir, ec)) {
+                            ec.clear();
+                            const auto final_path = cache_dir / (std::to_string(r) + ".txt");
+                            const auto tmp_path = cache_dir / (std::to_string(r) + ".txt.tmp." + std::to_string(::getpid()));
+                            std::ofstream cache_out(tmp_path);
+                            if (cache_out.is_open()) {
+                                cache_out << r << " " << timestamp << "\n";
+                                cache_out.close();
+                                std::error_code rename_ec;
+                                std::filesystem::rename(tmp_path, final_path, rename_ec);
+                                if (rename_ec) {
+                                    LOG_WARN("Could not update pedestal cache {}: {}", final_path.string(), rename_ec.message());
+                                }
+                            } else {
+                                LOG_WARN("Could not write pedestal cache {}", tmp_path.string());
+                            }
+                        }
                     }
                 }
             } catch (const std::exception& e) {
@@ -140,26 +193,12 @@ int PedestalReader::selectNearestPedestalRun(int runNumber) {
             }
         }
     }
-    std::sort(pedestalRuns.begin(), pedestalRuns.end(), [](const auto& a, const auto& b){ return a.second < b.second; });
-    // output the pedestal run table using atomic rename for thread-safety
-    std::string rand = std::to_string(std::rand());
-    std::string tmpFile = pedestal_runs_file_ + ".tmp"+"."+rand;
-    std::ofstream outfile(tmpFile, std::ios::out);
-    if (outfile.is_open()) {
-        for (const auto& p : pedestalRuns) {
-            outfile << p.first << " " << p.second << "\n";
-        }
-        outfile.close();
-        // atomic rename to ensure readers always see complete file
-        if (std::rename(tmpFile.c_str(), pedestal_runs_file_.c_str()) != 0) {
-            // LOG_ERROR("Could not rename {} to {}", tmpFile, pedestal_runs_file_);
-            LOG_ERROR("Could not rename {} to {}, but the pedestal run information is updated in {}", tmpFile, pedestal_runs_file_, tmpFile);
-            // throw std::runtime_error("Could not rename " + tmpFile + " to " + pedestal_runs_file_);
-        }
-    } else {
-        LOG_ERROR("Could not open {} to write pedestal run information", tmpFile);
-        throw std::runtime_error("Could not open " + tmpFile + " to write pedestal run information");
+    std::vector<std::pair<int, std::time_t>> pedestalRuns;
+    pedestalRuns.reserve(pedestalRunMap.size());
+    for (const auto& [run, timestamp] : pedestalRunMap) {
+        pedestalRuns.emplace_back(run, timestamp);
     }
+    std::sort(pedestalRuns.begin(), pedestalRuns.end(), [](const auto& a, const auto& b){ return a.second < b.second; });
     if (std::find_if(pedestalRuns.begin(), pedestalRuns.end(), [runNumber](const auto& p){ return p.first == runNumber - 1 ; }) != pedestalRuns.end()) {
         return runNumber - 1; // the previous run is a pedestal run
     }

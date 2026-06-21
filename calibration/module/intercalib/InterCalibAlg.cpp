@@ -801,7 +801,8 @@ struct InterCalibAlg::Impl {
         if (hg_sub <= cfg_.hg_fit_min) return false;
         if (lg_sub <= cfg_.lg_fit_min) return false;
         if (cfg_.use_fit_max_saturation_minus_margin) {
-            double local_hg_fit_max = hg_saturation - cfg_.saturation_margin;
+            double pedestal = ped_map_[AHCALGeometry::CellID(tmp_layer, tmp_chip, tmp_channel)].HighGainPeak;
+            double local_hg_fit_max = hg_saturation - cfg_.saturation_margin - pedestal;
             if (hg_sub > local_hg_fit_max) return false;
         } else {
             if (hg_sub > cfg_.hg_fit_max) return false;
