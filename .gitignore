@@ -19,3 +19,8 @@ out_calibration/*_calib/*/*
 setup_local.sh
 .env
 config/local/
+*tmp*
+*.exe
+*_C.d
+*_C.so
+*_C_AcLiC_*
