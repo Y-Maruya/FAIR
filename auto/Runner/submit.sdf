@@ -1,0 +1,11 @@
+universe = vanilla
+
+executable = /eos/user/y/ymaruya/FASER/AHCAL/FAIR/auto/Runner/Runs.sh
+arguments  = $(config) $(run)
+
+output = /eos/user/y/ymaruya/FASER/AHCAL/FAIR/auto/Runner/condor_logs/out_$(config)/$(run).out
+error = /eos/user/y/ymaruya/FASER/AHCAL/FAIR/auto/Runner/condor_logs/out_$(config)/$(run).err
+log = /eos/user/y/ymaruya/FASER/AHCAL/FAIR/auto/Runner/condor_logs/out_$(config)/$(run).log
+
++JobFlavour = "longlunch"
+queue config, run from runs.txt

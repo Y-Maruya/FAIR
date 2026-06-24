@@ -122,9 +122,9 @@ def find_start_runs(start_run, end_run, num_veto_events, excluded_runs, timeout)
     return start_runs
 
 
-def write_start_runs(path, start_runs):
+def write_start_runs(path, start_runs, num_veto_events=DEFAULT_NUM_VETO_EVENTS):
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text("".join(f"{run_number}\n" for run_number in start_runs))
+    path.write_text("".join(f"{run_number} {num_veto_events}\n" for run_number in start_runs))
     print(f"\nWrote {len(start_runs)} Condor job start runs to {path}")
 
 
@@ -202,7 +202,7 @@ def main():
         excluded_runs,
         args.timeout,
     )
-    write_start_runs(args.output, start_runs)
+    write_start_runs(args.output, start_runs, args.num_veto_events)
 
     if args.submit:
         subprocess.run(

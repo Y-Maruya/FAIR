@@ -1,0 +1,11 @@
+universe = vanilla
+
+executable = /eos/user/y/ymaruya/FASER/AHCAL/FAIR/auto/Runner/AfterRuns.sh
+arguments  = /afs/cern.ch/user/y/ymaruya/private/FASERlink/AHCAL/FAIR/config/MIP_second_calib.yaml 22164 22680000
+
+output = /eos/user/y/ymaruya/FASER/AHCAL/FAIR/auto/Runner/condor_logs/out/$(ClusterId).$(ProcId).out
+error = /eos/user/y/ymaruya/FASER/AHCAL/FAIR/auto/Runner/condor_logs/out/$(ClusterId).$(ProcId).err
+log = /eos/user/y/ymaruya/FASER/AHCAL/FAIR/auto/Runner/condor_logs/out/$(ClusterId).log
+
++JobFlavour = "workday"
+queue

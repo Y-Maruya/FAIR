@@ -1,7 +1,7 @@
 universe = vanilla
 
 executable = /eos/user/y/ymaruya/FASER/AHCAL/FAIR/auto/InterCalib/submit.sh
-arguments  = $(start_run)
+arguments  = $(start_run) $(num_veto_events)
 
 output = /eos/user/y/ymaruya/FASER/AHCAL/FAIR/auto/InterCalib/condor_logs/intercalib.$(start_run).$(ClusterId).$(ProcId).out
 error  = /eos/user/y/ymaruya/FASER/AHCAL/FAIR/auto/InterCalib/condor_logs/intercalib.$(start_run).$(ClusterId).$(ProcId).err

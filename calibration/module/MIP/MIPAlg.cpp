@@ -479,10 +479,19 @@ namespace AHCALRecoAlg{
 
         void writeRootOutput() {
             if (!cfg_.mip_to_file) return;
-
+            std::filesystem::path out_path(cfg_.out_mip_filename);
+            if (out_path.has_parent_path()) {
+                std::error_code ec;
+                std::filesystem::create_directories(out_path.parent_path(), ec);
+                if (ec) {
+                    LOG_ERROR("MIPAlg: cannot create output directory {}: {}", out_path.parent_path().string(), ec.message());
+                    return;
+                }
+            }
             auto fout = std::unique_ptr<TFile>(TFile::Open(cfg_.out_mip_filename.c_str(), "RECREATE"));
             if (!fout || fout->IsZombie()) {
                 LOG_ERROR("MIPAlg: cannot create output file: {}", cfg_.out_mip_filename);
+                std::cerr << "MIPAlg: cannot create output file: " << cfg_.out_mip_filename << std::endl;
                 return;
             }
 

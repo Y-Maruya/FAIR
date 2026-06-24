@@ -7,5 +7,7 @@ output = /eos/user/y/ymaruya/FASER/AHCAL/FAIR/auto/MIPCalib/condor_logs/mip.$(st
 error  = /eos/user/y/ymaruya/FASER/AHCAL/FAIR/auto/MIPCalib/condor_logs/mip.$(start_run).$(ClusterId).$(ProcId).err
 log    = /eos/user/y/ymaruya/FASER/AHCAL/FAIR/auto/MIPCalib/condor_logs/mip.$(ClusterId).log
 
-+JobFlavour = "workday"
++JobFlavour = "testmatch"
++AccountingGroup = "group_u_FASER.users"
+
 queue start_run from run_starts.txt

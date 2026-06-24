@@ -331,6 +331,12 @@ struct PedestalAlg::Impl {
     buildPedestalCache();
 
     if (cfg_.pedestal_to_file) {
+      std::filesystem::path out_path(cfg_.out_pedestal_filename);
+      if (!out_path.has_parent_path()) {
+        LOG_ERROR("PedestalAlg: output file path has no parent directory: {}", cfg_.out_pedestal_filename);
+        return;
+      }
+      std::filesystem::create_directories(out_path.parent_path());
       auto fout = std::unique_ptr<TFile>(TFile::Open(cfg_.out_pedestal_filename.c_str(), "RECREATE"));
       if (!fout || fout->IsZombie()) {
         LOG_ERROR("PedestalAlg: cannot create output file: {}", cfg_.out_pedestal_filename);
