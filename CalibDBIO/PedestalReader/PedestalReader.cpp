@@ -70,20 +70,26 @@ void PedestalReader::readPedestals(int runNumber) {
             
             const auto& perChannel = data["PerChannel"];
             int totalChannels = perChannel["HighGainPeak"].size();
-            
+            int lossyChannels = 0;
             for (int chch = 0; chch < totalChannels; ++chch) {
                 Pedestal ped;
                 int cellid = AHCALGeometry::CellID(layer, chch / AHCALGeometry::channel_No, chch % AHCALGeometry::channel_No);
                 ped.HighGainPeak = perChannel["HighGainPeak"][chch].get<double>();
                 ped.HighGainSigma = perChannel["HighGainSigma"][chch].get<double>();
                 ped.HighGainStatus = perChannel["HighGainStatus"][chch].get<int>();
+                ped.HighGainUsable = perChannel["HighGainUsable"][chch].get<int>();
                 ped.LowGainPeak = perChannel["LowGainPeak"][chch].get<double>();
                 ped.LowGainSigma = perChannel["LowGainSigma"][chch].get<double>();
                 ped.LowGainStatus = perChannel["LowGainStatus"][chch].get<int>();
+                ped.LowGainUsable = perChannel["LowGainUsable"][chch].get<int>();
                 if ((ped.HighGainStatus != 0 && ped.HighGainStatus != 999) || (ped.LowGainStatus != 0 && ped.LowGainStatus != 999)) {
-                    LOG_WARN("Pedestal fit status not OK for cellID {}: HG status {}, LG status {}", cellid, ped.HighGainStatus, ped.LowGainStatus);
+                    LOG_DEBUG("Pedestal fit status not OK for cellID {}: HG status {}, LG status {}", cellid, ped.HighGainStatus, ped.LowGainStatus);
+                    lossyChannels++;
                 }
                 pedestalMap_[cellid] = ped;
+            }
+            if (lossyChannels > 0) {
+                LOG_WARN("Found {} channels with non-zero pedestal fit status in layer {}", lossyChannels, layer);
             }
         } catch (const std::exception& e) {
             LOG_ERROR("Error parsing pedestal data: {}", e.what());

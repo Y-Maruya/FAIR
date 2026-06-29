@@ -10,6 +10,8 @@ struct Pedestal{
     double LowGainSigma;
     int HighGainStatus;
     int LowGainStatus;
+    int HighGainUsable;
+    int LowGainUsable;
 };
 class PedestalReader {
 public:
