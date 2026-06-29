@@ -165,6 +165,17 @@ class AHCALRuns{
             }
             return exceeded_runs; // return the list of runs that exceed the veto trigger count
         }
+        std::vector<int> from_start_to_end(int start_run, int end_run) {
+            int run = start_run;
+            std::vector<int> runs_in_range;
+            while (run <= end_run) {
+                if (AHCALRuns::is_AHCAL_run(run)) {
+                    runs_in_range.push_back(run);
+                }
+                run++;
+            }
+            return runs_in_range;
+        }
     private:
         std::vector<int> excluded_run_numbers_;
 };
@@ -172,12 +183,13 @@ class AHCALRuns{
 using namespace AHCALRecoAlg;
 int run_fair_calib(int argc, char* argv[]) {
     if (argc < 4) {
-        LOG_ERROR("Usage: {} <config_yaml> -r <start_run> [-n <num_veto_events> -e <excluded_runs_file>]", argv[0]);
+        LOG_ERROR("Usage: {} <config_yaml> -r <start_run> [-n <num_veto_events> -e <excluded_runs_file> -l <end_run>]", argv[0]);
         return 1;
     }
     std::string input_run;
     int num_veto_events = 7000*18*18; // default value
     std::string excluded_runs_file = "excluded_runs.txt"; // default value
+    std::string end_run_str = ""; // default value
     for (int i = 2; i < argc; ++i) {
         if (i + 1 >= argc) {
             LOG_ERROR("Missing value for option {}", argv[i]);
@@ -192,6 +204,9 @@ int run_fair_calib(int argc, char* argv[]) {
         }else if (std::string(argv[i]) == "-e") {
             excluded_runs_file = argv[i + 1];
             std::cout << "Excluded runs file specified: " << excluded_runs_file << std::endl;
+        }else if (std::string(argv[i]) == "-l") {
+            end_run_str = argv[i + 1];
+            std::cout << "End run specified: " << end_run_str << std::endl;
         } else {
             LOG_ERROR("Unknown option: {}", argv[i]);
             return 1;
@@ -215,7 +230,23 @@ int run_fair_calib(int argc, char* argv[]) {
         return 1;
     }
     AHCALRuns ahcal_runs(excluded_runs_file);
-    std::vector<int> runNumbers = ahcal_runs.exceed_veto_trigger_run(start_runNumber, num_veto_events);
+    std::vector<int> runNumbers;
+    if (end_run_str != ""){
+        const std::vector<int> parsed_end_runs = parseRunList(end_run_str.c_str());
+        if (parsed_end_runs.empty()) {
+            LOG_ERROR("No valid end run provided with -e option.");
+            return 1;
+        }
+        int end_runNumber = parsed_end_runs[0];
+        std::cout << "Parsed end run number: " << end_runNumber << std::endl;
+        if (end_runNumber <= 0) {
+            LOG_ERROR("Invalid end run number: {}", end_runNumber);
+            return 1;
+        }
+        runNumbers = ahcal_runs.from_start_to_end(start_runNumber, end_runNumber);
+    } else {
+        runNumbers = ahcal_runs.exceed_veto_trigger_run(start_runNumber, num_veto_events);
+    }
     if (runNumbers.empty()) {
         LOG_ERROR("No runs were selected from start run {} with requested veto event count {}.", start_runNumber, num_veto_events);
         return 1;

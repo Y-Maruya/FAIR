@@ -46,7 +46,9 @@ constexpr int NBIN_XY = 18;
 
 struct FitOut {
   double mean  = -1.0;
+  double mean_error = -1.0;
   double sigma = -1.0;
+  double sigma_error = -1.0;
   double rms = -1.0;
   double avg = -1.0;
   int    fitStatus = -999;
@@ -146,7 +148,9 @@ static FitOut fitPedestalGaussian(TH1D* h,
   r.deviation_squared_sum = (entries > 0) ? r.deviation_squared_sum / entries : -1.0;
   r.deviation_squared_sum_fourth = (entries > 0) ? r.deviation_squared_sum_fourth / entries : -1.0;
   r.mean = f2.GetParameter(1);
+  r.mean_error = f2.GetParError(1);
   r.sigma = std::fabs(f2.GetParameter(2));
+  r.sigma_error = f2.GetParError(2);
   r.fitStatus = st2;
   r.ok = true;
   return r;
@@ -405,11 +409,13 @@ struct PedestalAlg::Impl {
 
         // For AdcToEnergyReadTTreeAlg::initialize_ped()
         double highgain_peak=-1.0, lowgain_peak=-1.0;
+        double highgain_peak_error=-1.0, lowgain_peak_error=-1.0;
         double highgain_rms=-1.0, lowgain_rms=-1.0;
         double highgain_avg=-1.0, lowgain_avg=-1.0;
 
         // Extra info
         double highgain_sigma=-1.0, lowgain_sigma=-1.0;
+        double highgain_sigma_error=-1.0, lowgain_sigma_error=-1.0;
         double x_mm=-999.0, y_mm=-999.0;
 
         double highgain_chi2=-1.0, lowgain_chi2=-1.0;
@@ -428,8 +434,12 @@ struct PedestalAlg::Impl {
         tp.Branch("lowgain_avg", &lowgain_avg, "lowgain_avg/D");
         tp.Branch("highgain_peak", &highgain_peak, "highgain_peak/D");
         tp.Branch("lowgain_peak", &lowgain_peak, "lowgain_peak/D");
+        tp.Branch("highgain_peak_error", &highgain_peak_error, "highgain_peak_error/D");
+        tp.Branch("lowgain_peak_error", &lowgain_peak_error, "lowgain_peak_error/D");
         tp.Branch("highgain_sigma", &highgain_sigma, "highgain_sigma/D");
+        tp.Branch("highgain_sigma_error", &highgain_sigma_error, "highgain_sigma_error/D");
         tp.Branch("lowgain_sigma", &lowgain_sigma, "lowgain_sigma/D");
+        tp.Branch("lowgain_sigma_error", &lowgain_sigma_error, "lowgain_sigma_error/D");
         tp.Branch("entries_hg", &entries_hg, "entries_hg/I");
         tp.Branch("entries_lg", &entries_lg, "entries_lg/I");
         tp.Branch("fitStatus_hg", &fitStatus_hg, "fitStatus_hg/I");
@@ -466,7 +476,9 @@ struct PedestalAlg::Impl {
           highgain_rms = res.fit_hg.rms;
           highgain_avg = res.fit_hg.avg;
           highgain_peak = res.fit_hg.mean;
+          highgain_peak_error = res.fit_hg.mean_error;
           highgain_sigma = res.fit_hg.sigma;
+          highgain_sigma_error = res.fit_hg.sigma_error;
           fitStatus_hg = res.fit_hg.status;
           fitOk_hg = res.fit_hg.ok ? 1 : 0;
           usable_hg = (fitOk_hg && AHCALRefValues::HGPedestalStatus_is_ok(res.fit_hg.status)) ? 1 : 0;
@@ -491,7 +503,9 @@ struct PedestalAlg::Impl {
           lowgain_avg = res.fit_lg.avg;
 
           lowgain_peak = res.fit_lg.mean;
+          lowgain_peak_error = res.fit_lg.mean_error;
           lowgain_sigma = res.fit_lg.sigma;
+          lowgain_sigma_error = res.fit_lg.sigma_error;
           fitStatus_lg = res.fit_lg.status;
           fitOk_lg = res.fit_lg.ok ? 1 : 0;
           usable_lg = (fitOk_lg && AHCALRefValues::LGPedestalStatus_is_ok(res.fit_lg.status)) ? 1 : 0;
@@ -677,11 +691,15 @@ struct PedestalAlg::Impl {
       // Prepare per-layer arrays (indexed by channel_index = chip*36 + channel)
       std::vector<int> cellid_arr(n_channels_per_layer, -1);
       std::vector<double> hg_peak_arr(n_channels_per_layer, -1.0);
+      std::vector<double> hg_peak_error_arr(n_channels_per_layer, -1.0);
       std::vector<double> hg_sigma_arr(n_channels_per_layer, -1.0);
+      std::vector<double> hg_sigma_error_arr(n_channels_per_layer, -1.0);
       std::vector<int>    hg_status_arr(n_channels_per_layer, -999);
       std::vector<int>    hg_usable_arr(n_channels_per_layer, 0);
       std::vector<double> lg_peak_arr(n_channels_per_layer, -1.0);
+      std::vector<double> lg_peak_error_arr(n_channels_per_layer, -1.0);
       std::vector<double> lg_sigma_arr(n_channels_per_layer, -1.0);
+      std::vector<double> lg_sigma_error_arr(n_channels_per_layer, -1.0);
       std::vector<int>    lg_status_arr(n_channels_per_layer, -999);
       std::vector<int>    lg_usable_arr(n_channels_per_layer, 0);
 
@@ -698,11 +716,15 @@ struct PedestalAlg::Impl {
 
         cellid_arr[layer_idx] = res.cellid;
         hg_peak_arr[layer_idx] = res.fit_hg.mean;
+        hg_peak_error_arr[layer_idx] = res.fit_hg.mean_error;
         hg_sigma_arr[layer_idx] = res.fit_hg.sigma;
+        hg_sigma_error_arr[layer_idx] = res.fit_hg.sigma_error;
         hg_status_arr[layer_idx] = res.fit_hg.status;
         hg_usable_arr[layer_idx] = (res.fit_hg.ok && AHCALRefValues::HGPedestalStatus_is_ok(res.fit_hg.status)) ? 1 : 0;
         lg_peak_arr[layer_idx] = res.fit_lg.mean;
+        lg_peak_error_arr[layer_idx] = res.fit_lg.mean_error;
         lg_sigma_arr[layer_idx] = res.fit_lg.sigma;
+        lg_sigma_error_arr[layer_idx] = res.fit_lg.sigma_error;
         lg_status_arr[layer_idx] = res.fit_lg.status;
         lg_usable_arr[layer_idx] = (res.fit_lg.ok && AHCALRefValues::LGPedestalStatus_is_ok(res.fit_lg.status)) ? 1 : 0;
         if (!res.fit_hg.ok) fit_failures_hg++;
@@ -737,10 +759,14 @@ struct PedestalAlg::Impl {
       // Per-channel arrays (following Pedestal.schema)
       // j["PerChannel"]["CellID"] = cellid_arr;
       j["PerChannel"]["HighGainPeak"] = hg_peak_arr;
+      j["PerChannel"]["HighGainPeakError"] = hg_peak_error_arr;
       j["PerChannel"]["HighGainSigma"] = hg_sigma_arr;
+      j["PerChannel"]["HighGainSigmaError"] = hg_sigma_error_arr;
       j["PerChannel"]["HighGainStatus"] = hg_status_arr;
       j["PerChannel"]["LowGainPeak"] = lg_peak_arr;
+      j["PerChannel"]["LowGainPeakError"] = lg_peak_error_arr;
       j["PerChannel"]["LowGainSigma"] = lg_sigma_arr;
+      j["PerChannel"]["LowGainSigmaError"] = lg_sigma_error_arr;
       j["PerChannel"]["LowGainStatus"] = lg_status_arr;
       j["PerChannel"]["HighGainUsable"] = hg_usable_arr;
       j["PerChannel"]["LowGainUsable"] = lg_usable_arr;
