@@ -26,7 +26,7 @@ def extract_configName(run_info):
 def last_run_number():
     with open("/eos/user/y/ymaruya/FASER/AHCAL/FAIR/auto/pedestal/ped_finished_runs.txt", "r") as f:
         finished_runs = f.read().splitlines()
-    return finished_runs[-1] if finished_runs else None
+    return finished_runs[-1] if finished_runs else "21985"
 
 def isFinished(runnumber):
     with open("/eos/user/y/ymaruya/FASER/AHCAL/FAIR/auto/pedestal/ped_finished_runs.txt", "r") as f:

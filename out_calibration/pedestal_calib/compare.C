@@ -22,6 +22,7 @@
 #include "TStyle.h"
 #include "TH1.h"
 #include "TH1D.h"
+#include "TH2D.h"
 #include "TLine.h"
 #include "TSystem.h"
 #include "TTree.h"
@@ -87,6 +88,15 @@ struct MaskCandidateInfo {
   std::vector<std::string> statusSequenceLg;
   std::vector<std::string> badRunLabelsHg;
   std::vector<std::string> badRunLabelsLg;
+};
+
+struct ChannelPeakRmsInfo {
+  int cellid = -1;
+  int nRuns = 0;
+  double mean = 0.0;
+  double rms = 0.0;
+  double min = 0.0;
+  double max = 0.0;
 };
 
 bool isAllDigits(const std::string &s) {
@@ -786,6 +796,118 @@ void drawDeltaFromReferenceByRun(const std::vector<RunData> &runs,
     c->SaveAs((outDir + "/" + outTag + "_delta_from_first_run_overlay.png").c_str());
   }
 
+}
+
+std::vector<ChannelPeakRmsInfo> collectChannelPeakRms(const std::vector<RunData> &runs,
+                                                       bool isHg,
+                                                       bool onlyFitOk) {
+  std::map<int, std::vector<double>> valuesByCellId;
+
+  for (const auto &run : runs) {
+    for (const auto &e : run.entries) {
+      if (onlyFitOk) {
+        if (isHg && !e.fitOk_hg) continue;
+        if (!isHg && !e.fitOk_lg) continue;
+      }
+      valuesByCellId[e.cellid].push_back(isHg ? e.highgain_peak : e.lowgain_peak);
+    }
+  }
+
+  std::vector<ChannelPeakRmsInfo> infos;
+  infos.reserve(valuesByCellId.size());
+  for (const auto &kv : valuesByCellId) {
+    if (kv.second.size() < 2) continue;
+
+    SummaryStats stats = computeStats(kv.second);
+    ChannelPeakRmsInfo info;
+    info.cellid = kv.first;
+    info.nRuns = stats.n;
+    info.mean = stats.mean;
+    info.rms = stats.rms;
+    info.min = stats.min;
+    info.max = stats.max;
+    infos.push_back(info);
+  }
+
+  std::sort(infos.begin(), infos.end(),
+            [](const ChannelPeakRmsInfo &a, const ChannelPeakRmsInfo &b) {
+              if (a.rms != b.rms) return a.rms > b.rms;
+              return a.cellid < b.cellid;
+            });
+  return infos;
+}
+
+void writeChannelPeakRmsCsv(const std::vector<ChannelPeakRmsInfo> &hgInfos,
+                            const std::vector<ChannelPeakRmsInfo> &lgInfos,
+                            const std::string &outDir) {
+  std::ofstream ofs((outDir + "/peak_run_rms_by_channel.csv").c_str());
+  if (!ofs) {
+    std::cerr << "[compare] cannot write peak_run_rms_by_channel.csv in " << outDir << std::endl;
+    return;
+  }
+
+  ofs << "gain,cellid,n_runs,mean_peak,rms_peak,min_peak,max_peak\n";
+  for (const auto &info : hgInfos) {
+    ofs << "HG," << info.cellid << "," << info.nRuns << ","
+        << info.mean << "," << info.rms << "," << info.min << "," << info.max << "\n";
+  }
+  for (const auto &info : lgInfos) {
+    ofs << "LG," << info.cellid << "," << info.nRuns << ","
+        << info.mean << "," << info.rms << "," << info.min << "," << info.max << "\n";
+  }
+}
+
+void drawPeakRunRmsByChannel(const std::vector<RunData> &runs,
+                             const std::string &outDir,
+                             bool onlyFitOk = true) {
+  if (runs.size() < 2) return;
+
+  std::vector<ChannelPeakRmsInfo> hgInfos = collectChannelPeakRms(runs, true, onlyFitOk);
+  std::vector<ChannelPeakRmsInfo> lgInfos = collectChannelPeakRms(runs, false, onlyFitOk);
+  writeChannelPeakRmsCsv(hgInfos, lgInfos, outDir);
+
+  double maxRms = 0.0;
+  for (const auto &info : hgInfos) maxRms = std::max(maxRms, info.rms);
+  for (const auto &info : lgInfos) maxRms = std::max(maxRms, info.rms);
+  if (maxRms <= 0.0) maxRms = 1.0;
+
+  const int nBins = 80;
+  const double xMax = maxRms * 1.10;
+  TH1D *hHg = new TH1D("h_hg_peak_run_rms_by_channel",
+                       "Pedestal peak RMS over runs by channel;Peak RMS over runs [ADC];Channels",
+                       nBins, 0.0, xMax);
+  TH1D *hLg = new TH1D("h_lg_peak_run_rms_by_channel",
+                       "Pedestal peak RMS over runs by channel;Peak RMS over runs [ADC];Channels",
+                       nBins, 0.0, xMax);
+
+  for (const auto &info : hgInfos) hHg->Fill(info.rms);
+  for (const auto &info : lgInfos) hLg->Fill(info.rms);
+
+  hHg->SetLineColor(kRed + 1);
+  hHg->SetFillColorAlpha(kRed + 1, 0.20);
+  hHg->SetLineWidth(2);
+  hHg->SetStats(0);
+  hLg->SetLineColor(kBlue + 1);
+  hLg->SetFillColorAlpha(kBlue + 1, 0.20);
+  hLg->SetLineWidth(2);
+  hLg->SetStats(0);
+
+  const double yMax = std::max(hHg->GetMaximum(), hLg->GetMaximum()) * 1.30;
+  hHg->SetMaximum(std::max(1.0, yMax));
+
+  TCanvas *c = new TCanvas("c_peak_run_rms_by_channel",
+                           "peak run RMS by channel", 1000, 700);
+  c->SetGrid();
+  hHg->Draw("HIST");
+  hLg->Draw("HIST SAME");
+
+  TLegend *leg = new TLegend(0.58, 0.70, 0.88, 0.88);
+  leg->AddEntry(hHg, Form("HG peak (N=%zu)", hgInfos.size()), "lf");
+  leg->AddEntry(hLg, Form("LG peak (N=%zu)", lgInfos.size()), "lf");
+  leg->Draw();
+
+  c->SaveAs((outDir + "/peak_run_rms_by_channel.pdf").c_str());
+  c->SaveAs((outDir + "/peak_run_rms_by_channel.png").c_str());
 }
 
 void drawSummaryGraphs(const std::vector<RunData> &runs, const std::string &outDir) {
@@ -1599,6 +1721,7 @@ void compare(const char *baseDir = ".",
                               "highgain_peak", outDir, true);
   drawDeltaFromReferenceByRun(runs, "lowgain_peak", "LG peak shift from first run",
                               "lowgain_peak", outDir, true);
+  drawPeakRunRmsByChannel(runs, outDir, true);
   // The channel need to be monitored
   CellShiftInfo monitorCell;
   monitorCell.cellid = 870013;

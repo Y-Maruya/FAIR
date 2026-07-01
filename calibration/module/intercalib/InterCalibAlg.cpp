@@ -277,7 +277,9 @@ static FitOut fitPedestalGaussian(TH1D* h,
 // Linear fit result (HG = p0 + p1*LG)
 struct FitResult {
     double p0 = -999.0;
+    double p0_error = -999.0;
     double p1 = -999.0;
+    double p1_error = -999.0;
     double chi2 = -1.0;
     int ndf = -1;
     double chi2_ndf = -1.0;
@@ -399,6 +401,7 @@ static FitResult fitLinearFromHGBinnedProfile(const std::vector<std::pair<double
         const double mean_hg = p.hg;
         const double mean_lg = p.lg;
         const double sigma_eff = p.lg_err;
+        if (sigma_eff <= 0.0 || !std::isfinite(sigma_eff)) continue;
         const double w = 1.0 / (sigma_eff * sigma_eff);
         S += w;
         SX += w * mean_hg;
@@ -432,7 +435,11 @@ static FitResult fitLinearFromHGBinnedProfile(const std::vector<std::pair<double
         const double resid = mean_lg - (c * mean_hg + d);
         r.chi2 += (resid * resid) / (sigma_lg * sigma_lg);
     }
-
+    const double scale = r.chi2 / r.ndf;
+    const double c_error = std::sqrt(scale * S / denom);
+    const double d_error = std::sqrt(scale * SXX / denom);
+    r.p1_error = c_error / (c * c);
+    r.p0_error = std::sqrt((d_error * d_error) / (c * c) + (c_error * c_error * d * d) / (c * c * c * c));
     r.chi2_ndf = r.chi2 / r.ndf;
     r.status = 0;
     r.ok = true;
@@ -626,7 +633,9 @@ struct InterCalibAlg::Impl {
 
         long long n_points = 0;
         double p0 = -999.0;
+        double p0_error = -999.0;
         double p1 = -999.0;
+        double p1_error = -999.0;
         double chi2 = -1.0;
         int ndf = -1;
         double chi2_ndf = -1.0;
@@ -888,7 +897,9 @@ struct InterCalibAlg::Impl {
                 FitResult fr = fitLinearFromHGBinnedProfileRejectOutliers(
                     filtered_points, res.n_points, cfg_.min_points, cfg_.hg_bin_width, cfg_.min_hg_bins_for_fit, cfg_.outlier_sigma_threshold, n_outlier_points, cfg_.min_hg_bins_for_fit);
                 res.p0 = fr.p0;
+                res.p0_error = fr.p0_error;
                 res.p1 = fr.p1;
+                res.p1_error = fr.p1_error;
                 res.chi2 = fr.chi2;
                 res.ndf = fr.ndf;
                 res.chi2_ndf = fr.chi2_ndf;
@@ -993,7 +1004,9 @@ struct InterCalibAlg::Impl {
             }
 
             qr.slope = res.p1;
+            qr.slope_error = res.p1_error;
             qr.intercept = res.p0;
+            qr.intercept_error = res.p0_error;
             qr.chi2 = res.chi2;
             qr.ndf = res.ndf;
             qr.chi2_ndf = res.chi2_ndf;
@@ -1394,6 +1407,7 @@ struct InterCalibAlg::Impl {
         int o_layer = -1, o_chip = -1, o_ch = -1;
         long long o_n = 0;
         double o_p0 = -999.0, o_p1 = -999.0;
+        double o_p0_error = -1.0, o_p1_error = -1.0;
         double o_chi2 = -1.0;
         int o_ndf = -1;
         double o_chi2_ndf = -1.0;
@@ -1425,7 +1439,9 @@ struct InterCalibAlg::Impl {
         tIC.Branch("ch", &o_ch, "ch/I");
         tIC.Branch("n_points", &o_n, "n_points/L");
         tIC.Branch("intercept", &o_p0, "intercept/D");
+        tIC.Branch("intercept_error", &o_p0_error, "intercept_error/D");
         tIC.Branch("slope", &o_p1, "slope/D");
+        tIC.Branch("slope_error", &o_p1_error, "slope_error/D");
         tIC.Branch("chi2", &o_chi2, "chi2/D");
         tIC.Branch("ndf", &o_ndf, "ndf/I");
         tIC.Branch("chi2_ndf", &o_chi2_ndf, "chi2_ndf/D");
@@ -1484,6 +1500,8 @@ struct InterCalibAlg::Impl {
             o_n_outlier_points = res.n_outlier_points;
             o_n_hg_lt_2lg_aftercut = res.n_hg_lt_2lg_aftercut;
             n_noise_points = res.n_noise_points;
+            o_p0_error = res.p0_error;
+            o_p1_error = res.p1_error;
             hg_saturation_points = res.hg_adc_saturation;
             lg_saturation_points = res.lg_adc_saturation;
             o_x_mm = res.x_mm;
@@ -1500,7 +1518,9 @@ struct InterCalibAlg::Impl {
             for (size_t i = 0; i < cfg_.example_cellids.size(); ++i) {
                 if (res.cellid == cfg_.example_cellids[i]) {
                     fit_results_example[i].p0 = res.p0;
+                    fit_results_example[i].p0_error = res.p0_error;
                     fit_results_example[i].p1 = res.p1;
+                    fit_results_example[i].p1_error = res.p1_error;
                     fit_results_example[i].status = res.fit_status;
                     fit_results_example[i].ok = res.fit_ok;
                     fit_results_example[i].chi2 = res.chi2;
@@ -1939,9 +1959,16 @@ void InterCalibAlg::execute(EventStore& evt) {
                 return;
             }
             for (const int index : track.inTrackHitsIndices) {
-                for (const auto& rh : raw_hits) {
-                    if (rh.index == index) {
-                        impl_->fill(rh);
+                // for (const auto& rh : raw_hits) {
+                //     if (rh.index == index) {
+                //         impl_->fill(rh);
+                //     }
+                // }
+                // for temporary.
+                for (size_t i = 0; i < raw_hits.size(); ++i) {
+                    if (static_cast<int>(i) == index) {
+                        impl_->fill(raw_hits[i]);
+                        break;
                     }
                 }
             }    
