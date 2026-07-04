@@ -1,6 +1,6 @@
 #!/bin/bash
 
-input="runs.txt"
+input="runs_2.txt"
 
 while read -r config run; do
     [[ -z "$config" ]] && continue

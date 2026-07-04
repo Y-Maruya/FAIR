@@ -8,6 +8,5 @@ error  = /eos/user/y/ymaruya/FASER/AHCAL/FAIR/auto/MIPCalib/condor_logs/mip.$(st
 log    = /eos/user/y/ymaruya/FASER/AHCAL/FAIR/auto/MIPCalib/condor_logs/mip.$(ClusterId).log
 
 +JobFlavour = "testmatch"
-+AccountingGroup = "group_u_FASER.users"
 
-queue start_run from run_starts.txt
+queue start_run NUM_VETO_EVENTS from run_starts.txt

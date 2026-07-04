@@ -1,8 +1,8 @@
 run:
-  input: /eos/experiment/faser/raw/2026/0###run-number###/FaserAHCAL-Physics-0###run-number###-0*.raw
+  input: ${FAIR_DATA}/0###run-number###/FaserAHCAL-Physics-0###run-number###-0*.raw
   MC: false
-  log_file: /afs/cern.ch/user/y/ymaruya/private/FASERlink/AHCAL/FAIR/out_calibration/spe_calib/###run-numbers###/log
-  output: /eos/project/f/faser-upgrade/AHCAL/FAIR/###run-numbers###.root
+  log_file: ${FAIR_OUT_CALIB}/spe_calib/###run-numbers###/log
+  output: ${FAIR_OUT_CALIB}/###run-numbers###.root
   nEvents: -1
   log_level: INFO
   runNumber: ###run-number###
@@ -158,12 +158,12 @@ algs: # Define the sequence of algorithms to be executed. The order matters.
       string_track_struct: SimpleFittedTrack
       track_selection_string: (valid>0)*(chi2xperndf<5)*(chi2xperndf>0)*(chi2yperndf<5)*(chi2yperndf>0)*(direction_y<0.1)*(direction_y>-0.1)*(direction_x<0.1)*(direction_x>-0.1)
       mip_to_file: true
-      out_mip_filename: /afs/cern.ch/user/y/ymaruya/private/FASERlink/AHCAL/FAIR/out_calibration/spe_calib/###run-numbers###/spe_analysis.root
+      out_mip_filename: ${FAIR_OUT_CALIB}/spe_calib/###run-numbers###/spe_analysis.root
       output_to_png: true
-      out_png_dir: /afs/cern.ch/user/y/ymaruya/private/FASERlink/AHCAL/FAIR/out_calibration/spe_calib/###run-numbers###/png/
+      out_png_dir: ${FAIR_OUT_CALIB}/spe_calib/###run-numbers###/png/
       mip_to_json: true
-      out_json_dirname: /afs/cern.ch/user/y/ymaruya/private/FASERlink/AHCAL/FAIR/out_calibration/spe_calib/###run-numbers###/json/
-      fit: true
+      out_json_dirname: ${FAIR_OUT_CALIB}/spe_calib/###run-numbers###/json/
+      # fit: true
       nbin: 512
       xmin: 0.0
       xmax: 1024.0
@@ -180,11 +180,11 @@ algs: # Define the sequence of algorithms to be executed. The order matters.
       save_examples: true
       substrate_pedestal: true
       read_pedestal_from_ROOT: false
-      # in_pedestal_file: /afs/cern.ch/user/y/ymaruya/private
+      # in_pedestal_file: ${FAIR_OUT_CALIB}
       read_pedestal_from_DB: true
       processing_mode: 2
       snr_threshold: 3.0
-      calculate_fwhm: true
+      # calculate_fwhm: true
 
   # - type: RootWriterAlg
     # cfg: 

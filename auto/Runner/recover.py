@@ -21,12 +21,14 @@ RUNINFO_URL = "https://faser-runinfo.app.cern.ch/cgibin/getRunInfo.py?runno={run
 
 
 def list_eos_root_files(eos_dir):
-    return glob.glob(f"{eos_dir}/*_MIPCalib.root")
+    return glob.glob(f"{eos_dir}/*_MIPCalib*.root")
 
 
 def extract_runno(filename):
     base = os.path.basename(filename)
     m = re.match(r"(\d+)_MIPCalib\.root$", base)
+    if not m:
+        m = re.match(r"(\d+)_MIPCalib_2\.root$", base)
     if not m:
         return None
     return int(m.group(1))
@@ -60,13 +62,22 @@ def get_runinfo_events(runno):
     except Exception as e:
         print(f"RUNINFO_ERROR run={runno}: {e}")
         return None
-
+    if not text:
+        print(f"RUNINFO_ERROR run={runno}: empty response")
+        return None
     try:
         data = json.loads(text)
     except Exception as e:
         print(f"RUNINFO_ERROR run={runno}: failed to parse JSON: {e}")
         return None
 
+    try: 
+        if (data["type"]!="AHCAL"): 
+            # print(f"RUNINFO_ERROR run={runno}: not AHCAL run")
+            return None
+    except KeyError as e:
+        print(f"RUNINFO_ERROR run={runno}: missing key {e}")
+        return None
     try:
         return int(data["runinfo"]["eventCounts"]["Events_sent_Physics"])
     except KeyError as e:
@@ -76,6 +87,15 @@ def get_runinfo_events(runno):
         print(f"RUNINFO_ERROR run={runno}: {e}")
         return None
 
+def get_AHCAL_runs():
+    """
+    Get list of runs from the run info service that have AHCAL data.
+    """
+    runs = []
+    for runno in range(21987, 24200):
+        if get_runinfo_events(runno) is not None:
+            runs.append(runno)
+    return runs
 
 def check_root_file(filename, tree_name=TREE_NAME):
     result = {
@@ -216,7 +236,9 @@ if __name__ == "__main__":
     print(f"Found {len(root_files)} files")
 
     bad_runs = []
-
+    runs = get_AHCAL_runs()
+    run_used = []
+    missing_runs = []
     for filename in root_files:
         runno = extract_runno(filename)
 
@@ -240,11 +262,17 @@ if __name__ == "__main__":
 
         if bad:
             bad_runs.append(runno)
+        run_used.append(runno)
+    
+    missing_runs = [run for run in runs if run not in run_used and run < run_used[-1]]
 
     with open(BAD_RUN_OUTPUT, "w") as fout:
         for runno in bad_runs:
             fout.write(f"{CONFIG_FILE} {runno}\n")
+        for runno in missing_runs:
+            fout.write(f"{CONFIG_FILE} {runno}\n")
 
     print()
     print(f"Bad runs: {len(bad_runs)}")
+    print(f"Missing runs: {len(missing_runs)}")
     print(f"Wrote: {BAD_RUN_OUTPUT}")

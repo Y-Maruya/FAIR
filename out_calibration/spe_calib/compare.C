@@ -127,6 +127,19 @@ struct StableChannelInfo {
   std::vector<double> deltasPercent;
 };
 
+struct GainRunRmsInfo {
+  int cellid = -1;
+  int layer = -1;
+  int chip = -1;
+  int channel = -1;
+  int validRuns = 0;
+  double meanGain = 0.0;
+  double gainRms = 0.0;
+  double minGain = 0.0;
+  double maxGain = 0.0;
+  std::vector<double> gainValues;
+};
+
 const double kDriftSnrThresholds[] = {3.0, 4.0, 5.0};
 const int kDriftConsensusMin = 2;
 const double kDriftMinAbsSpearman = 0.7;
@@ -1835,6 +1848,149 @@ void drawStableChannelDistributions(const std::vector<RunData> &runs,
             << "% RMS=" << best.deltaRmsPercent << "%" << std::endl;
 }
 
+std::vector<GainRunRmsInfo> buildGainRunRmsInfo(const std::vector<RunData> &runs,
+                                                int minValidRuns = 2) {
+  std::set<int> allCellIds;
+  for (const auto &run : runs) {
+    for (const auto &kv : run.byCellId) allCellIds.insert(kv.first);
+  }
+
+  std::vector<GainRunRmsInfo> infos;
+  for (int cellid : allCellIds) {
+    const SpeEntry *identity = nullptr;
+    std::vector<double> gains;
+    gains.reserve(runs.size());
+
+    for (const auto &run : runs) {
+      const auto it = run.byCellId.find(cellid);
+      if (it == run.byCellId.end()) continue;
+      if (!identity) identity = &it->second;
+      const SpeEntry &entry = it->second;
+      if (!entry.fit_ok || entry.gain <= 0.0) continue;
+      gains.push_back(entry.gain);
+    }
+
+    if (!identity || static_cast<int>(gains.size()) < minValidRuns) continue;
+    const SummaryStats gainStats = computeStats(gains);
+
+    GainRunRmsInfo info;
+    info.cellid = cellid;
+    info.layer = identity->layer;
+    info.chip = identity->chip;
+    info.channel = identity->channel;
+    info.validRuns = static_cast<int>(gains.size());
+    info.meanGain = gainStats.mean;
+    info.gainRms = gainStats.rms;
+    info.minGain = gainStats.min;
+    info.maxGain = gainStats.max;
+    info.gainValues = gains;
+    infos.push_back(info);
+  }
+
+  std::sort(infos.begin(), infos.end(),
+            [](const GainRunRmsInfo &a, const GainRunRmsInfo &b) {
+              if (a.gainRms != b.gainRms) return a.gainRms > b.gainRms;
+              if (a.validRuns != b.validRuns) return a.validRuns > b.validRuns;
+              return a.cellid < b.cellid;
+            });
+  return infos;
+}
+
+void writeGainRunRmsReport(const std::string &fileName,
+                           const std::vector<RunData> &runs,
+                           const std::vector<GainRunRmsInfo> &infos,
+                           int minValidRuns) {
+  std::ofstream ofs(fileName.c_str());
+  if (!ofs) return;
+
+  ofs << "# Simple RMS of the gain distribution for each channel\n"
+      << "# Valid point: fit_ok=1 and gain>0\n"
+      << "# gain_RMS is the standard RMS/spread of gain values across runs for one channel\n"
+      << "# Per-run columns contain gain values\n"
+      << "# Minimum valid runs: " << minValidRuns << "\n\n";
+
+  ofs << std::left << std::setw(7) << "rank"
+      << std::setw(10) << "cellid"
+      << std::setw(7) << "layer"
+      << std::setw(7) << "chip"
+      << std::setw(9) << "channel"
+      << std::right << std::setw(11) << "validRuns"
+      << std::setw(14) << "mean_gain"
+      << std::setw(14) << "gain_RMS"
+      << std::setw(14) << "min_gain"
+      << std::setw(14) << "max_gain";
+  for (const auto &run : runs) ofs << std::setw(18) << run.label;
+  ofs << "\n" << std::fixed << std::setprecision(4);
+
+  for (size_t i = 0; i < infos.size(); ++i) {
+    const GainRunRmsInfo &info = infos[i];
+    ofs << std::left << std::setw(7) << i + 1
+        << std::setw(10) << info.cellid
+        << std::setw(7) << info.layer
+        << std::setw(7) << info.chip
+        << std::setw(9) << info.channel
+        << std::right << std::setw(11) << info.validRuns
+        << std::setw(14) << info.meanGain
+        << std::setw(14) << info.gainRms
+        << std::setw(14) << info.minGain
+        << std::setw(14) << info.maxGain;
+    for (const auto &run : runs) {
+      const auto it = run.byCellId.find(info.cellid);
+      if (it == run.byCellId.end() || !it->second.fit_ok || it->second.gain <= 0.0) {
+        ofs << std::setw(18) << "NA";
+      } else {
+        ofs << std::setw(18) << it->second.gain;
+      }
+    }
+    ofs << "\n";
+  }
+}
+
+void drawGainRunRmsDistribution(const std::vector<RunData> &runs,
+                                const std::string &outDir,
+                                int minValidRuns = 2) {
+  if (runs.size() < 2) return;
+
+  const std::vector<GainRunRmsInfo> infos =
+      buildGainRunRmsInfo(runs, minValidRuns);
+  if (infos.empty()) return;
+
+  writeGainRunRmsReport(outDir + "/gain_rms_by_channel.txt", runs, infos,
+                        minValidRuns);
+
+  std::vector<double> gainRmsValues;
+  gainRmsValues.reserve(infos.size());
+  for (const auto &info : infos) {
+    gainRmsValues.push_back(info.gainRms);
+  }
+
+  const SummaryStats rmsStats = computeStats(gainRmsValues);
+  const double rmsMax = rmsStats.max > 0.0 ? rmsStats.max * 1.1 : 1.0;
+
+  TCanvas *c =
+      new TCanvas("c_gain_rms_distribution",
+                  "Channel-by-channel gain RMS distribution", 900, 700);
+  c->SetGrid();
+
+  TH1D *h = new TH1D("h_gain_rms_by_channel",
+                     "Gain RMS by channel;RMS of gain across runs;Channels",
+                     120, 0.0, rmsMax);
+
+  for (const auto &info : infos) {
+    h->Fill(info.gainRms);
+  }
+
+  h->SetLineColor(kRed + 1);
+  h->SetLineWidth(2);
+  h->Draw("HIST");
+
+  c->SaveAs((outDir + "/gain_rms_distribution.pdf").c_str());
+  c->SaveAs((outDir + "/gain_rms_distribution.png").c_str());
+
+  std::cout << "[compare] wrote channel gain RMS distribution for "
+            << infos.size() << " channels" << std::endl;
+}
+
 TH1D *makeDeltaHist(const char *name,
                     const char *title,
                     const std::vector<RunData> &runs,
@@ -2396,6 +2552,7 @@ void compare(const char *baseDir = ".",
   runDriftAnalysis(runs, outDir, driftMinChangePercent, driftMinValidRuns,
                    driftTopPlots);
   drawStableChannelDistributions(runs, outDir, 5.0, driftMinValidRuns, 10);
+  drawGainRunRmsDistribution(runs, outDir, 2);
   drawSummaryGraphs(runs, outDir);
   drawOverlayHistograms(runs, outDir);
   drawDeltaFromReferenceByRun(runs, "gain", "gain shift from first run", "gain", outDir,

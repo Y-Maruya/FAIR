@@ -1057,10 +1057,13 @@ void fit_histograms_noplot_direct_sharded(
             const auto efficiency_it = totalAreaMap.find(res.cellid);
             const int entries_above_threshold =
                 res.entries - res.entries_adc_le50;
-            const double total_area_for_refit =
+            double total_area_for_refit =
                 entries_above_threshold > 0 && efficiency_it != totalAreaMap.end()
                     ? efficiency_it->second * entries_above_threshold / double(res.entries) * res.ntrack_pass_through_channel
                     : -1.0;
+            if (eff_ratio >1.0){
+                total_area_for_refit = entries_above_threshold;
+            }
             const RefitResult refit =
                 fitLandauGausWithThreshold(h, 200, 1, res, total_area_for_refit);
             copyRefitResult(res, refit);

@@ -5,4 +5,4 @@ cd /eos/user/y/ymaruya/FASER/AHCAL/FAIR/auto/MIPCalib
 set +u
 source ../../setup.sh
 
-bash run_mipcalib.sh "$1" "$2"
+bash run_mipcalib_end.sh "$1" "$2"

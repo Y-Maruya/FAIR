@@ -727,10 +727,10 @@ struct InterCalibAlg::Impl {
             n_missing_ped_++;
             return;
         }
-        if (!AHCALRefValues::HGPedestalStatus_is_ok(itp->second.HighGainStatus) || !AHCALRefValues::LGPedestalStatus_is_ok(itp->second.LowGainStatus)) {
-            n_missing_ped_++;
-            return;
-        }
+        // if (!AHCALRefValues::HGPedestalStatus_is_ok(itp->second.HighGainStatus) || !AHCALRefValues::LGPedestalStatus_is_ok(itp->second.LowGainStatus)) {
+        //     n_notgood_ped_++;
+        //     // return;
+        // }
 
         int hg = h.hg_adc;
         int lg = h.lg_adc;
@@ -1891,6 +1891,7 @@ struct InterCalibAlg::Impl {
     bool cache_built_ = false;
     long long n_used_ = 0;
     long long n_missing_ped_ = 0;
+    long long n_notgood_ped_ = 0;
     int n_fit_ok_ = 0;
     int n_fit_all_ = 0;
     std::vector<RunContext> run_contexts_; // for storing contexts of all runs, for later use in writing JSON with run info

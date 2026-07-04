@@ -46,6 +46,7 @@ inline std::vector<FieldDesc> describe(const AHCALTrueHit*) {
         field("MCcellID", &AHCALTrueHit::MCcellID),
         field("energy", &AHCALTrueHit::energy),
         field("time", &AHCALTrueHit::time),
+        field("index", &AHCALTrueHit::index),
     };
 }
 
@@ -55,6 +56,7 @@ inline std::vector<FieldDescVector> describe_vector(const AHCALTrueHit*) {
         field_vector("v.MCcellID", &AHCALTrueHit::MCcellID),
         field_vector("v.energy", &AHCALTrueHit::energy),
         field_vector("v.time", &AHCALTrueHit::time),
+        field_vector("v.index", &AHCALTrueHit::index),
     };
 }
 AHCAL_REGISTER_IO_STRUCT(AHCALTrueHit, "AHCALTrueHit");

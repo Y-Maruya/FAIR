@@ -1,0 +1,61 @@
+run:
+  input: ${FAIR_ROOT_OUT}/###run-number###_MIPCalib.root
+  MC: false
+  log_file: ${FAIR_OUT_CALIB}/intercalib_calib_last/###run-numbers###/log
+  output: ${FAIR_ROOT_OUT}/###run-number###_InterCalib.root
+  nEvents: -1
+  log_level: INFO
+  runNumber: ###run-number###
+  poolIndex: 0
+reader: 
+#   type: BinaryRawHitReader
+#   cfg:
+#     out_rawhits_key: RawHits
+#     out_tlu_key: TLURawData
+  # type: RootRawHitReader
+  # cfg:
+  #   out_rawhits_key: RawHits
+  #   out_tlu_key: TLURawData
+  type: RootInput
+  cfg:
+    inputlist: 
+      - [vector<AHCALRawHit>, RawHits]
+      # - [AHCALTLURawData, TLURawData]
+      # - [vector<AHCALRecoHit>, RecoHits]
+      - [SimpleFittedTrack, FittedTrack]
+algs:
+  - type: InterCalibAlg
+    cfg:
+      in_rawhit_key: RawHits
+      read_pedestal_from_ROOT: false
+      read_pedestal_from_DB: true
+      intercalib_to_file: true
+      intercalib_to_DB: true
+      hg_bin_width: 25.0
+      out_intercalib_filename: ${FAIR_OUT_CALIB}/intercalib_calib_last/###run-numbers###/intercalib_adj_muon.root
+      out_json_dirname: ${FAIR_OUT_CALIB}/intercalib_calib_last/###run-numbers###/json_muon/
+      save_all_channels_root: false
+      require_hittag: true
+      select_muon_hits: true
+      in_track_key: FittedTrack
+      string_track_struct: SimpleFittedTrack
+      track_selection_string: (valid>0)*(chi2xperndf<5)*(chi2xperndf>0)*(chi2yperndf<5)*(chi2yperndf>0)*(direction_y<0.1)*(direction_y>-0.1)*(direction_x<0.1)*(direction_x>-0.1)  
+      hg_fit_max: 1800.0
+      use_fit_max_saturation_minus_margin: true
+      saturation_margin: 600.0
+      hg_fit_min: 50.0
+      min_hg_bins_for_fit: 10
+      use_specific_fit_range_toL39C8: true
+      hg_fit_max_L39C8: 1500.0
+      save_residual_histograms: false
+      compute_quality_metrics: true
+      # Minimum number of points required for a channel to have valid fit
+      quality_minimum_points: 30
+
+      # Thresholds for quality flags
+      quality_bad_rms_persigma_threshold: 1.15
+
+      # TTree output options
+      quality_output_ttree: true                       # Enable TTree output
+      quality_out_filename: ${FAIR_OUT_CALIB}/intercalib_calib_last/###run-numbers###/hglg_calib_quality_muon.root  # Output file name
+      quality_save_summary_plots: false                # Generate summary histograms (future)

@@ -17,6 +17,7 @@ def parse_args():
     parser.add_argument("json_file", help="JSON file containing CalibrationType")
     parser.add_argument("user", help="Calibration DB user")
     parser.add_argument("password", help="Calibration DB password")
+    parser.add_argument("--run", type=int, help="Run number to filter entries (optional)")
     parser.add_argument(
         "--dry-run",
         action="store_true",
@@ -46,6 +47,8 @@ def main():
         return 1
 
     query = {"CalibrationType": calibration_type}
+    if args.run is not None:
+        query["RunNumber"] = args.run
     if not args.dry_run:
         query["Delete"] = "forSure"
 

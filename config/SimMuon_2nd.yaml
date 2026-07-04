@@ -1,0 +1,111 @@
+run:
+  input: /afs/cern.ch/user/y/ymaruya/private/FASERlink/AHCAL/FAIR/out/SimMuon/out4.root
+  MC: true
+  log_file: /afs/cern.ch/user/y/ymaruya/private/FASERlink/AHCAL/FAIR/out/SimMuon/log_2nd
+  output: /afs/cern.ch/user/y/ymaruya/private/FASERlink/AHCAL/FAIR/out/SimMuon/out.root
+  nEvents: -1
+  log_level: INFO
+  runNumber: 10000
+  poolIndex: 0
+reader: 
+  # type: SimHitReader
+  # cfg:
+  #   out_simhits_key: SimHits
+  #   out_simdata_key: SimData
+  # type: RootRawHitReader
+  # cfg:
+  #   out_rawhits_key: RawHits
+  #   out_tlu_key: TLURawData
+  type: RootInput
+  cfg:
+    inputlist: 
+        - [vector<AHCALRawHit>, SimRawHits]
+        # - [vector<AHCALSimHit>, SimHits]
+        - [SimData, SimData]
+        - [SimpleFittedTrack, FittedTrack]
+
+algs: # Define the sequence of algorithms to be executed. The order matters.
+  # - type: PedestalAlg
+  #   cfg:
+  #     in_rawhit_key: RawHits
+  #     pedestal_to_file: true
+  #     pedestal_to_DB: false
+  #     out_pedestal_filename: out/run21659/ped.root
+  #     use_hittag: false
+  #     select_hittag: 0
+  # - type: AdcToEnergyReadTTreeAlg
+  #   cfg:
+  #     in_rawhit_key: RawHits
+  #     out_recohit_key: RecoHits
+  #     mip:
+  #       file: /afs/cern.ch/user/y/ymaruya/private/FASERlink/AHCAL/FAIR/calibration/reffiles/mip.root
+  #       cut: (gaus_sigma>20)
+  #       cellid_version: 0
+  #     pedestal:
+  #       file: /afs/cern.ch/user/y/ymaruya/private/FASERlink/AHCAL/FAIR/calibration/pedestal_calib/run21722/pedestal.root
+  #       cut: (1)
+  #       cellid_version: 1
+  #     dac:
+  #       file: /afs/cern.ch/user/y/ymaruya/private/FASERlink/AHCAL/FAIR/calibration/reffiles/dac.root
+  #       cut: (1)
+  #       cellid_version: 0
+  # - type: SimMimicAlg
+  #   cfg:
+  #     in_simhit_key: SimHits
+  #     out_recohit_key: SimRecoHits
+  #     out_rawhit_key: SimRawHits
+
+  # - type: RmIsolatedHitAlg
+  #   cfg:
+  #     in_recohit_key: SimRecoHits
+  #     out_recohit_key: RmIsolatedHits
+  #     useNmipWindow: false
+  #     xy_cone: 42.0
+  #     maxMissingLayers: 2
+  # - type: TrackFitAlg
+  #   cfg:
+  #     in_recohit_key: RmIsolatedHits
+  #     out_track_key: FittedTrack
+  #     use_mip_window: false
+  #     nmipMin: 0.5
+  #     nmipMax: 3.0
+  #     threshold_xy: 20.0
+  - type: MIPAlg
+    cfg:
+      in_rawhit_key: SimRawHits
+      in_track_key: FittedTrack
+      string_track_struct: SimpleFittedTrack
+      track_selection_string: (valid>0)*(chi2xperndf<2)*(chi2xperndf>0)*(chi2yperndf<2)*(abs(direction_x)<0.001)*(abs(direction_y)<0.001)
+      mip_to_file: true
+      out_mip_filename: /afs/cern.ch/user/y/ymaruya/private/FASERlink/AHCAL/FAIR/out/SimMuon/mip_neighborcheck_nofit.root
+      output_to_png: true
+      out_png_dir: /afs/cern.ch/user/y/ymaruya/private/FASERlink/AHCAL/FAIR/out/SimMuon/png_nofit/
+      fit: false
+      mip_to_json: false
+      out_json_dirname: /afs/cern.ch/user/y/ymaruya/private/FASERlink/AHCAL/FAIR/out/SimMuon/json_nofit/
+      substrate_pedestal: true
+      read_pedestal_from_ROOT: false
+      read_pedestal_from_DB: true
+      xy_size_threshold: 20
+      enable_neighbor_layer_crossing_selection: true
+      mip_neighbor_upstream_layers: 2
+      mip_neighbor_downstream_layers: 2
+      mip_edge_layer_policy: true
+      mip_reject_if_neighbor_cell_hit: true
+      mip_neighbor_cell_search_radius: 1
+      mip_skip_layers: [0,2,14,28]
+      mip_skip_chips: 
+        - [21, 1]
+        - [24, 3]
+        - [24, 4]
+        - [24, 5]
+        - [24, 6]
+        - [24, 7]
+
+  # - type: RootWriterAlg
+  #   cfg: 
+  #     outputlist:
+  #       # - [vector<AHCALSimHit>, SimHits]
+  #       - [SimData, SimData]
+  #       - [SimpleFittedTrack, FittedTrack]
+        

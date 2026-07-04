@@ -1420,7 +1420,7 @@ void printSummaryTable(const std::vector<RunData> &runs) {
 
 void compare(const char *baseDir = ".",
              const char *runListCsv =
-                 "21987-22133,22135-22135,22137-22142,22139-22142,22159-22163,22165-22198,22205-22251,22268-22268",
+                 "all",
              int focusCellId = -1,
              const char *outDirName = "compare_plots_mip",
              const char *testBeamDir = "EHN1") {

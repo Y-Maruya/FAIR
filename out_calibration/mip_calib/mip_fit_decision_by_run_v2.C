@@ -25,6 +25,7 @@
 #include "TTree.h"
 #include "TTreeFormula.h"
 #include "TLine.h"
+#include "TGraphErrors.h"
 
 // ============================================================================
 // Directory / branch utilities, following the style of compare.C
@@ -121,21 +122,29 @@ struct MIPFitEntry {
   int entries = 0;
 
   double MPV = -999.0;
+  double MPV_error = -999.0;
   double width = -999.0;
+  double width_error = -999.0;
   double TotalArea = -999.0;
+  double TotalArea_error = -999.0;
   double chi2 = -1.0;
   int ndf = -1;
   int fit_status = 999;
   int FitClass = 0;
   double gaus_sigma = -999.0;
+  double gaus_sigma_error = -999.0;
 
   double refit_mpv = -999.0;
   double refit_mpv_error = -999.0;
   double refit_width = -999.0;
+  double refit_width_error = -999.0;
   double refit_total_area = -999.0;
+  double refit_total_area_error = -999.0;
   double refit_gaus_sigma = -999.0;
+  double refit_gaus_sigma_error = -999.0;
   double refit_chi2_ndf = -999.0;
   double refit_rebin4_chi2_ndf = -999.0;
+  int refit_ndf = -1;
   int refit_fit_status = 999;
   int refit_Class = 0;
 
@@ -176,13 +185,17 @@ struct BranchStatus {
 
   bool has_entries = false;
   bool has_MPV = false;
+  bool has_MPV_error = false;
   bool has_width = false;
+  bool has_width_error = false;
   bool has_TotalArea = false;
+  bool has_TotalArea_error = false;
   bool has_chi2 = false;
   bool has_ndf = false;
   bool has_fit_status = false;
   bool has_FitClass = false;
   bool has_gaus_sigma = false;
+  bool has_gaus_sigma_error = false;
 
   bool has_efficiency_data = false;
   bool has_efficiency_mc = false;
@@ -193,10 +206,14 @@ struct BranchStatus {
   bool has_refit_mpv = false;
   bool has_refit_mpv_error = false;
   bool has_refit_width = false;
+  bool has_refit_width_error = false;
   bool has_refit_total_area = false;
+  bool has_refit_total_area_error = false;
   bool has_refit_gaus_sigma = false;
+  bool has_refit_gaus_sigma_error = false;
   bool has_refit_chi2_ndf = false;
   bool has_refit_rebin4_chi2_ndf = false;
+  bool has_refit_ndf = false;
   bool has_refit_fit_status = false;
   bool has_refit_Class = false;
 
@@ -230,10 +247,10 @@ struct BranchStatus {
 enum DecisionClass {
   kInsufficientStatistics = 0,
   kFirstFitSuccess,
-  kSecondandFirstFitFailed,
-  kSecondFitFailedFirstFitSuccess,
   kThresholdFitSuccess,
   kGoodFitWithoutThreshold,
+  kSecondandFirstFitFailed,
+  kSecondFitFailedFirstFitSuccess,
   kThresholdFitFailedButNeeded,
   kNDecisionClasses
 };
@@ -262,7 +279,7 @@ enum StateContainer {
   kThresholdFitFailed_LowLeftMean = 1<<18,
   kThresholdFitFailed_LowRightMean = 1<<19,
   kThresholdFitFailed_ParameterAtLimit = 1<<20,
-  kThresholdFitFailed_BigUncertainty = 1<<27,
+  kThresholdFitFailed_BigUncertainty = 1<<30,
   kThresholdFitFailed_Others = 1<<21,
   kThresholdFitFailed_and_GoodEffMPVStability = 1<<22,
   kThresholdFitFailed_and_BadEffMPVStability = 1<<23,
@@ -441,10 +458,10 @@ DecisionResult classifyEntry(const MIPFitEntry &e,
     out.stateContainer |= kEfficiencyRatioUnder0p98;
   }
 
-  // B: Statistics > 200?
-  if (e.entries <= 200) {
+  // B: Statistics > 300?
+  if (e.entries <= 300) {
     out.decision = kInsufficientStatistics;
-    out.reason = "entries <= 200";
+    out.reason = "entries <= 300";
     out.stateContainer |= kInsufficientStatisticsState;
     return out;
   }
@@ -474,7 +491,7 @@ DecisionResult classifyEntry(const MIPFitEntry &e,
   const bool secondFitFailed_BigChi2Ndf = bs.has_refit_rebin4_chi2_ndf && e.refit_rebin4_chi2_ndf > 9.0;
   const bool secondFitFailed_RefitStatusNotZero = bs.has_refit_fit_status && e.refit_fit_status != 0;
   const bool secondFitFailed_ParameterAtLimit = isSecondParameterAtLimit(e, bs);
-  const bool secondFitFailed = secondFitFailed_BigChi2Ndf || secondFitFailed_RefitStatusNotZero || secondFitFailed_ParameterAtLimit;
+  const bool secondFitFailed = secondFitFailed_RefitStatusNotZero || secondFitFailed_ParameterAtLimit;
   out.stateContainer |= (secondFitFailed_RefitStatusNotZero ? kSecondFitFailed_RefitStatusNotZero : 0);
   out.stateContainer |= (secondFitFailed_BigChi2Ndf ? kSecondFitFailed_BigChi2Ndf : 0);
   out.stateContainer |= (secondFitFailed_ParameterAtLimit ? kSecondFitFailed_ParameterAtLimit : 0);
@@ -500,7 +517,8 @@ DecisionResult classifyEntry(const MIPFitEntry &e,
   out.stateContainer |= (lowWidth ? kSecondFitSuccess_LowWidth : 0);
   out.stateContainer |= (highMPVError ? kSecondFitSuccess_HighMPVError : 0);
 
-  if (!secondFitFailed && !lowMPV && !lowGausSigma && !lowWidth && !highMPVError) {
+  // if (!secondFitFailed && !lowMPV && !lowGausSigma && !lowWidth && !highMPVError) {
+  if (!secondFitFailed && !highMPVError) {
     // out.decision = kSecondFitSuccess;
     out.stateContainer |= kSecondFitSuccessState;
     // out.reason = "second fit: Others";
@@ -572,6 +590,30 @@ DecisionResult classifyEntry(const MIPFitEntry &e,
 // Run handling and output
 // ============================================================================
 
+struct FinalCalibrationEntry {
+  int cellid = -1;
+  int layer = -1;
+  int chip = -1;
+  int channel = -1;
+  int entries = 0;
+  int decision = kInsufficientStatistics;
+  int state = 0;
+  double mpv = -1.0;
+  double width = -1.0;
+  double gaus_sigma = -1.0;
+  double direct_threshold = -1.0;
+  double direct_width = -1.0;
+  double mpv_error = -1.0;
+  double width_error = -1.0;
+  double direct_threshold_error = -1.0;
+  double direct_width_error = -1.0;
+  double direct_chi2_ndf_bin4 = -1.0;
+  double TotalArea_error = -1.0;
+  double gaus_sigma_error = -1.0;
+  double chi2 = -1.0;
+  int ndf = -1;
+};
+
 struct RunDecisionData {
   std::string dirName;
   std::string label;
@@ -588,7 +630,131 @@ struct RunDecisionData {
   std::map<std::pair<int, int>, int> decisionByDetectorPosition;
   std::map<std::string, std::vector<std::map<std::string, double> > > directParameterGroups;
   std::map<int, std::vector<std::pair<double, double> > > efficiencyDeficitByState;
+  // Fit values keyed by cellid.  Keeping this per run makes it possible to
+  // compare the same channel between non-identical input trees.
+  std::map<int, std::map<std::string, double> > fitResultsByCell;
+  std::map<int, int> decisionByCell;
+  std::vector<FinalCalibrationEntry> finalCalibrationEntries;
 };
+
+FinalCalibrationEntry makeFinalCalibrationEntry(const MIPFitEntry &e,
+                                                const BranchStatus &bs,
+                                                const DecisionResult &result) {
+  FinalCalibrationEntry finalEntry;
+  finalEntry.cellid = e.cellid;
+  finalEntry.layer = e.layer;
+  finalEntry.chip = e.chip;
+  finalEntry.channel = e.channel;
+  finalEntry.entries = e.entries;
+  finalEntry.decision = result.decision;
+  finalEntry.state = result.stateContainer;
+
+  if (result.decision == kFirstFitSuccess) {
+    if (bs.has_MPV && std::isfinite(e.MPV) && e.MPV > -900.0) finalEntry.mpv = e.MPV;
+    if (bs.has_width && std::isfinite(e.width) && e.width > -900.0) finalEntry.width = e.width;
+    if (bs.has_gaus_sigma && std::isfinite(e.gaus_sigma) && e.gaus_sigma > -900.0)
+      finalEntry.gaus_sigma = e.gaus_sigma;
+    if (bs.has_MPV_error && std::isfinite(e.MPV_error) && e.MPV_error > -900.0)
+      finalEntry.mpv_error = e.MPV_error;
+    if (bs.has_width_error && std::isfinite(e.width_error) && e.width_error > -900.0)
+      finalEntry.width_error = e.width_error;
+    if (bs.has_TotalArea_error && std::isfinite(e.TotalArea_error) && e.TotalArea_error > -900.0)
+      finalEntry.TotalArea_error = e.TotalArea_error;
+    if (bs.has_gaus_sigma_error && std::isfinite(e.gaus_sigma_error) && e.gaus_sigma_error > -900.0)
+      finalEntry.gaus_sigma_error = e.gaus_sigma_error;
+    if (bs.has_chi2 && std::isfinite(e.chi2) && e.chi2 > -900.0)
+      finalEntry.chi2 = e.chi2;
+    if (bs.has_ndf && std::isfinite(e.ndf) && e.ndf > -900.0)
+      finalEntry.ndf = e.ndf;
+  } else if (result.stateContainer & kSecondFitSuccessState) {
+    if (bs.has_refit_mpv && std::isfinite(e.refit_mpv) && e.refit_mpv > -900.0)
+      finalEntry.mpv = e.refit_mpv;
+    if (bs.has_refit_width && std::isfinite(e.refit_width) && e.refit_width > -900.0)
+      finalEntry.width = e.refit_width;
+    if (bs.has_refit_gaus_sigma && std::isfinite(e.refit_gaus_sigma) &&
+        e.refit_gaus_sigma > -900.0)
+      finalEntry.gaus_sigma = e.refit_gaus_sigma;
+    if (bs.has_refit_mpv_error && std::isfinite(e.refit_mpv_error) &&
+        e.refit_mpv_error > -900.0)
+      finalEntry.mpv_error = e.refit_mpv_error;
+    if (bs.has_refit_width_error && std::isfinite(e.refit_width_error) &&
+        e.refit_width_error > -900.0)
+      finalEntry.width_error = e.refit_width_error;
+    if (bs.has_refit_total_area_error && std::isfinite(e.refit_total_area_error) && e.refit_total_area_error > -900.0)
+      finalEntry.TotalArea_error = e.refit_total_area_error;
+    if (bs.has_refit_gaus_sigma_error && std::isfinite(e.refit_gaus_sigma_error) &&
+        e.refit_gaus_sigma_error > -900.0)
+      finalEntry.gaus_sigma_error = e.refit_gaus_sigma_error;
+    if (bs.has_refit_chi2_ndf && std::isfinite(e.refit_chi2_ndf) && e.refit_chi2_ndf > -900.0)
+      finalEntry.chi2 = e.refit_chi2_ndf * static_cast<double>(e.refit_ndf);
+    if (bs.has_refit_ndf && std::isfinite(e.refit_ndf) && e.refit_ndf > -900.0)
+      finalEntry.ndf = e.refit_ndf;
+
+  }
+
+  if (result.decision == kThresholdFitSuccess) {
+    if (bs.has_direct_threshold && std::isfinite(e.direct_threshold) &&
+        e.direct_threshold > -900.0)
+      finalEntry.direct_threshold = e.direct_threshold;
+    if (bs.has_direct_width && std::isfinite(e.direct_width) && e.direct_width > -900.0)
+      finalEntry.direct_width = e.direct_width;
+    if (bs.has_direct_threshold_error && std::isfinite(e.direct_threshold_error) &&
+        e.direct_threshold_error > -900.0)
+      finalEntry.direct_threshold_error = e.direct_threshold_error;
+    if (bs.has_direct_width_error && std::isfinite(e.direct_width_error) &&
+        e.direct_width_error > -900.0)
+      finalEntry.direct_width_error = e.direct_width_error;
+    if (bs.has_direct_chi2_ndf_bin4 && std::isfinite(e.direct_chi2_ndf_bin4) &&
+        e.direct_chi2_ndf_bin4 > -900.0)
+      finalEntry.direct_chi2_ndf_bin4 = e.direct_chi2_ndf_bin4;
+  }
+  return finalEntry;
+}
+
+std::map<std::string, double> fitResultValues(const MIPFitEntry &e,
+                                              const BranchStatus &bs) {
+  std::map<std::string, double> values;
+#define STORE_FIT_VALUE(branch, member) \
+  if (bs.branch && std::isfinite(static_cast<double>(e.member))) \
+    values[#member] = static_cast<double>(e.member)
+  STORE_FIT_VALUE(has_MPV, MPV);
+  STORE_FIT_VALUE(has_MPV_error, MPV_error);
+  STORE_FIT_VALUE(has_width, width);
+  STORE_FIT_VALUE(has_width_error, width_error);
+  STORE_FIT_VALUE(has_gaus_sigma, gaus_sigma);
+  STORE_FIT_VALUE(has_gaus_sigma_error, gaus_sigma_error);
+  STORE_FIT_VALUE(has_TotalArea, TotalArea);
+  STORE_FIT_VALUE(has_TotalArea_error, TotalArea_error);
+  STORE_FIT_VALUE(has_chi2, chi2);
+  STORE_FIT_VALUE(has_ndf, ndf);
+  STORE_FIT_VALUE(has_fit_status, fit_status);
+  STORE_FIT_VALUE(has_refit_mpv, refit_mpv);
+  STORE_FIT_VALUE(has_refit_mpv_error, refit_mpv_error);
+  STORE_FIT_VALUE(has_refit_width, refit_width);
+  STORE_FIT_VALUE(has_refit_width_error, refit_width_error);
+  STORE_FIT_VALUE(has_refit_gaus_sigma, refit_gaus_sigma);
+  STORE_FIT_VALUE(has_refit_gaus_sigma_error, refit_gaus_sigma_error);
+  STORE_FIT_VALUE(has_refit_chi2_ndf, refit_chi2_ndf);
+  STORE_FIT_VALUE(has_refit_rebin4_chi2_ndf, refit_rebin4_chi2_ndf);
+  STORE_FIT_VALUE(has_refit_ndf, refit_ndf);
+  STORE_FIT_VALUE(has_refit_fit_status, refit_fit_status);
+  STORE_FIT_VALUE(has_direct_threshold, direct_threshold);
+  STORE_FIT_VALUE(has_direct_threshold_error, direct_threshold_error);
+  STORE_FIT_VALUE(has_direct_width, direct_width);
+  STORE_FIT_VALUE(has_direct_width_error, direct_width_error);
+  STORE_FIT_VALUE(has_direct_chi2_ndf_bin4, direct_chi2_ndf_bin4);
+  STORE_FIT_VALUE(has_direct_status, direct_status);
+  STORE_FIT_VALUE(has_efficiency_data_mc, efficiency_data_mc);
+#undef STORE_FIT_VALUE
+  if (bs.has_chi2 && bs.has_ndf && e.ndf > 0 && std::isfinite(e.chi2))
+    values["chi2_ndf"] = e.chi2 / static_cast<double>(e.ndf);
+  if (bs.has_direct_chi2 && bs.has_direct_ndf && e.direct_ndf > 0 &&
+      std::isfinite(e.direct_chi2))
+    values["direct_chi2_ndf"] = e.direct_chi2 / static_cast<double>(e.direct_ndf);
+  else if (bs.has_direct_chi2_ndf && std::isfinite(e.direct_chi2_ndf))
+    values["direct_chi2_ndf"] = e.direct_chi2_ndf;
+  return values;
+}
 
 std::map<std::string, double> directParameterValues(const MIPFitEntry &e,
                                                     const BranchStatus &bs) {
@@ -658,21 +824,29 @@ bool setupBranches(TTree *tree, MIPFitEntry &e, BranchStatus &bs) {
 
   bs.has_entries = setBranchIfExists(tree, "entries", &e.entries);
   bs.has_MPV = setBranchIfExists(tree, "MPV", &e.MPV);
+  bs.has_MPV_error = setBranchIfExists(tree, "MPV_error", &e.MPV_error);
   bs.has_width = setBranchIfExists(tree, "width", &e.width);
+  bs.has_width_error = setBranchIfExists(tree, "width_error", &e.width_error);
   bs.has_TotalArea = setBranchIfExists(tree, "TotalArea", &e.TotalArea);
+  bs.has_TotalArea_error = setBranchIfExists(tree, "TotalArea_error", &e.TotalArea_error);
   bs.has_chi2 = setBranchIfExists(tree, "chi2", &e.chi2);
   bs.has_ndf = setBranchIfExists(tree, "ndf", &e.ndf);
   bs.has_fit_status = setBranchIfExists(tree, "fit_status", &e.fit_status);
   bs.has_FitClass = setBranchIfExists(tree, "FitClass", &e.FitClass);
   bs.has_gaus_sigma = setBranchIfExists(tree, "gaus_sigma", &e.gaus_sigma);
+  bs.has_gaus_sigma_error = setBranchIfExists(tree, "gaus_sigma_error", &e.gaus_sigma_error);
 
   bs.has_refit_mpv = setBranchIfExists(tree, "refit_mpv", &e.refit_mpv);
   bs.has_refit_mpv_error = setBranchIfExists(tree, "refit_mpv_error", &e.refit_mpv_error);
   bs.has_refit_width = setBranchIfExists(tree, "refit_width", &e.refit_width);
+  bs.has_refit_width_error = setBranchIfExists(tree, "refit_width_error", &e.refit_width_error);
   bs.has_refit_total_area = setBranchIfExists(tree, "refit_total_area", &e.refit_total_area);
+  bs.has_refit_total_area_error = setBranchIfExists(tree, "refit_total_area_error", &e.refit_total_area_error);
+  bs.has_refit_gaus_sigma_error = setBranchIfExists(tree, "refit_gaus_sigma_error", &e.refit_gaus_sigma_error);
   bs.has_refit_gaus_sigma = setBranchIfExists(tree, "refit_gaus_sigma", &e.refit_gaus_sigma);
   bs.has_refit_chi2_ndf = setBranchIfExists(tree, "refit_chi2_ndf", &e.refit_chi2_ndf);
   bs.has_refit_rebin4_chi2_ndf = setBranchIfExists(tree, "refit_rebin4_chi2_ndf", &e.refit_rebin4_chi2_ndf);
+  bs.has_refit_ndf = setBranchIfExists(tree, "refit_ndf", &e.refit_ndf);
   bs.has_refit_fit_status = setBranchIfExists(tree, "refit_fit_status", &e.refit_fit_status);
   bs.has_refit_Class = setBranchIfExists(tree, "refit_Class", &e.refit_Class);
 
@@ -777,6 +951,9 @@ bool processRun(const std::string &baseDir,
     tree->GetEntry(i);
 
     DecisionResult result = classifyEntry(e, bs, knownCellIds);
+    out.finalCalibrationEntries.push_back(makeFinalCalibrationEntry(e, bs, result));
+    out.fitResultsByCell[e.cellid] = fitResultValues(e, bs);
+    out.decisionByCell[e.cellid] = result.decision;
     out.counts[result.decision]++;
     out.reasonCounts[result.reason]++;
     storeDirectParameterGroups(e, bs, result, out);
@@ -1768,6 +1945,515 @@ void drawEfficiencyDeficitByState(const std::vector<RunDecisionData> &runs,
   outputFile.Close();
 }
 
+bool isUsableFitResult(double value) {
+  // Optional branches use -999 as their missing-value sentinel.
+  return std::isfinite(value) && value > -900.0;
+}
+
+std::set<std::string> fitResultParameterNames(const std::vector<RunDecisionData> &runs) {
+  std::set<std::string> names;
+  for (const auto &run : runs)
+    for (const auto &cell : run.fitResultsByCell)
+      for (const auto &value : cell.second) names.insert(value.first);
+  return names;
+}
+
+void writeFitResultChanges(const std::vector<RunDecisionData> &runs,
+                           const std::string &outDir) {
+  const std::set<std::string> parameters = fitResultParameterNames(runs);
+  std::ofstream detail((outDir + "/FitResultChanges_byRunCell.csv").c_str());
+  detail << "run,previous_valid_run,cellid,parameter,value,previous_value,delta,relative_delta\n";
+
+  // cellid -> parameter -> (last valid run, value)
+  std::map<int, std::map<std::string, std::pair<std::string, double> > > previous;
+  for (const auto &run : runs) {
+    for (const auto &cell : run.fitResultsByCell) {
+      for (const auto &value : cell.second) {
+        if (!isUsableFitResult(value.second)) continue;
+        detail << run.label << ",";
+        const auto previousCell = previous.find(cell.first);
+        const bool hasPrevious = previousCell != previous.end() &&
+            previousCell->second.count(value.first);
+        if (hasPrevious) {
+          const std::pair<std::string, double> &old = previousCell->second.at(value.first);
+          const double delta = value.second - old.second;
+          detail << old.first << "," << cell.first << "," << value.first << ","
+                 << std::setprecision(12) << value.second << "," << old.second << "," << delta
+                 << ",";
+          if (std::abs(old.second) > 1e-12) detail << delta / old.second;
+          detail << "\n";
+        } else {
+          detail << "," << cell.first << "," << value.first << ","
+                 << std::setprecision(12) << value.second << ",,,\n";
+        }
+        previous[cell.first][value.first] = std::make_pair(run.label, value.second);
+      }
+    }
+  }
+
+  std::ofstream summary((outDir + "/FitResultSummary_byRun.csv").c_str());
+  summary << "run,parameter,valid_channels,mean,rms,min,max\n";
+  for (const auto &run : runs) {
+    for (const auto &parameter : parameters) {
+      std::vector<double> values;
+      for (const auto &cell : run.fitResultsByCell) {
+        const auto it = cell.second.find(parameter);
+        if (it != cell.second.end() && isUsableFitResult(it->second)) values.push_back(it->second);
+      }
+      if (values.empty()) continue;
+      double sum = 0.0;
+      double sum2 = 0.0;
+      for (double value : values) {
+        sum += value;
+        sum2 += value * value;
+      }
+      const double mean = sum / values.size();
+      const double rms = std::sqrt(std::max(0.0, sum2 / values.size() - mean * mean));
+      summary << run.label << "," << parameter << "," << values.size() << ","
+              << std::setprecision(12) << mean << "," << rms << ","
+              << *std::min_element(values.begin(), values.end()) << ","
+              << *std::max_element(values.begin(), values.end()) << "\n";
+    }
+  }
+}
+
+void drawFitResultTrends(const std::vector<RunDecisionData> &runs,
+                         const std::string &outDir) {
+  if (runs.empty()) return;
+  const std::string plotDir = outDir + "/FitResultTrends";
+  gSystem->mkdir(plotDir.c_str(), true);
+  TFile outputFile((plotDir + "/fit_result_trends.root").c_str(), "RECREATE");
+  const std::set<std::string> parameters = fitResultParameterNames(runs);
+
+  for (const auto &parameter : parameters) {
+    if (parameter.find("status") != std::string::npos) continue;
+    std::vector<double> x, means, xErrors, rmsValues;
+    for (size_t r = 0; r < runs.size(); ++r) {
+      std::vector<double> values;
+      for (const auto &cell : runs[r].fitResultsByCell) {
+        const auto it = cell.second.find(parameter);
+        if (it != cell.second.end() && isUsableFitResult(it->second)) values.push_back(it->second);
+      }
+      if (values.empty()) continue;
+      double sum = 0.0, sum2 = 0.0;
+      for (double value : values) { sum += value; sum2 += value * value; }
+      const double mean = sum / values.size();
+      x.push_back(r + 1.0);
+      means.push_back(mean);
+      xErrors.push_back(0.0);
+      rmsValues.push_back(std::sqrt(std::max(0.0, sum2 / values.size() - mean * mean)));
+    }
+    if (x.empty()) continue;
+
+    const std::string safe = fileSafeString(parameter);
+    TCanvas canvas(("c_fit_trend_" + safe).c_str(), parameter.c_str(), 1200, 750);
+    TGraphErrors graph(x.size(), &x[0], &means[0], &xErrors[0], &rmsValues[0]);
+    graph.SetName(("g_" + safe + "_mean_rms").c_str());
+    graph.SetTitle((parameter + " by run (error bars: channel RMS);Run;" + parameter).c_str());
+    graph.SetMarkerStyle(20);
+    graph.SetMarkerSize(1.1);
+    graph.SetLineWidth(2);
+    double yMin = means[0] - rmsValues[0];
+    double yMax = means[0] + rmsValues[0];
+    for (size_t i = 1; i < means.size(); ++i) {
+      yMin = std::min(yMin, means[i] - rmsValues[i]);
+      yMax = std::max(yMax, means[i] + rmsValues[i]);
+    }
+    const double padding = yMax > yMin ? 0.08 * (yMax - yMin) : 1.0;
+    TH1D frame(("frame_" + safe).c_str(),
+               (parameter + " by run (error bars: channel RMS);Run;" + parameter).c_str(),
+               runs.size(), 0.5, runs.size() + 0.5);
+    for (size_t r = 0; r < runs.size(); ++r)
+      frame.GetXaxis()->SetBinLabel(r + 1, runs[r].label.c_str());
+    frame.GetXaxis()->LabelsOption("v");
+    frame.SetMinimum(yMin - padding);
+    frame.SetMaximum(yMax + padding);
+    frame.Draw("AXIS");
+    graph.Draw("P SAME");
+    canvas.SetBottomMargin(0.22);
+    canvas.SetGridx();
+    canvas.SetGridy();
+    canvas.Modified();
+    canvas.Update();
+    canvas.SaveAs((plotDir + "/" + safe + "_byRun.pdf").c_str());
+    canvas.SaveAs((plotDir + "/" + safe + "_byRun.png").c_str());
+    outputFile.cd();
+    graph.Write();
+  }
+  outputFile.Close();
+}
+
+std::vector<double> collectFitResults(const RunDecisionData &run,
+                                      const std::string &parameter,
+                                      int decision) {
+  std::vector<double> values;
+  for (const auto &cell : run.fitResultsByCell) {
+    const auto decisionIt = run.decisionByCell.find(cell.first);
+    if (decisionIt == run.decisionByCell.end() || decisionIt->second != decision) continue;
+    const auto valueIt = cell.second.find(parameter);
+    if (valueIt != cell.second.end() && isUsableFitResult(valueIt->second))
+      values.push_back(valueIt->second);
+  }
+  return values;
+}
+
+int fitTrendRunColor(size_t index) {
+  static const int colors[] = {kBlue + 1, kRed + 1, kGreen + 2, kMagenta + 1,
+                               kOrange + 7, kCyan + 2, kViolet + 1, kTeal + 3,
+                               kPink + 7, kAzure + 7, kSpring + 5, kGray + 2};
+  return colors[index % (sizeof(colors) / sizeof(colors[0]))];
+}
+
+void writeFitResultSummaryByDecision(const std::vector<RunDecisionData> &runs,
+                                     const std::string &outDir) {
+  std::ofstream csv((outDir + "/FitResultSummary_byRunDecision.csv").c_str());
+  csv << "run,decision,parameter,valid_channels,mean,rms,min,max\n";
+  const std::set<std::string> parameters = fitResultParameterNames(runs);
+  for (const auto &run : runs) {
+    for (int decision = 0; decision < kNDecisionClasses; ++decision) {
+      for (const auto &parameter : parameters) {
+        const std::vector<double> values = collectFitResults(run, parameter, decision);
+        if (values.empty()) continue;
+        double sum = 0.0, sum2 = 0.0;
+        for (double value : values) { sum += value; sum2 += value * value; }
+        const double mean = sum / values.size();
+        const double rms = std::sqrt(std::max(0.0, sum2 / values.size() - mean * mean));
+        csv << run.label << "," << decisionKey(decision) << "," << parameter << ","
+            << values.size() << "," << std::setprecision(12) << mean << "," << rms << ","
+            << *std::min_element(values.begin(), values.end()) << ","
+            << *std::max_element(values.begin(), values.end()) << "\n";
+      }
+    }
+  }
+}
+
+void drawFitResultTrendsByDecision(const std::vector<RunDecisionData> &runs,
+                                   const std::string &outDir) {
+  if (runs.empty()) return;
+  const std::string basePlotDir = outDir + "/FitResultTrendsByDecision";
+  gSystem->mkdir(basePlotDir.c_str(), true);
+  TFile outputFile((basePlotDir + "/fit_result_trends_by_decision.root").c_str(), "RECREATE");
+  const std::set<std::string> parameters = fitResultParameterNames(runs);
+
+  for (int decision = 0; decision < kNDecisionClasses; ++decision) {
+    const std::string decisionDir = basePlotDir + "/" + decisionKey(decision);
+    gSystem->mkdir(decisionDir.c_str(), true);
+    for (const auto &parameter : parameters) {
+      if (parameter.find("status") != std::string::npos) continue;
+      std::vector<double> x, means, xErrors, rmsValues;
+      for (size_t r = 0; r < runs.size(); ++r) {
+        const std::vector<double> values = collectFitResults(runs[r], parameter, decision);
+        if (values.empty()) continue;
+        double sum = 0.0, sum2 = 0.0;
+        for (double value : values) { sum += value; sum2 += value * value; }
+        const double mean = sum / values.size();
+        x.push_back(r + 1.0);
+        means.push_back(mean);
+        xErrors.push_back(0.0);
+        rmsValues.push_back(std::sqrt(std::max(0.0, sum2 / values.size() - mean * mean)));
+      }
+      if (x.empty()) continue;
+
+      const std::string safe = fileSafeString(parameter);
+      const std::string objectStem = std::string(decisionKey(decision)) + "_" + safe;
+      TCanvas canvas(("c_decision_trend_" + objectStem).c_str(), parameter.c_str(), 1200, 750);
+      TGraphErrors graph(x.size(), &x[0], &means[0], &xErrors[0], &rmsValues[0]);
+      graph.SetName(("g_" + objectStem + "_mean_rms").c_str());
+      graph.SetMarkerStyle(20);
+      graph.SetMarkerSize(1.1);
+      graph.SetLineWidth(2);
+      graph.SetLineColor(decisionColor(decision));
+      graph.SetMarkerColor(decisionColor(decision));
+      double yMin = means[0] - rmsValues[0], yMax = means[0] + rmsValues[0];
+      for (size_t i = 1; i < means.size(); ++i) {
+        yMin = std::min(yMin, means[i] - rmsValues[i]);
+        yMax = std::max(yMax, means[i] + rmsValues[i]);
+      }
+      const double padding = yMax > yMin ? 0.08 * (yMax - yMin) : 1.0;
+      TH1D frame(("frame_" + objectStem).c_str(),
+                 (std::string(decisionName(decision)) + ": " + parameter +
+                  " by run (error bars: channel RMS);Run;" + parameter).c_str(),
+                 runs.size(), 0.5, runs.size() + 0.5);
+      for (size_t r = 0; r < runs.size(); ++r)
+        frame.GetXaxis()->SetBinLabel(r + 1, runs[r].label.c_str());
+      frame.GetXaxis()->LabelsOption("v");
+      frame.SetMinimum(yMin - padding);
+      frame.SetMaximum(yMax + padding);
+      frame.Draw("AXIS");
+      graph.Draw("P SAME");
+      canvas.SetBottomMargin(0.22);
+      canvas.SetGrid();
+      canvas.SaveAs((decisionDir + "/" + safe + "_byRun.pdf").c_str());
+      canvas.SaveAs((decisionDir + "/" + safe + "_byRun.png").c_str());
+      outputFile.cd();
+      graph.Write();
+    }
+  }
+  outputFile.Close();
+}
+
+std::pair<double, double> paddedHistogramRange(const std::vector<double> &values) {
+  const double minimum = *std::min_element(values.begin(), values.end());
+  const double maximum = *std::max_element(values.begin(), values.end());
+  const double padding = maximum > minimum ? 0.03 * (maximum - minimum)
+                                          : std::max(1.0, 0.05 * std::abs(minimum));
+  return std::make_pair(minimum - padding, maximum + padding);
+}
+
+void drawFitResultDistributionsByDecision(const std::vector<RunDecisionData> &runs,
+                                          const std::string &outDir) {
+  if (runs.empty()) return;
+  const std::string basePlotDir = outDir + "/FitResultDistributionsByDecision";
+  gSystem->mkdir(basePlotDir.c_str(), true);
+  TFile outputFile((basePlotDir + "/fit_result_distributions_by_decision.root").c_str(),
+                   "RECREATE");
+  const std::set<std::string> parameters = fitResultParameterNames(runs);
+  for (int decision = 0; decision < kNDecisionClasses; ++decision) {
+    const std::string decisionDir = basePlotDir + "/" + decisionKey(decision);
+    gSystem->mkdir(decisionDir.c_str(), true);
+    for (const auto &parameter : parameters) {
+      if (parameter.find("status") != std::string::npos) continue;
+      std::vector<std::vector<double> > valuesByRun(runs.size());
+      std::vector<double> allValues;
+      for (size_t r = 0; r < runs.size(); ++r) {
+        valuesByRun[r] = collectFitResults(runs[r], parameter, decision);
+        allValues.insert(allValues.end(), valuesByRun[r].begin(), valuesByRun[r].end());
+      }
+      if (allValues.empty()) continue;
+      const std::pair<double, double> range = paddedHistogramRange(allValues);
+      const std::string safe = fileSafeString(parameter);
+      const std::string objectStem = std::string(decisionKey(decision)) + "_" + safe;
+      TCanvas canvas(("c_distribution_" + objectStem).c_str(), parameter.c_str(), 1000, 800);
+      TLegend legend(0.68, 0.62, 0.91, 0.89);
+      legend.SetBorderSize(0);
+      if (runs.size() > 6) legend.SetNColumns(2);
+      std::vector<TH1D *> histograms;
+      double maximum = 0.0;
+      for (size_t r = 0; r < runs.size(); ++r) {
+        if (valuesByRun[r].empty()) continue;
+        TH1D *hist = new TH1D(("h_distribution_" + objectStem + "_run_" +
+                               std::to_string(r)).c_str(), "", 60, range.first, range.second);
+        hist->SetDirectory(nullptr);
+        hist->SetStats(false);
+        for (double value : valuesByRun[r]) hist->Fill(value);
+        if (hist->Integral() > 0.0) hist->Scale(1.0 / hist->Integral(), "width");
+        hist->SetLineColor(fitTrendRunColor(r));
+        hist->SetLineWidth(2);
+        maximum = std::max(maximum, hist->GetMaximum());
+        histograms.push_back(hist);
+        legend.AddEntry(hist, (runs[r].label + " (N=" +
+                               std::to_string(valuesByRun[r].size()) + ")").c_str(), "l");
+      }
+      if (histograms.empty()) continue;
+      histograms[0]->SetTitle((std::string(decisionName(decision)) + ": " + parameter +
+                               " distributions;" + parameter + ";Density").c_str());
+      histograms[0]->SetMaximum(maximum * 1.18);
+      histograms[0]->Draw("HIST");
+      for (size_t i = 1; i < histograms.size(); ++i) histograms[i]->Draw("HIST SAME");
+      legend.Draw();
+      canvas.SaveAs((decisionDir + "/" + safe + "_overlay.pdf").c_str());
+      canvas.SaveAs((decisionDir + "/" + safe + "_overlay.png").c_str());
+      outputFile.cd();
+      for (TH1D *hist : histograms) { hist->Write(); delete hist; }
+    }
+  }
+  outputFile.Close();
+}
+
+void drawFitResultDeltaFromFirstRunByDecision(const std::vector<RunDecisionData> &runs,
+                                              const std::string &outDir) {
+  if (runs.size() < 2) return;
+  const std::string basePlotDir = outDir + "/FitResultDeltaFromFirstRunByDecision";
+  gSystem->mkdir(basePlotDir.c_str(), true);
+  TFile outputFile((basePlotDir + "/fit_result_delta_from_first_run_by_decision.root").c_str(),
+                   "RECREATE");
+  const std::set<std::string> parameters = fitResultParameterNames(runs);
+  for (int decision = 0; decision < kNDecisionClasses; ++decision) {
+    const std::string decisionDir = basePlotDir + "/" + decisionKey(decision);
+    gSystem->mkdir(decisionDir.c_str(), true);
+    for (const auto &parameter : parameters) {
+      if (parameter.find("status") != std::string::npos) continue;
+      std::vector<std::vector<double> > deltasByRun(runs.size());
+      std::vector<double> allDeltas;
+      for (size_t r = 1; r < runs.size(); ++r) {
+        for (const auto &cell : runs[r].fitResultsByCell) {
+          const auto decisionIt = runs[r].decisionByCell.find(cell.first);
+          if (decisionIt == runs[r].decisionByCell.end() || decisionIt->second != decision) continue;
+          const auto currentIt = cell.second.find(parameter);
+          const auto referenceCell = runs[0].fitResultsByCell.find(cell.first);
+          if (currentIt == cell.second.end() || referenceCell == runs[0].fitResultsByCell.end())
+            continue;
+          const auto referenceDecisionIt = runs[0].decisionByCell.find(cell.first);
+          if (referenceDecisionIt == runs[0].decisionByCell.end() ||
+              referenceDecisionIt->second != decision)
+            continue;
+          const auto referenceIt = referenceCell->second.find(parameter);
+          if (referenceIt == referenceCell->second.end() ||
+              !isUsableFitResult(currentIt->second) || !isUsableFitResult(referenceIt->second))
+            continue;
+          deltasByRun[r].push_back(currentIt->second - referenceIt->second);
+        }
+        allDeltas.insert(allDeltas.end(), deltasByRun[r].begin(), deltasByRun[r].end());
+      }
+      if (allDeltas.empty()) continue;
+      std::pair<double, double> range = paddedHistogramRange(allDeltas);
+      range.first = std::min(range.first, 0.0);
+      range.second = std::max(range.second, 0.0);
+      const std::string safe = fileSafeString(parameter);
+      const std::string objectStem = std::string(decisionKey(decision)) + "_" + safe;
+      TCanvas canvas(("c_delta_" + objectStem).c_str(), parameter.c_str(), 1000, 800);
+      TLegend legend(0.65, 0.62, 0.91, 0.89);
+      legend.SetHeader(("Reference: " + runs[0].label + " (same decision)").c_str());
+      legend.SetBorderSize(0);
+      if (runs.size() > 7) legend.SetNColumns(2);
+      std::vector<TH1D *> histograms;
+      double maximum = 0.0;
+      for (size_t r = 1; r < runs.size(); ++r) {
+        if (deltasByRun[r].empty()) continue;
+        TH1D *hist = new TH1D(("h_delta_" + objectStem + "_run_" +
+                               std::to_string(r)).c_str(), "", 60, range.first, range.second);
+        hist->SetDirectory(nullptr);
+        hist->SetStats(false);
+        for (double delta : deltasByRun[r]) hist->Fill(delta);
+        if (hist->Integral() > 0.0) hist->Scale(1.0 / hist->Integral(), "width");
+        hist->SetLineColor(fitTrendRunColor(r));
+        hist->SetLineWidth(2);
+        maximum = std::max(maximum, hist->GetMaximum());
+        histograms.push_back(hist);
+        legend.AddEntry(hist, (runs[r].label + " (N=" +
+                               std::to_string(deltasByRun[r].size()) + ")").c_str(), "l");
+      }
+      if (histograms.empty()) continue;
+      histograms[0]->SetTitle((std::string(decisionName(decision)) + ": #Delta " + parameter +
+                               " from first run;#Delta " + parameter + ";Density").c_str());
+      histograms[0]->SetMaximum(maximum * 1.18);
+      histograms[0]->Draw("HIST");
+      for (size_t i = 1; i < histograms.size(); ++i) histograms[i]->Draw("HIST SAME");
+      TLine zero(0.0, 0.0, 0.0, maximum * 1.18);
+      zero.SetLineStyle(2);
+      zero.SetLineColor(kBlack);
+      zero.Draw();
+      legend.Draw();
+      canvas.SaveAs((decisionDir + "/" + safe + "_delta_overlay.pdf").c_str());
+      canvas.SaveAs((decisionDir + "/" + safe + "_delta_overlay.png").c_str());
+      outputFile.cd();
+      for (TH1D *hist : histograms) { hist->Write(); delete hist; }
+    }
+  }
+  outputFile.Close();
+}
+
+std::pair<int, int> parseRunRange(const std::string &label) {
+  std::vector<int> numbers;
+  std::string digits;
+  for (size_t i = 0; i <= label.size(); ++i) {
+    const char c = i < label.size() ? label[i] : '\0';
+    if (std::isdigit(static_cast<unsigned char>(c))) {
+      digits += c;
+    } else if (!digits.empty()) {
+      numbers.push_back(std::atoi(digits.c_str()));
+      digits.clear();
+      if (numbers.size() == 2) break;
+    }
+  }
+  if (numbers.empty()) return std::make_pair(-1, -1);
+  if (numbers.size() == 1) return std::make_pair(numbers[0], numbers[0]);
+  return std::make_pair(numbers[0], numbers[1]);
+}
+
+void writeFinalCalibrationTree(const std::vector<RunDecisionData> &runs,
+                               const std::string &outDir) {
+  const std::string outputPath = outDir + "/FinalMIPCalibration.root";
+  TFile outputFile(outputPath.c_str(), "RECREATE");
+  if (outputFile.IsZombie()) {
+    std::cerr << "Failed to create final calibration file: " << outputPath << std::endl;
+    return;
+  }
+
+  TTree tree("mip_calibration", "Final MIP calibration values selected by fit decision");
+  int runStart = -1, runEnd = -1;
+  int cellid = -1, layer = -1, chip = -1, channel = -1, entries = 0;
+  int decision = kInsufficientStatistics, state = 0;
+  double mpv = -1.0, width = -1.0, gausSigma = -1.0;
+  double mpvError = -1.0, widthError = -1.0, totalAreaError = -1.0, gausSigmaError = -1.0;
+  double chi2 = -1.0;
+  int ndf = -1;
+  double directThreshold = -1.0, directWidth = -1.0;
+  double directThresholdError = -1.0, directWidthError = -1.0, directChi2NdfBin4 = -1.0;
+  std::string runLabel, decisionLabel, stateLabels;
+
+  tree.Branch("run_start", &runStart, "run_start/I");
+  tree.Branch("run_end", &runEnd, "run_end/I");
+  tree.Branch("run_label", &runLabel);
+  tree.Branch("cellid", &cellid, "cellid/I");
+  tree.Branch("layer", &layer, "layer/I");
+  tree.Branch("chip", &chip, "chip/I");
+  tree.Branch("channel", &channel, "channel/I");
+  tree.Branch("entries", &entries, "entries/I");
+  tree.Branch("decision", &decision, "decision/I");
+  tree.Branch("decision_name", &decisionLabel);
+  tree.Branch("state", &state, "state/I");
+  tree.Branch("state_names", &stateLabels);
+  tree.Branch("mpv", &mpv, "mpv/D");
+  tree.Branch("width", &width, "width/D");
+  tree.Branch("gaus_sigma", &gausSigma, "gaus_sigma/D");
+  tree.Branch("direct_threshold", &directThreshold, "direct_threshold/D");
+  tree.Branch("direct_width", &directWidth, "direct_width/D");
+  tree.Branch("mpv_error", &mpvError, "mpv_error/D");
+  tree.Branch("width_error", &widthError, "width_error/D");
+  tree.Branch("TotalArea_error", &totalAreaError, "TotalArea_error/D");
+  tree.Branch("gaus_sigma_error", &gausSigmaError, "gaus_sigma_error/D");
+  tree.Branch("chi2", &chi2, "chi2/D");
+  tree.Branch("ndf", &ndf, "ndf/I");
+  tree.Branch("direct_threshold_error", &directThresholdError, "direct_threshold_error/D");
+  tree.Branch("direct_width_error", &directWidthError, "direct_width_error/D");
+  tree.Branch("direct_chi2_ndf_bin4", &directChi2NdfBin4, "direct_chi2_ndf_bin4/D");
+
+  long long writtenEntries = 0;
+  for (const auto &run : runs) {
+    const std::pair<int, int> runRange = parseRunRange(run.label);
+    runStart = runRange.first;
+    runEnd = runRange.second;
+    runLabel = run.label;
+    if (runStart < 0 || runEnd < 0) {
+      std::cerr << "  Warning: could not parse run_start/run_end from '" << run.label
+                << "'; storing -1" << std::endl;
+    }
+    for (const auto &entry : run.finalCalibrationEntries) {
+      cellid = entry.cellid;
+      layer = entry.layer;
+      chip = entry.chip;
+      channel = entry.channel;
+      entries = entry.entries;
+      decision = entry.decision;
+      decisionLabel = decisionKey(entry.decision);
+      state = entry.state;
+      stateLabels = stateList(entry.state);
+      mpv = entry.mpv;
+      width = entry.width;
+      gausSigma = entry.gaus_sigma;
+      directThreshold = entry.direct_threshold;
+      directWidth = entry.direct_width;
+      mpvError = entry.mpv_error;
+      widthError = entry.width_error;
+      totalAreaError = entry.TotalArea_error;
+      gausSigmaError = entry.gaus_sigma_error;
+      chi2 = entry.chi2;
+      ndf = entry.ndf;
+      directThresholdError = entry.direct_threshold_error;
+      directWidthError = entry.direct_width_error;
+      directChi2NdfBin4 = entry.direct_chi2_ndf_bin4;
+      tree.Fill();
+      ++writtenEntries;
+    }
+  }
+  outputFile.cd();
+  tree.Write();
+  outputFile.Close();
+  std::cout << "Wrote " << writtenEntries << " entries to " << outputPath
+            << " (tree: mip_calibration)" << std::endl;
+}
+
 // ============================================================================
 // Main macro
 // ============================================================================
@@ -1824,6 +2510,7 @@ void mip_fit_decision_by_run(const char *baseDir = ".",
     return;
   }
 
+  writeFinalCalibrationTree(runs, outDir);
   writeSummaryTables(runs, outDir);
   writeStateSummaryTables(runs, outDir);
   drawDecisionStacks(runs, outDir);
@@ -1834,9 +2521,16 @@ void mip_fit_decision_by_run(const char *baseDir = ".",
   drawDirectParameter1D(runs, outDir);
   drawDirectParameter2D(runs, outDir);
   drawEfficiencyDeficitByState(runs, outDir);
+  writeFitResultChanges(runs, outDir);
+  drawFitResultTrends(runs, outDir);
+  writeFitResultSummaryByDecision(runs, outDir);
+  drawFitResultTrendsByDecision(runs, outDir);
+  drawFitResultDistributionsByDecision(runs, outDir);
+  drawFitResultDeltaFromFirstRunByDecision(runs, outDir);
 
   std::cout << "\nDone. Outputs written to: " << outDir << std::endl;
   std::cout << "  - DecisionSummary_byRun.csv" << std::endl;
+  std::cout << "  - FinalMIPCalibration.root (TTree: mip_calibration)" << std::endl;
   std::cout << "  - DecisionSummary_byRun.txt" << std::endl;
   std::cout << "  - DecisionStack_counts_byRun.pdf/png" << std::endl;
   std::cout << "  - DecisionStack_fraction_byRun.pdf/png" << std::endl;
@@ -1854,14 +2548,22 @@ void mip_fit_decision_by_run(const char *baseDir = ".",
   std::cout << "  - DirectFitParameter1D/<success-or-fail-reason>/*.{pdf,png,root}" << std::endl;
   std::cout << "  - DirectFitParameter2D/<success-or-fail-reason>/*.pdf/png/root" << std::endl;
   std::cout << "  - EfficiencyDeficit2D_byState/<state>/*.pdf/png/root" << std::endl;
+  std::cout << "  - FitResultSummary_byRun.csv" << std::endl;
+  std::cout << "  - FitResultChanges_byRunCell.csv" << std::endl;
+  std::cout << "  - FitResultTrends/<parameter>_byRun.pdf/png" << std::endl;
+  std::cout << "  - FitResultSummary_byRunDecision.csv" << std::endl;
+  std::cout << "  - FitResultTrendsByDecision/<decision>/<parameter>_byRun.pdf/png" << std::endl;
+  std::cout << "  - FitResultDistributionsByDecision/<decision>/<parameter>_overlay.pdf/png" << std::endl;
+  std::cout << "  - FitResultDeltaFromFirstRunByDecision/<decision>/<parameter>_delta_overlay.pdf/png"
+            << std::endl;
 }
 
 int main(int argc, char *argv[]) {
   std::string baseDir = ".";
   std::string runList = "all";
-  std::string fileName = "mip_neighborcheck_fitted_sher_direct_6.root";
+  std::string fileName = "mip_neighborcheck_fitted_sher_direct_8_full.root";
   std::string treeName = "mip_fit_results";
-  std::string outDir = "mip_fit_decision_by_run_out";
+  std::string outDir = "full_fit";
   std::string knownCellIds = "";
   std::string selectCondition = "";
   int selectStateMask = 0;
@@ -1885,9 +2587,9 @@ int main(int argc, char *argv[]) {
       std::cout << "Usage: " << argv[0] << " [options]\n"
                 << "  --baseDir <path>       Base directory containing run subdirectories [.]\n"
                 << "  --runList <list>       Comma-separated run directories or all [all]\n"
-                << "  --fileName <name>      ROOT file name in each run directory [mip_neighborcheck_fitted_5.root]\n"
+                << "  --fileName <name>      ROOT file name in each run directory [mip_neighborcheck_fitted_8.root]\n"
                 << "  --treeName <name>      TTree name [mip_fit_results]\n"
-                << "  --outDir <path>        Output directory [mip_fit_decision_by_run_out]\n"
+                << "  --outDir <path>        Output directory [mip_fit_decision_by_run_out_8]\n"
                 << "  --knownCellIds <csv>   CellIDs for known efficiency degradation, e.g. 210001,210002\n"
                 << "  --selectStateMask <n>  Export channels containing all state bits; decimal or 0x...\n"
                 << "  --selectCondition <e>  TTreeFormula condition, e.g. direct_chi2_ndf>3\n"

@@ -1,8 +1,8 @@
 run:
-  input: /eos/experiment/faser/raw/2026/0###run-number###/FaserAHCAL-Physics-0###run-number###-*.raw
+  input: ${FAIR_DATA}/0###run-number###/FaserAHCAL-Physics-0###run-number###-*.raw
   MC: false
-  log_file: /afs/cern.ch/user/y/ymaruya/private/FASERlink/AHCAL/FAIR/out/run###run-number###/log
-  output: /eos/project/f/faser-upgrade/AHCAL/FAIR/run###run-number###.root
+  log_file: ${FAIR_OUT}/run###run-number###/log
+  output: ${FAIR_ROOT_OUT}/run###run-number###.root
   nEvents: -1
   log_level: INFO
   runNumber: ###run-number###
@@ -40,15 +40,15 @@ algs: # Define the sequence of algorithms to be executed. The order matters.
       in_rawhit_key: RawHits
       out_recohit_key: RecoHits
       mip:
-        file: /afs/cern.ch/user/y/ymaruya/private/FASERlink/AHCAL/FAIR/calibration/reffiles/mip.root
+        file: ${FAIR_BASE}/calibration/reffiles/mip.root
         cut: (gaus_sigma>20)
         cellid_version: 0
       pedestal:
-        file: /afs/cern.ch/user/y/ymaruya/private/FASERlink/AHCAL/FAIR/calibration/pedestal_calib/run21722/pedestal.root
+        file: ${FAIR_BASE}/calibration/pedestal_calib/run21722/pedestal.root
         cut: (1)
         cellid_version: 1
       dac:
-        file: /afs/cern.ch/user/y/ymaruya/private/FASERlink/AHCAL/FAIR/calibration/reffiles/dac.root
+        file: ${FAIR_BASE}/calibration/reffiles/dac.root
         cut: (1)
         cellid_version: 0
   - type: RmIsolatedHitAlg
@@ -90,9 +90,9 @@ algs: # Define the sequence of algorithms to be executed. The order matters.
       track_selection_string: (valid>0)*(chi2xperndf<5)*(chi2xperndf>0)*(chi2yperndf<5)*(chi2yperndf>0)*(direction_y<0.1)*(direction_y>-0.1)*(direction_x<0.1)*(direction_x>-0.1)
       mip_to_file: true
       mip_to_DB: false
-      out_mip_filename: /afs/cern.ch/user/y/ymaruya/private/FASERlink/AHCAL/FAIR/out/run###run-number###_nomipcut/mip.root
+      out_mip_filename: ${FAIR_OUT}/run###run-number###_nomipcut/mip.root
       output_to_png: true
-      out_png_dir: /afs/cern.ch/user/y/ymaruya/private/FASERlink/AHCAL/FAIR/out/run###run-number###_nomipcut/mip_png/
+      out_png_dir: ${FAIR_OUT}/run###run-number###_nomipcut/mip_png/
       fit: false
   - type: MuonEffAlg
     cfg:
@@ -101,9 +101,9 @@ algs: # Define the sequence of algorithms to be executed. The order matters.
       in_rawdata_key: TLURawData
       string_track_struct: SimpleFittedTrack
       track_selection_string: (valid>0)*(chi2xperndf<5)*(chi2xperndf>0)*(chi2yperndf<5)*(chi2yperndf>0)*(direction_y<0.05)*(direction_y>-0.05)*(direction_x<0.05)*(direction_x>-0.05)*(abs(direction_y)>0.001)*(abs(direction_x)>0.001)
-      out_filename: /afs/cern.ch/user/y/ymaruya/private/FASERlink/AHCAL/FAIR/out/run###run-number###_nomipcut_10/eff.root
+      out_filename: ${FAIR_OUT}/run###run-number###_nomipcut_10/eff.root
       write_to_png: true
-      out_png_dir: /afs/cern.ch/user/y/ymaruya/private/FASERlink/AHCAL/FAIR/out/run###run-number###_nomipcut_10/png/
+      out_png_dir: ${FAIR_OUT}/run###run-number###_nomipcut_10/png/
       hittag_or_MIP_cut: true
       xy_size_threshold: 10.0
       ntrigger_layer: 4
@@ -114,11 +114,11 @@ algs: # Define the sequence of algorithms to be executed. The order matters.
       in_track_key: FittedTrack
       string_track_struct: SimpleFittedTrack
       track_selection_string: (valid>0)*(chi2xperndf<5)*(chi2xperndf>0)*(chi2yperndf<5)*(chi2yperndf>0)*(nInTrackHits>8)*(direction_y<0.2)*(direction_y>-0.2)*(direction_x<0.2)*(direction_x>-0.2)
-      out_filename: /afs/cern.ch/user/y/ymaruya/private/FASERlink/AHCAL/FAIR/out/run###run-number###_nomipcut_10/veto_eff_loose_straight.root
+      out_filename: ${FAIR_OUT}/run###run-number###_nomipcut_10/veto_eff_loose_straight.root
       write_to_png: true
-      out_png_dir: /afs/cern.ch/user/y/ymaruya/private/FASERlink/AHCAL/FAIR/out/run###run-number###_nomipcut_10/veto_eff_png_loose_straight/
+      out_png_dir: ${FAIR_OUT}/run###run-number###_nomipcut_10/veto_eff_png_loose_straight/
       write_to_txt: false
-      out_txt_name: /afs/cern.ch/user/y/ymaruya/private/FASERlink/AHCAL/FAIR/out/run###run-number###_nomipcut_10/veto_eff_loose_straight.txt
+      out_txt_name: ${FAIR_OUT}/run###run-number###_nomipcut_10/veto_eff_loose_straight.txt
       xy_size_threshold: 200.0
       x_center: 0.0
       y_center: 0.0
@@ -132,11 +132,11 @@ algs: # Define the sequence of algorithms to be executed. The order matters.
   #     in_raw_hit_key: RawHits
   #     ntrigger_layer: 4
   #     trigger_layer: {0: 9, 1: 19, 2: 29, 3: 38}
-  #     out_filename: /afs/cern.ch/user/y/ymaruya/private/FASERlink/AHCAL/FAIR/out/run###run-number###_nomipcut/input_eff.root
+  #     out_filename: ${FAIR_OUT}/run###run-number###_nomipcut/input_eff.root
   #     write_to_png: true
-  #     out_png_dir: /afs/cern.ch/user/y/ymaruya/private/FASERlink/AHCAL/FAIR/out/run###run-number###_nomipcut/input_eff_png/
+  #     out_png_dir: ${FAIR_OUT}/run###run-number###_nomipcut/input_eff_png/
   #     write_to_txt: true
-  #     out_txt_name: /afs/cern.ch/user/y/ymaruya/private/FASERlink/AHCAL/FAIR/out/run###run-number###_nomipcut/input_eff.txt
+  #     out_txt_name: ${FAIR_OUT}/run###run-number###_nomipcut/input_eff.txt
   # - type: NoiseHitAlg
   #   cfg:
   #     in_rawhit_key: RawHits
@@ -144,15 +144,15 @@ algs: # Define the sequence of algorithms to be executed. The order matters.
   #     nhits_threshold: 8
   #     string_track_struct: SimpleFittedTrack
   #     track_selection_string: (valid>0)*(chi2xperndf<5)*(chi2xperndf>0)*(chi2yperndf<5)*(chi2yperndf>0)*(nInTrackHits>8)
-  #     out_filename: /afs/cern.ch/user/y/ymaruya/private/FASERlink/AHCAL/FAIR/out/run###run-number###/noise_hits.root
+  #     out_filename: ${FAIR_OUT}/run###run-number###/noise_hits.root
   #     write_to_png: true
-  #     out_png_dir: /afs/cern.ch/user/y/ymaruya/private/FASERlink/AHCAL/FAIR/out/run###run-number###/noise_hit_png/
+  #     out_png_dir: ${FAIR_OUT}/run###run-number###/noise_hit_png/
   - type: SummaryAlg
     cfg:
       in_recohit_key: RecoHits
       out_summary_key: EventSummary
       out_summary_txt: true
-      out_summary_txt_filename: /afs/cern.ch/user/y/ymaruya/private/FASERlink/AHCAL/FAIR/out/run###run-number###/event_summary.txt
+      out_summary_txt_filename: ${FAIR_OUT}/run###run-number###/event_summary.txt
 
   - type: RootWriterAlg
     cfg: 

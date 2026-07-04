@@ -30,17 +30,17 @@ algs:
     cfg: 
       out_RunConfig_key: RunConfig
       out_ConditionStore_key: ConditionStore
-  - type: LHCDataReaderAlg
-    cfg:
-      in_rawdata_key: TLURawData
-      out_lhcdata_key: LHCData
-      verbose: true
-  - type: LumiRecordReaderAlg
-    cfg:
-      in_rawdata_key: TLURawData
-      out_lumirecord_key: LumiRecord
-      lumi_tag: OflLumiAcct-Run3-008
-      verbose: true
+  # - type: LHCDataReaderAlg
+  #   cfg:
+  #     in_rawdata_key: TLURawData
+  #     out_lhcdata_key: LHCData
+  #     verbose: true
+  # - type: LumiRecordReaderAlg
+  #   cfg:
+  #     in_rawdata_key: TLURawData
+  #     out_lumirecord_key: LumiRecord
+  #     lumi_tag: OflLumiAcct-Run3-008
+  #     verbose: true
   - type: AdcToEnergyReadTTreeAlg
     cfg:
       in_rawhit_key: RawHits
@@ -183,5 +183,5 @@ algs:
         - [SimpleFittedTrack, FittedTrack]
         - [RunConfig, RunConfig]
         - [ConditionStore, ConditionStore]
-        - [LHCData, LHCData]
-        - [LumiRecord, LumiRecord]
+        # - [LHCData, LHCData]
+        # - [LumiRecord, LumiRecord]

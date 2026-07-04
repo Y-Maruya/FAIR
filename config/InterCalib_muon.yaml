@@ -52,8 +52,8 @@ algs:
       intercalib_to_file: true
       intercalib_to_DB: true
       hg_bin_width: 25.0
-      out_intercalib_filename: ${FAIR_OUT_CALIB}/intercalib_calib_4timesStat/###run-numbers###/intercalib_adj_muon.root
-      out_json_dirname: ${FAIR_OUT_CALIB}/intercalib_calib_4timesStat/###run-numbers###/json_muon/
+      out_intercalib_filename: ${FAIR_OUT_CALIB}/intercalib_calib_4timesStat_minbinentries_10/###run-numbers###/intercalib_adj_muon.root
+      out_json_dirname: ${FAIR_OUT_CALIB}/intercalib_calib_4timesStat_minbinentries_10/###run-numbers###/json_muon/
       save_all_channels_root: false
       require_hittag: true
       select_muon_hits: true
@@ -64,7 +64,7 @@ algs:
       use_fit_max_saturation_minus_margin: true
       saturation_margin: 600.0
       hg_fit_min: 50.0
-      min_hg_bins_for_fit: 30
+      min_hg_bins_for_fit: 10
       use_specific_fit_range_toL39C8: true
       hg_fit_max_L39C8: 1500.0
       save_residual_histograms: false
@@ -77,5 +77,5 @@ algs:
 
       # TTree output options
       quality_output_ttree: true                       # Enable TTree output
-      quality_out_filename: ${FAIR_OUT_CALIB}/intercalib_calib_4timesStat/###run-numbers###/hglg_calib_quality_muon.root"  # Output file name
+      quality_out_filename: ${FAIR_OUT_CALIB}/intercalib_calib_4timesStat_minbinentries_10/###run-numbers###/hglg_calib_quality_muon.root  # Output file name
       quality_save_summary_plots: false                # Generate summary histograms (future)

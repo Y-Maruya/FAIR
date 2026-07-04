@@ -32,6 +32,7 @@ inline std::vector<FieldDesc> describe(const AHCALRawHit*) {
         field("lg_adc", &AHCALRawHit::lg_adc),
         field("hittag", &AHCALRawHit::hittag),
         field("bcid", &AHCALRawHit::bcid),
+        // field("index", &AHCALRawHit::index),
     };
 }
 inline std::vector<FieldDescVector> describe_vector(const AHCALRawHit*) {
@@ -41,6 +42,7 @@ inline std::vector<FieldDescVector> describe_vector(const AHCALRawHit*) {
         field_vector("v.lg_adc", &AHCALRawHit::lg_adc),
         field_vector("v.hittag", &AHCALRawHit::hittag),
         field_vector("v.bcid", &AHCALRawHit::bcid),
+        // field_vector("v.index", &AHCALRawHit::index),
     };
 }
 AHCAL_REGISTER_IO_STRUCT(AHCALRawHit, "AHCALRawHit");

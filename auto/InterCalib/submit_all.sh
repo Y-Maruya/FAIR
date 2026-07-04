@@ -1,6 +1,6 @@
 #!/bin/bash
 
-input="run_starts_2.txt"
+input="run_starts.txt"
 
 while read -r run n; do
     [[ -z "$run" ]] && continue

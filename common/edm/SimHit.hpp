@@ -48,7 +48,8 @@ inline std::vector<FieldDesc> describe(const AHCALSimHit*) {
         field("Edep", &AHCALSimHit::Edep),
         field("Nmip", &AHCALSimHit::Nmip),
         field("HitTime", &AHCALSimHit::HitTime),
-        field("TimeOfArrival", &AHCALSimHit::TimeOfArrival)
+        field("TimeOfArrival", &AHCALSimHit::TimeOfArrival),
+        field("index", &AHCALSimHit::index),
     };
 }
 inline std::vector<FieldDescVector> describe_vector(const AHCALSimHit*) {
@@ -57,7 +58,8 @@ inline std::vector<FieldDescVector> describe_vector(const AHCALSimHit*) {
         field_vector("v.Edep", &AHCALSimHit::Edep),
         field_vector("v.Nmip", &AHCALSimHit::Nmip),
         field_vector("v.HitTime", &AHCALSimHit::HitTime),
-        field_vector("v.TimeOfArrival", &AHCALSimHit::TimeOfArrival)
+        field_vector("v.TimeOfArrival", &AHCALSimHit::TimeOfArrival),
+        field_vector("v.index", &AHCALSimHit::index),
     };
 }
 AHCAL_REGISTER_IO_STRUCT(AHCALSimHit, "AHCALSimHit");

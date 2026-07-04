@@ -1,13 +1,13 @@
 #!/bin/bash
 
-input="run_starts.txt"
+input="runs.txt"
 
-while read -r run n; do
-    [[ -z "$run" ]] && continue
-    [[ "$run" =~ ^# ]] && continue
+while read -r srun erun; do
+    [[ -z "$srun" ]] && continue
+    [[ "$srun" =~ ^# ]] && continue
 
-    echo "run = $run, n = $n"
+    echo "start run = $srun, end run = $erun"
 
-    bash submit.sh "$run" "$n"
+    bash submit.sh "$srun" "$erun"
 
 done < "$input"

@@ -45,6 +45,7 @@ inline std::vector<FieldDesc> describe(const AHCALRecoHit*) {
         field("cellID", &AHCALRecoHit::cellID),
         field("Edep", &AHCALRecoHit::Edep),
         field("Nmip", &AHCALRecoHit::Nmip),
+        field("index", &AHCALRecoHit::index),
     };
 }
 inline std::vector<FieldDescVector> describe_vector(const AHCALRecoHit*) {
@@ -52,6 +53,7 @@ inline std::vector<FieldDescVector> describe_vector(const AHCALRecoHit*) {
         field_vector("v.cellID", &AHCALRecoHit::cellID),
         field_vector("v.Edep", &AHCALRecoHit::Edep),
         field_vector("v.Nmip", &AHCALRecoHit::Nmip),
+        field_vector("v.index", &AHCALRecoHit::index),
     };
 }
 AHCAL_REGISTER_IO_STRUCT(AHCALRecoHit, "AHCALRecoHit");
