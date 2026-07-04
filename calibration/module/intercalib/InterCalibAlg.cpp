@@ -657,6 +657,7 @@ struct InterCalibAlg::Impl {
         std::vector<double> residuals_hg;  // HG residuals for each raw point (measured - fitted)
     };
     void loadPedestals() {
+        ped_map_ = std::make_shared<CalibDBIO::PedestalMap>();
         if (cfg_.read_pedestal_from_ROOT) {
             loadPedestals_fromROOT();
         } else if (cfg_.read_pedestal_from_DB) {
@@ -690,23 +691,24 @@ struct InterCalibAlg::Impl {
             has_lg_ped = true;
         }
 
-        ped_map_.clear();
-        ped_map_.reserve(tp->GetEntries());
+        auto ped_map = std::make_shared<CalibDBIO::PedestalMap>();
+        ped_map->reserve(tp->GetEntries());
 
         for (Long64_t i = 0; i < tp->GetEntries(); ++i) {
             tp->GetEntry(i);
-            ped_map_[p_cellid].HighGainPeak = p_hgped;
+            (*ped_map)[p_cellid].HighGainPeak = p_hgped;
             if (has_lg_ped) {
-                ped_map_[p_cellid].LowGainPeak = p_lgped;
+                (*ped_map)[p_cellid].LowGainPeak = p_lgped;
             }
         }
+        ped_map_ = std::move(ped_map);
 
-        LOG_INFO("InterCalibAlg: loaded {} pedestal entries", ped_map_.size());
+        LOG_INFO("InterCalibAlg: loaded {} pedestal entries", ped_map_->size());
     }
     void loadPedestals_fromDB() {
         CalibDBIO::PedestalReader reader(ctx_.config.runNumber);
-        ped_map_ = reader.getPedestalMap();
-        LOG_INFO("InterCalibAlg: loaded {} pedestal entries from DB", ped_map_.size());
+        ped_map_ = reader.getPedestalMapPtr();
+        LOG_INFO("InterCalibAlg: loaded {} pedestal entries from DB", ped_map_->size());
     }
     std::unique_ptr<TH2D> createAccumHistogram(int layer, int chip, int channel) {
         auto hist = std::make_unique<TH2D>(
@@ -722,8 +724,8 @@ struct InterCalibAlg::Impl {
         int cellid = h.cellID;
         if (cfg_.require_hittag && h.hittag != 1) return;
         // Find pedestal for this cell
-        auto itp = ped_map_.find(cellid);
-        if (itp == ped_map_.end()) {
+        auto itp = ped_map_->find(cellid);
+        if (itp == ped_map_->end()) {
             n_missing_ped_++;
             return;
         }
@@ -810,7 +812,9 @@ struct InterCalibAlg::Impl {
         if (hg_sub <= cfg_.hg_fit_min) return false;
         if (lg_sub <= cfg_.lg_fit_min) return false;
         if (cfg_.use_fit_max_saturation_minus_margin) {
-            double pedestal = ped_map_[AHCALGeometry::CellID(tmp_layer, tmp_chip, tmp_channel)].HighGainPeak;
+            const auto ped_it = ped_map_->find(AHCALGeometry::CellID(tmp_layer, tmp_chip, tmp_channel));
+            if (ped_it == ped_map_->end()) return false;
+            double pedestal = ped_it->second.HighGainPeak;
             double local_hg_fit_max = hg_saturation - cfg_.saturation_margin - pedestal;
             if (hg_sub > local_hg_fit_max) return false;
         } else {
@@ -994,8 +998,8 @@ struct InterCalibAlg::Impl {
             qr.channel = tmp_channel;
             qr.cellid = cid;
 
-            auto ped_it = ped_map_.find(cid);
-            if (ped_it != ped_map_.end()) {
+            auto ped_it = ped_map_->find(cid);
+            if (ped_it != ped_map_->end()) {
                 qr.hg_pedestal = ped_it->second.HighGainPeak;
                 qr.lg_pedestal = ped_it->second.LowGainPeak;
                 qr.is_pedestal_masked = !AHCALRefValues::HGPedestalStatus_is_ok(ped_it->second.HighGainStatus) || !AHCALRefValues::LGPedestalStatus_is_ok(ped_it->second.LowGainStatus);
@@ -1902,7 +1906,7 @@ struct InterCalibAlg::Impl {
     double intercept_min_ = -500.0;
     double intercept_max_ = 500.0;
 
-    std::unordered_map<int, CalibDBIO::Pedestal> ped_map_;
+    std::shared_ptr<const CalibDBIO::PedestalMap> ped_map_ = std::make_shared<CalibDBIO::PedestalMap>();
     std::unordered_map<int, std::unique_ptr<TH2D>> h_accum_;  // cellid -> accumulated 2D histogram
     std::unordered_map<int, CellInterCalibResult> ic_cache_;
     std::unordered_map<int, int> hg_saturation_map_; // cellid -> saturation level in HG

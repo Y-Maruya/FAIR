@@ -32,7 +32,7 @@ inline std::vector<FieldDesc> describe(const AHCALRawHit*) {
         field("lg_adc", &AHCALRawHit::lg_adc),
         field("hittag", &AHCALRawHit::hittag),
         field("bcid", &AHCALRawHit::bcid),
-        // field("index", &AHCALRawHit::index),
+        field("index", &AHCALRawHit::index),
     };
 }
 inline std::vector<FieldDescVector> describe_vector(const AHCALRawHit*) {

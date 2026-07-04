@@ -10,7 +10,33 @@
 
 using json = nlohmann::json;
 namespace CalibDBIO {
-    inline std::string db_url = "https://ahcalib-calibrationdb.app.cern.ch/";
+    // inline std::string db_url = "https://ahcalib-calibrationdb.app.cern.ch/";
+    inline std::string db_url = "http://localhost:5000/";
+
+    inline std::string trim_url(std::string value) {
+        const auto first = value.find_first_not_of(" \t\n\r\f\v");
+        if (first == std::string::npos) {
+            return "";
+        }
+        const auto last = value.find_last_not_of(" \t\n\r\f\v");
+        return value.substr(first, last - first + 1);
+    }
+
+    inline std::string normalized_db_url() {
+        std::string value = trim_url(db_url);
+        if (value.empty()) {
+            LOG_ERROR("Calibration DB URL is empty");
+            return "";
+        }
+        if (value.rfind("http://", 0) != 0 && value.rfind("https://", 0) != 0) {
+            LOG_ERROR("Calibration DB URL must start with http:// or https://: {}", value);
+            return "";
+        }
+        if (value.back() != '/') {
+            value.push_back('/');
+        }
+        return value;
+    }
     
     static size_t WriteCallback(void* contents, size_t size, size_t nmemb, void* userp) {
         size_t totalSize = size * nmemb;
@@ -29,11 +55,16 @@ namespace CalibDBIO {
         std::string response;
         std::ostringstream url;
         // URL-encode the input URL (only query parameters)
+        const std::string base_url = normalized_db_url();
+        if (base_url.empty()) {
+            curl_easy_cleanup(curl);
+            return json();
+        }
 
         char* escStart = curl_easy_escape(curl, StartTime.c_str(), 0);
         char* escEnd   = curl_easy_escape(curl, EndTime.c_str(), 0);
 
-        url << db_url << "Query"
+        url << base_url << "Query"
             << "?CalibrationType=" << CalibrationType
             << "&startTime=" << (escStart ? escStart : "")
             << "&endTime="   << (escEnd ? escEnd : "")
@@ -87,8 +118,13 @@ namespace CalibDBIO {
         std::string response;
         std::ostringstream url;
         // URL-encode the input URL (only query parameters)
+        const std::string base_url = normalized_db_url();
+        if (base_url.empty()) {
+            curl_easy_cleanup(curl);
+            return json();
+        }
 
-        url << db_url << "Query"
+        url << base_url << "Query"
             << "?CalibrationType=" << CalibrationType
             << "&RunNumber=" << RunNumber
             << "&Layer="     << Layer
@@ -130,4 +166,3 @@ namespace CalibDBIO {
         }
     }
 }
-

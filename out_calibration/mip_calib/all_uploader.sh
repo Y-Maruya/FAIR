@@ -2,7 +2,7 @@
 
 # runNumber=$1
 password=$1
-for file in `ls ./22399/json/*json`
+for file in `ls ./mip_imputed_last/run22400*.json`
 do
     echo "uploading $file"
     if [ -z "$password" ]; then

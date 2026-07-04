@@ -1,0 +1,80 @@
+run:
+  input: ${FAIR_DATA}/0###run-number###/FaserAHCAL-Physics-0###run-number###-0*.raw
+  MC: false
+  log_file: ${FAIR_OUT}/###run-number###/log
+  output: ${FAIR_ROOT_OUT}/###run-number###_RDO_r0000_c0000.root
+  nEvents: -1
+  log_level: INFO
+  runNumber: ###run-number###
+  poolIndex: 0
+reader: 
+  type: BinaryRawHitReader
+  cfg:
+    out_rawhits_key: RawHits
+    out_tlu_key: TLURawData
+  # type: RootRawHitReader
+  # cfg:
+  #   out_rawhits_key: RawHits
+  #   out_tlu_key: TLURawData
+  # type: RootInput
+  # cfg:
+  #   inputlist: 
+  #     - [vector<AHCALRawHit>, RawHits]
+  #     - [AHCALTLURawData, TLURawData]
+  #     - [vector<AHCALRecoHit>, RecoHits]
+  #     - [SimpleFittedTrack, FittedTrack]
+  #     - [Track, MuonKFTrack]
+
+algs:
+  - type: ContextPutter
+    cfg: 
+      out_RunConfig_key: RunConfig
+      out_ConditionStore_key: ConditionStore
+  - type: LHCDataReaderAlg
+    cfg:
+      in_rawdata_key: TLURawData
+      out_lhcdata_key: LHCData
+      verbose: true
+  - type: LumiRecordReaderAlg
+    cfg:
+      in_rawdata_key: TLURawData
+      out_lumirecord_key: LumiRecord
+      lumi_tag: OflLumiAcct-Run3-008
+      verbose: true
+  - type: AdcToEnergyAlg
+    cfg:
+      in_rawhit_key: RawHits
+      out_recohit_key: RecoHits
+  - type: RmIsolatedHitAlg
+    cfg:
+      in_recohit_key: RecoHits
+      out_recohit_key: RmIsolatedHits
+      useNmipWindow: false
+      xy_cone: 42.0
+      maxMissingLayers: 2
+  - type: TrackFitAlg
+    cfg:
+      in_recohit_key: RmIsolatedHits
+      out_track_key: FittedTrack
+      use_mip_window: false
+      nmipMin: 0.5
+      nmipMax: 3.0
+      threshold_xy: 20.0
+  - type: SummaryAlg
+    cfg:
+      in_recohit_key: RecoHits
+      out_summary_key: EventSummary
+      out_summary_txt: false
+
+  - type: RootWriterAlg
+    cfg: 
+      outputlist:
+        - [vector<AHCALRawHit>, RawHits]
+        - [AHCALTLURawData, TLURawData]
+        - [vector<AHCALRecoHit>, RecoHits]
+        - [SimpleFittedTrack, FittedTrack]
+        - [RunConfig, RunConfig]
+        - [ConditionStore, ConditionStore]
+        - [LHCData, LHCData]
+        - [LumiRecord, LumiRecord]
+        - [EventSummary, EventSummary]

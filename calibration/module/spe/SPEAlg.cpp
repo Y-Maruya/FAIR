@@ -102,7 +102,7 @@ namespace AHCALRecoAlg {
         }
 
         void loadPedestals() {
-            ped_map_.clear();
+            ped_map_ = std::make_shared<CalibDBIO::PedestalMap>();
             if (cfg_.read_pedestal_from_ROOT) {
                 loadPedestals_fromROOT();
             } else if (cfg_.read_pedestal_from_DB) {
@@ -137,22 +137,24 @@ namespace AHCALRecoAlg {
                 has_lg_ped = true;
             }
 
-            ped_map_.reserve(tp->GetEntries());
+            auto ped_map = std::make_shared<CalibDBIO::PedestalMap>();
+            ped_map->reserve(tp->GetEntries());
             for (Long64_t i = 0; i < tp->GetEntries(); ++i) {
                 tp->GetEntry(i);
                 CalibDBIO::Pedestal ped{};
                 ped.HighGainPeak = p_hgped;
                 ped.LowGainPeak = has_lg_ped ? p_lgped : 0.0;
-                ped_map_[p_cellid] = ped;
+                (*ped_map)[p_cellid] = ped;
             }
+            ped_map_ = std::move(ped_map);
 
-            LOG_INFO("SPEAlg: loaded {} pedestal entries from ROOT", ped_map_.size());
+            LOG_INFO("SPEAlg: loaded {} pedestal entries from ROOT", ped_map_->size());
         }
 
         void loadPedestals_fromDB() {
             CalibDBIO::PedestalReader reader(ctx_.config.runNumber);
-            ped_map_ = reader.getPedestalMap();
-            LOG_INFO("SPEAlg: loaded {} pedestal entries from DB", ped_map_.size());
+            ped_map_ = reader.getPedestalMapPtr();
+            LOG_INFO("SPEAlg: loaded {} pedestal entries from DB", ped_map_->size());
         }
 
         void change_run(const RunContext& new_ctx) {
@@ -165,8 +167,8 @@ namespace AHCALRecoAlg {
 
             double hg_value = static_cast<double>(h.hg_adc);
             if (cfg_.substrate_pedestal) {
-                auto itp = ped_map_.find(cellid);
-                if (itp == ped_map_.end()) {
+                auto itp = ped_map_->find(cellid);
+                if (itp == ped_map_->end()) {
                     n_missing_ped_++;
                     return;
                 }
@@ -679,7 +681,7 @@ namespace AHCALRecoAlg {
         bool fft_done_ = false;
         long long n_missing_ped_ = 0;
         std::vector<RunContext> run_contexts_;
-        std::unordered_map<int, CalibDBIO::Pedestal> ped_map_;
+        std::shared_ptr<const CalibDBIO::PedestalMap> ped_map_ = std::make_shared<CalibDBIO::PedestalMap>();
         std::unordered_map<int, std::unique_ptr<TH1D>> hg_hist_;
         std::unordered_map<int, ChannelResult> result_cache_;
     };

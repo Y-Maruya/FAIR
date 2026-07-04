@@ -2,8 +2,14 @@
 
 # runNumber=$1
 password=$1
-for file in `ls ./intercalib_corrected/*json`
+for file in `ls ./intercalib_corrected/run22400*.json`
 do
     echo "uploading $file"
-    python3 ../upload2DB.py $file FASER $password
+    if [ -z "$password" ]; then
+        echo "No password provided. Uploading without authentication."
+        python3 ../upload2DB.py $file FASER
+    else
+        python3 ../upload2DB.py $file FASER $password
+    fi
+    #python3 ../upload2DB.py $file FASER $password
 done

@@ -2,10 +2,13 @@
 namespace AHCALRefValues {
     const double MIP_E=0.461;//MeV
     const double SwitchPoint=500;
-    const double ref_ped_highgain=390;
-    const double ref_ped_lowgain=384;
+    const double ref_ped_highgain=377.8;
+    const double ref_ped_highgain_error=26.0;
+    const double ref_ped_lowgain=373.8;
+    const double ref_ped_lowgain_error=26.0;
     const double ref_MIP=344.3;
-    const double ref_gain_ratio=26;
+    const double ref_gain_ratio=30;
+    const double ref_gain_ratio_error=1.0;
     const int lowgain_plat=2000;
 
     enum HGPedestalStatus {

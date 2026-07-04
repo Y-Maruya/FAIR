@@ -16,6 +16,7 @@ if(TARGET fair_options)
   target_link_libraries(core_reco_libs INTERFACE
     fair_options
     AdcToEnergyReadTTreeAlg
+    AdcToEnergyAlg
     reco_module_algs
     io_readers
     calib_algs

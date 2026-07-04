@@ -22,7 +22,9 @@ public:
         return asic();
     }
     double Edep = 0.0;      // in MeV
+    double EdepError = 0.0; // in MeV
     double Nmip = 0.0;      // in MIP
+    double NmipError = 0.0; // in MIP
     double Xpos() const {
         return AHCALGeometry::Pos_X(this->channel(),this->asic());
     }
@@ -46,6 +48,8 @@ inline std::vector<FieldDesc> describe(const AHCALRecoHit*) {
         field("Edep", &AHCALRecoHit::Edep),
         field("Nmip", &AHCALRecoHit::Nmip),
         field("index", &AHCALRecoHit::index),
+        field("EdepError", &AHCALRecoHit::EdepError),
+        field("NmipError", &AHCALRecoHit::NmipError),
     };
 }
 inline std::vector<FieldDescVector> describe_vector(const AHCALRecoHit*) {
@@ -54,6 +58,8 @@ inline std::vector<FieldDescVector> describe_vector(const AHCALRecoHit*) {
         field_vector("v.Edep", &AHCALRecoHit::Edep),
         field_vector("v.Nmip", &AHCALRecoHit::Nmip),
         field_vector("v.index", &AHCALRecoHit::index),
+        field_vector("v.EdepError", &AHCALRecoHit::EdepError),
+        field_vector("v.NmipError", &AHCALRecoHit::NmipError),
     };
 }
 AHCAL_REGISTER_IO_STRUCT(AHCALRecoHit, "AHCALRecoHit");

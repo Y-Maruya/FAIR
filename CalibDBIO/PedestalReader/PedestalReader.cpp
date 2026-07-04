@@ -12,6 +12,7 @@
 #include <cstdio>
 #include <filesystem>
 #include <map>
+#include <mutex>
 #include <thread>
 #include <utility>
 #include <vector>
@@ -24,6 +25,12 @@
 #include "common/AHCALGeometry.hpp"
 #include <unistd.h>
 namespace CalibDBIO {
+
+namespace {
+std::mutex pedestalCacheMutex;
+std::unordered_map<int, std::weak_ptr<const PedestalMap>> pedestalMapCache;
+}
+
 PedestalReader::PedestalReader(int runNumber) {
     // Constructor  
     readPedestals(runNumber);
@@ -33,9 +40,10 @@ PedestalReader::~PedestalReader() {
     // Destructor
 }
 
-Pedestal PedestalReader::getPedestal(int cellID) {
-    if (pedestalMap_.find(cellID) != pedestalMap_.end()) {
-        return pedestalMap_[cellID];
+Pedestal PedestalReader::getPedestal(int cellID) const {
+    const auto it = pedestalMap_->find(cellID);
+    if (it != pedestalMap_->end()) {
+        return it->second;
     } else {
         LOG_ERROR("CellID not found in pedestal map: {}", cellID);
         throw std::runtime_error("CellID not found in pedestal map: " + std::to_string(cellID));
@@ -45,6 +53,19 @@ Pedestal PedestalReader::getPedestal(int cellID) {
 void PedestalReader::readPedestals(int runNumber) {
     int pedestalRun = selectNearestPedestalRun(runNumber);
     LOG_INFO("Selected pedestal run {} for physics run {}", pedestalRun, runNumber);
+    {
+        std::lock_guard<std::mutex> lock(pedestalCacheMutex);
+        const auto it = pedestalMapCache.find(pedestalRun);
+        if (it != pedestalMapCache.end()) {
+            if (auto cached = it->second.lock()) {
+                pedestalMap_ = std::move(cached);
+                LOG_INFO("Reusing {} cached pedestal entries for pedestal run {}", pedestalMap_->size(), pedestalRun);
+                return;
+            }
+        }
+    }
+
+    auto pedestalMap = std::make_shared<PedestalMap>();
     for (int layer = 0; layer < AHCALGeometry::Layer_No; ++layer) {
         LOG_DEBUG("Reading pedestal data for Layer {}", layer);
         // Query the calibration database for pedestal data of the selected run
@@ -75,18 +96,22 @@ void PedestalReader::readPedestals(int runNumber) {
                 Pedestal ped;
                 int cellid = AHCALGeometry::CellID(layer, chch / AHCALGeometry::channel_No, chch % AHCALGeometry::channel_No);
                 ped.HighGainPeak = perChannel["HighGainPeak"][chch].get<double>();
+                ped.HighGainPeakError = perChannel["HighGainPeakError"][chch].get<double>();
                 ped.HighGainSigma = perChannel["HighGainSigma"][chch].get<double>();
+                ped.HighGainSigmaError = perChannel["HighGainSigmaError"][chch].get<double>();
                 ped.HighGainStatus = perChannel["HighGainStatus"][chch].get<int>();
                 ped.HighGainUsable = perChannel["HighGainUsable"][chch].get<int>();
                 ped.LowGainPeak = perChannel["LowGainPeak"][chch].get<double>();
+                ped.LowGainPeakError = perChannel["LowGainPeakError"][chch].get<double>();
                 ped.LowGainSigma = perChannel["LowGainSigma"][chch].get<double>();
+                ped.LowGainSigmaError = perChannel["LowGainSigmaError"][chch].get<double>();
                 ped.LowGainStatus = perChannel["LowGainStatus"][chch].get<int>();
                 ped.LowGainUsable = perChannel["LowGainUsable"][chch].get<int>();
                 if ((ped.HighGainStatus != 0 && ped.HighGainStatus != 999) || (ped.LowGainStatus != 0 && ped.LowGainStatus != 999)) {
                     LOG_DEBUG("Pedestal fit status not OK for cellID {}: HG status {}, LG status {}", cellid, ped.HighGainStatus, ped.LowGainStatus);
                     lossyChannels++;
                 }
-                pedestalMap_[cellid] = ped;
+                (*pedestalMap)[cellid] = ped;
             }
             if (lossyChannels > 0) {
                 LOG_WARN("Found {} channels with non-zero pedestal fit status in layer {}", lossyChannels, layer);
@@ -96,7 +121,12 @@ void PedestalReader::readPedestals(int runNumber) {
             throw std::runtime_error("Error parsing pedestal data: " + std::string(e.what()));
         }
     }
-    LOG_INFO("Successfully read {} pedestal entries for run {}", pedestalMap_.size(), pedestalRun);
+    pedestalMap_ = std::move(pedestalMap);
+    {
+        std::lock_guard<std::mutex> lock(pedestalCacheMutex);
+        pedestalMapCache[pedestalRun] = pedestalMap_;
+    }
+    LOG_INFO("Successfully read {} pedestal entries for run {}", pedestalMap_->size(), pedestalRun);
 }
 
 int PedestalReader::selectNearestPedestalRun(int runNumber) {
