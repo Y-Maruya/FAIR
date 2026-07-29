@@ -78,14 +78,14 @@ namespace AHCALRecoAlg {
         }
         void loadPedestals(){
             CalibDBIO::PedestalReader reader(ctx().config.runNumber);
-            ped_map_ = reader.getPedestalMap();
-            LOG_INFO("InterCalibAlg: loaded {} pedestal entries from DB", ped_map_.size());
+            ped_map_ = reader.getPedestalMapPtr();
+            LOG_INFO("RmNoiseHitAlg: loaded {} pedestal entries from DB", ped_map_->size());
         }
         void computeNoiseFlags(const std::vector<AHCALRawHit>& hits, std::vector<int>& isoFlag, bool hittag1_only);
     private:
         RmNoiseHitAlgCfg m_cfg;
         std::unique_ptr<NoiseCut> cut;
         std::string m_criteria;
-        std::unordered_map<int, CalibDBIO::Pedestal> ped_map_;
+        std::shared_ptr<const CalibDBIO::PedestalMap> ped_map_ = std::make_shared<CalibDBIO::PedestalMap>();
     };
 } // namespace AHCALRecoAlg

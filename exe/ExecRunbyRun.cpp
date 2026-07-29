@@ -188,6 +188,9 @@ int main(int argc, char* argv[]) {
                     if (!rawHitReader.next(rawHits, tluData)) {
                         break; // No more events or error
                     }
+                    if (ctx.config.nEvents > 0 && nEvent >= ctx.config.nEvents) {
+                        break; // Reached the maximum number of events to process
+                    }
                     EventStore eventStore;
                     eventStore.set_event_counter(nEvent);
                     eventStore.put(input_key_hits, std::move(rawHits));

@@ -116,5 +116,12 @@ namespace AHCALGeometry {
         int channel = rem % AHCALGeometry::channel_No;
         return CellID(layer, chip, channel);
     }
+
+    inline double ChipPos_X(int chip_ID){
+        return -chip_dis_Y*(chip_ID%3)+chip_dis_Y*3./2;
+    }
+    inline double ChipPos_Y(int chip_ID){
+        return -HBU_X*(chip_ID/3-1)+HBU_X*3./2;
+    }
 }
 

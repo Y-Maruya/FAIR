@@ -32,6 +32,10 @@ public:
 
   Long64_t current_entry() const { return m_entry - 1; }
 
+  bool has_branch(const std::string& branch_name) const {
+    return m_tree && m_tree->GetBranch(branch_name.c_str());
+  }
+
   bool read_entry(Long64_t i) {
     if (i < 0 || i >= m_entries) return false;
     m_tree->GetEntry(i);

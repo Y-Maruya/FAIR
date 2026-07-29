@@ -5,6 +5,7 @@ add_executable(calib_tester CalibITester.cpp)
 add_executable(EventDisplay2D EventDisplay2D.cpp)
 add_executable(EventDisplay2D_iso EventDisplay2D_iso.cpp)
 add_executable(EventDisplay2D_multi EventDisplay2D_multi.cpp)
+add_executable(ClusterEventDisplay2D ClusterEventDisplay2D.cpp)
 add_executable(fair_multi MultiInOut.cpp)
 add_executable(fair_single MultiInOneOut.cpp)
 add_executable(fair_run ExecRunbyRun.cpp)
@@ -132,6 +133,12 @@ if(TARGET fair_options)
       AdcToEnergyReadTTreeAlg
       reco_module_algs
   )
+  target_link_libraries(ClusterEventDisplay2D
+    PRIVATE
+      fair_options
+      AdcToEnergyReadTTreeAlg
+      reco_module_algs
+  )
 endif()
 
 target_include_directories(trackfit_test
@@ -153,6 +160,10 @@ target_include_directories(EventDisplay2D_iso
     ${CMAKE_SOURCE_DIR}
 )
 target_include_directories(EventDisplay2D_multi
+  PRIVATE
+    ${CMAKE_SOURCE_DIR}
+)
+target_include_directories(ClusterEventDisplay2D
   PRIVATE
     ${CMAKE_SOURCE_DIR}
 )

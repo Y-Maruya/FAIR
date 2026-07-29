@@ -17,8 +17,8 @@ void RmNoiseHitAlg::computeNoiseFlags(const std::vector<AHCALRawHit>& hits, std:
         const auto& h = hits[i];
         double hg_ped = 0.0;
         double lg_ped = 0.0;
-        auto itp = ped_map_.find(h.cellID);
-        if (itp != ped_map_.end()) {
+        auto itp = ped_map_->find(h.cellID);
+        if (itp != ped_map_->end()) {
             hg_ped = itp->second.HighGainPeak;
             lg_ped = itp->second.LowGainPeak;
         } else {

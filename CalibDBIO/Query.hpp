@@ -10,8 +10,8 @@
 
 using json = nlohmann::json;
 namespace CalibDBIO {
-    inline std::string db_url = "https://ahcalib-calibrationdb.app.cern.ch/";
-    // inline std::string db_url = "http://localhost:5000/";
+    // inline std::string db_url = "https://ahcalib-calibrationdb.app.cern.ch/";
+    inline std::string db_url = "http://localhost:5000/";
 
     inline std::string trim_url(std::string value) {
         const auto first = value.find_first_not_of(" \t\n\r\f\v");
@@ -122,6 +122,10 @@ namespace CalibDBIO {
         if (base_url.empty()) {
             curl_easy_cleanup(curl);
             return json();
+        }
+        if (RunNumber < 21987){
+            LOG_INFO("RunNumber {} is less than 21987, using 21987 for calibration DB query", RunNumber);
+            RunNumber = 21987; // For runs before 21987, use 21987 as the run number for calibration DB query
         }
 
         url << base_url << "Query"

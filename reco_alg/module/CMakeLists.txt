@@ -5,9 +5,11 @@ add_subdirectory(RmIsolatedHitAlg)
 add_subdirectory(SummaryAlg)
 add_subdirectory(RmNoiseHitAlg)
 add_subdirectory(SimMimicAlg)
+add_subdirectory(PCAClusterAlg)
+add_subdirectory(DBSCANClusterAlg)
 
 # Collect all reco module algorithms into a single interface library
 add_library(reco_module_algs INTERFACE)
 target_link_libraries(reco_module_algs INTERFACE
-  TrackFitAlg MuonKFAlg RmIsolatedHitAlg SummaryAlg RmNoiseHitAlg SimMimicAlg
+  TrackFitAlg MuonKFAlg RmIsolatedHitAlg SummaryAlg RmNoiseHitAlg SimMimicAlg PCAClusterAlg DBSCANClusterAlg
 )

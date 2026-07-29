@@ -35,6 +35,24 @@ FieldDesc field(std::string n, M T::*member) {
   return d;
 }
 
+template <class T, class M>
+FieldDesc optional_field(std::string n, M T::*member) {
+  FieldDesc d = field(std::move(n), member);
+  const std::string name_copy = d.name;
+
+  d.read = [member, name_copy](void* obj, RootInput& in, const std::string& prefix) {
+    const std::string branch_name = prefix + "." + name_copy;
+    if (!in.has_branch(branch_name)) return;
+
+    T& x = *static_cast<T*>(obj);
+    using MT = std::decay_t<decltype(x.*member)>;
+    const MT* buf = in.get_or_make_address<MT>(branch_name);
+    x.*member = *buf;
+  };
+
+  return d;
+}
+
 struct FieldDescVector {
   std::string name;
   std::function<void(const std::vector<const void*>& objs, RootOutput& out, const std::string& prefix)> write;
@@ -72,6 +90,38 @@ FieldDescVector field_vector(std::string n, M T::*member) {
     [member, name_copy](const std::vector<void*>& objs, RootInput& in, const std::string& prefix) {
       using MT = std::decay_t<M>;
       const auto* buf = in.get_or_make_address<std::vector<MT>>(prefix + "." + name_copy);
+      const std::size_t n = std::min(objs.size(), buf->size());
+      for (std::size_t i = 0; i < n; ++i) {
+        T& x = *static_cast<T*>(objs[i]);
+        x.*member = (*buf)[i];
+      }
+    };
+
+  return d;
+}
+
+template <class T, class M>
+FieldDescVector optional_field_vector(std::string n, M T::*member) {
+  FieldDescVector d = field_vector(std::move(n), member);
+  const std::string name_copy = d.name;
+
+  d.size = [name_copy](RootInput& in, const std::string& prefix) -> std::size_t {
+    const std::string branch_name = prefix + "." + name_copy;
+    if (!in.has_branch(branch_name)) return 0;
+
+    using MT = std::decay_t<M>;
+    const auto* buf = in.get_or_make_address<std::vector<MT>>(branch_name);
+    LOG_DEBUG("Getting size of optional vector field '{}': {}", branch_name, buf->size());
+    return buf->size();
+  };
+
+  d.read =
+    [member, name_copy](const std::vector<void*>& objs, RootInput& in, const std::string& prefix) {
+      const std::string branch_name = prefix + "." + name_copy;
+      if (!in.has_branch(branch_name)) return;
+
+      using MT = std::decay_t<M>;
+      const auto* buf = in.get_or_make_address<std::vector<MT>>(branch_name);
       const std::size_t n = std::min(objs.size(), buf->size());
       for (std::size_t i = 0; i < n; ++i) {
         T& x = *static_cast<T*>(objs[i]);
