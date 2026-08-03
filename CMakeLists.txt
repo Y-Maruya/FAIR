@@ -68,6 +68,25 @@ endif()
 add_library(fair_options INTERFACE)
 target_compile_features(fair_options INTERFACE cxx_std_17)
 
+function(fair_expose_imported_includes target imported_target)
+  if(NOT TARGET "${imported_target}")
+    return()
+  endif()
+
+  get_target_property(_include_dirs "${imported_target}" INTERFACE_INCLUDE_DIRECTORIES)
+  if(NOT _include_dirs)
+    return()
+  endif()
+
+  foreach(_include_dir IN LISTS _include_dirs)
+    if(EXISTS "${_include_dir}")
+      target_compile_options("${target}" INTERFACE
+        "$<$<COMPILE_LANGUAGE:CXX>:-I${_include_dir}>"
+      )
+    endif()
+  endforeach()
+endfunction()
+
 # Common include dirs (your headers)
 target_include_directories(fair_options INTERFACE
   ${CMAKE_CURRENT_SOURCE_DIR}/common
@@ -103,6 +122,7 @@ if(FAIR_WITH_SPDLOG)
     INTERFACE
       spdlog::spdlog
   )
+  fair_expose_imported_includes(fair_options spdlog::spdlog)
 
   target_compile_definitions(fair_options
     INTERFACE
@@ -118,6 +138,7 @@ if(FAIR_WITH_YAML_CPP)
     INTERFACE
       yaml-cpp
   )
+  fair_expose_imported_includes(fair_options yaml-cpp)
 
   target_compile_definitions(fair_options
     INTERFACE
@@ -136,6 +157,7 @@ target_link_libraries(fair_options INTERFACE CURL::libcurl)
 # json (for config files, optional)
 find_package(nlohmann_json REQUIRED)
 target_link_libraries(fair_options INTERFACE nlohmann_json::nlohmann_json)
+fair_expose_imported_includes(fair_options nlohmann_json::nlohmann_json)
 # ---------------------------
 # Subprojects
 # ---------------------------

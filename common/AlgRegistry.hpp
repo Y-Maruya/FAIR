@@ -65,7 +65,7 @@ struct Registrar {
 
 } // namespace algreg_detail
 
-// helper for unique static variable names (Typeに :: があっても壊れない)
+// helper for unique static variable names
 #define AHCAL_CONCAT_IMPL(a, b) a##b
 #define AHCAL_CONCAT(a, b) AHCAL_CONCAT_IMPL(a, b)
 

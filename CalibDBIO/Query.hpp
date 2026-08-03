@@ -10,8 +10,8 @@
 
 using json = nlohmann::json;
 namespace CalibDBIO {
-    // inline std::string db_url = "https://ahcalib-calibrationdb.app.cern.ch/";
-    inline std::string db_url = "http://localhost:5000/";
+    inline std::string db_url = "https://ahcalib-calibrationdb.app.cern.ch/";
+    // inline std::string db_url = "http://localhost:5000/";
 
     inline std::string trim_url(std::string value) {
         const auto first = value.find_first_not_of(" \t\n\r\f\v");
