@@ -405,7 +405,9 @@ namespace AHCALRecoAlg {
                 }
 
                 // Save per-channel histograms with FFT data
-                if (cfg_.save_per_channel_hists && dHist && saved_hists < cfg_.save_max_channel_hists) {
+                const bool save_all_channel_hists = (cfg_.save_max_channel_hists < 0);
+                if (cfg_.save_per_channel_hists && dHist &&
+                    (save_all_channel_hists || saved_hists < cfg_.save_max_channel_hists)) {
                     auto it = hg_hist_.find(cid);
                     if (it != hg_hist_.end() && it->second) {
                         // Create nested directory structure
@@ -731,9 +733,9 @@ namespace AHCALRecoAlg {
                     continue;
                 }
                 const auto& rh = rawhits.at(index);
-                if (rh.index != index) {
-                    continue;
-                }
+                // if (rh.index != index) {
+                //     continue;
+                // }
                 impl_->fill(rh);
             }
         } else if (cfg_.string_track_struct == "Track") {

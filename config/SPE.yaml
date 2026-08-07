@@ -175,7 +175,7 @@ algs: # Define the sequence of algorithms to be executed. The order matters.
       edge_gain_tol: 0.01
       kedge_skip: 4
       save_per_channel_hists: true
-      save_max_channel_hists: 12000
+      save_max_channel_hists: -1
       do_event_scan: false
       save_examples: true
       substrate_pedestal: true

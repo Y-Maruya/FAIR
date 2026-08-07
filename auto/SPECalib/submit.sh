@@ -4,5 +4,5 @@ set -eo pipefail
 cd /eos/user/y/ymaruya/FASER/AHCAL/FAIR/auto/SPECalib
 set +u
 source ../../setup.sh
-
-bash run_specalib.sh "$1"
+echo "Running SPE-calibration for run $1 to $2"
+bash run_specalib_second.sh "$1" "$2"

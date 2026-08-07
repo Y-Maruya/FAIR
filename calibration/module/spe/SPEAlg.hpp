@@ -46,7 +46,7 @@ namespace AHCALRecoAlg {
 
         // Output control
         bool save_per_channel_hists = true;
-        int save_max_channel_hists = 600;
+        int save_max_channel_hists = -1; // negative means save all channels
         bool do_event_scan = false;
         bool save_examples = true;
 

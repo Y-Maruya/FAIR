@@ -181,7 +181,7 @@ KPick pickK0(const TH1D* h, int Npad, double adc_bin_width,
     std::vector<double> noise;
     noise.reserve((size_t)(kmax - kmin + 1));
     for (int k = kmin; k <= kmax; ++k) {
-        if (std::abs(k - kp) <= 2) continue;
+        if (std::abs(k - kp) <= 10) continue; // 2-bin exclusion around peak is enough? -> enlarge it to 10
         noise.push_back(amp(k));
     }
     double med = median(noise);

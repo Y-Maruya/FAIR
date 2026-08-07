@@ -101,6 +101,7 @@ def select_run_group(start_run, num_veto_events, excluded_runs, timeout):
 
 def find_start_runs(start_run, end_run, num_veto_events, excluded_runs, timeout):
     start_runs = []
+    end_runs = []
     current_start = start_run
 
     while current_start <= end_run and current_start <= MAX_RUN_NUMBER:
@@ -109,7 +110,7 @@ def find_start_runs(start_run, end_run, num_veto_events, excluded_runs, timeout)
             current_start, num_veto_events, excluded_runs, timeout
         )
         start_runs.append(current_start)
-
+        end_runs.append(selected_runs[-1])
         next_start = selected_runs[-1] + 1
         print(
             f"Group start {current_start}: selected {selected_runs[0]}-"
@@ -119,12 +120,12 @@ def find_start_runs(start_run, end_run, num_veto_events, excluded_runs, timeout)
             raise RuntimeError("Next start run did not advance")
         current_start = next_start
 
-    return start_runs
+    return start_runs, end_runs
 
 
-def write_start_runs(path, start_runs):
+def write_start_runs(path, start_runs, end_runs):
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text("".join(f"{run_number}\n" for run_number in start_runs))
+    path.write_text("".join(f"{start} {end}\n" for start, end in zip(start_runs, end_runs)))
     print(f"\nWrote {len(start_runs)} Condor job start runs to {path}")
 
 
@@ -202,7 +203,7 @@ def main():
         excluded_runs,
         args.timeout,
     )
-    write_start_runs(args.output, start_runs)
+    write_start_runs(args.output, start_runs, end_runs)
 
     if args.submit:
         subprocess.run(
