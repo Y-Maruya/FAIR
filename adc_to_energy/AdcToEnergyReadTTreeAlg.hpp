@@ -1,4 +1,6 @@
 #pragma once
+#include "calibration/RefValues.hpp"
+#include "common/geometry/Geometry.hpp"
 #include "common/EventStore.hpp"
 #include "common/IAlg.hpp"
 #include <string>
@@ -6,8 +8,7 @@
 #include <memory>
 #include <TFile.h>
 #include <TTree.h>
-#include <map>
-#include <tuple>
+#include <cstddef>
 
 namespace AHCALRecoAlg {
     struct AdcToEnergyReadTTreeAlgCfg{
@@ -34,6 +35,12 @@ namespace AHCALRecoAlg {
         void execute(EventStore& evt) override;
         void parse_cfg(const YAML::Node& n);
         void initialize() override {
+            const std::size_t n = total_channel_count();
+            mip_values_.assign(n, AHCALRefValues::ref_MIP);
+            hg_ped_values_.assign(n, AHCALRefValues::ref_ped_highgain);
+            lg_ped_values_.assign(n, AHCALRefValues::ref_ped_lowgain);
+            gainratio_values_.assign(n, AHCALRefValues::ref_gain_ratio);
+            gainplat_values_.assign(n, AHCALRefValues::lowgain_plat);
             initialize_mip();
             initialize_ped();
             initialize_dac();
@@ -44,12 +51,14 @@ namespace AHCALRecoAlg {
         std::unique_ptr<TFile> m_in_file;
         int file_cellid_version = 1; 
         TTree* m_in_tree = nullptr;
-        std::unordered_map<int, double> mip_map; // cellID to MPV
-        std::unordered_map<int, double> hg_ped_map; // cellID to pedestal
-        std::unordered_map<int, double> lg_ped_map; // cellID to pedestal
-        std::unordered_map<int, double> gainratio_map; // cellID to gain ratio
-        std::unordered_map<int, int> gainplat_map; // cellID to gain plat
+        std::vector<double> mip_values_;
+        std::vector<double> hg_ped_values_;
+        std::vector<double> lg_ped_values_;
+        std::vector<double> gainratio_values_;
+        std::vector<int> gainplat_values_;
         int cellid_conversion(int input_cellid);
+        static std::size_t total_channel_count();
+        static std::size_t channel_index_from_cellid(int cellid);
         AdcToEnergyReadTTreeAlgCfg m_cfg;
     };
 }
