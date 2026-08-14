@@ -85,7 +85,7 @@ void MIPReader::readMIPs(int runNumber) {
     for (int layer = 0; layer < AHCALGeometry::Layer_No; ++layer) {
         LOG_DEBUG("Reading MIP data for Layer {}", layer);
         // Query the calibration database for MIP data of the selected run
-        auto response = CalibDBIO::QueryRun(runNumber, "MIPImputed", layer, true, false);
+        auto response = CalibDBIO::QueryRun(runNumber, "MIP", layer, true, false);
         if (response.empty()) {
             LOG_ERROR("No MIP data found for run {}", runNumber);
             throw std::runtime_error("No MIP data found for run " + std::to_string(runNumber));

@@ -82,7 +82,7 @@ void InterCalibReader::readHGLGRatios(int runNumber) {
     for (int layer = 0; layer < AHCALGeometry::Layer_No; ++layer) {
         LOG_DEBUG("Reading HGLG ratios for Layer {}", layer);
         // Query the calibration database for HGLG ratios of the selected run
-        auto response = CalibDBIO::QueryRun(runNumber, "CorrectedIntercalib", layer, true, false);
+        auto response = CalibDBIO::QueryRun(runNumber, "GainR", layer, true, false);
         if (response.empty()) {
             LOG_ERROR("No HGLG ratio data found for run {}", runNumber);
             throw std::runtime_error("No HGLG ratio data found for run " + std::to_string(runNumber));
