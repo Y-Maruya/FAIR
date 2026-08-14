@@ -23,6 +23,7 @@ public:
     int hittag = 0;
     int bcid = 0;
     int index = 0; // for internal use
+    int sim_status = 0; // for internal use
 };
 
 inline std::vector<FieldDesc> describe(const AHCALRawHit*) {
@@ -33,6 +34,7 @@ inline std::vector<FieldDesc> describe(const AHCALRawHit*) {
         field("hittag", &AHCALRawHit::hittag),
         field("bcid", &AHCALRawHit::bcid),
         field("index", &AHCALRawHit::index),
+        field("sim_status", &AHCALRawHit::sim_status),
     };
 }
 inline std::vector<FieldDescVector> describe_vector(const AHCALRawHit*) {
@@ -42,7 +44,8 @@ inline std::vector<FieldDescVector> describe_vector(const AHCALRawHit*) {
         field_vector("v.lg_adc", &AHCALRawHit::lg_adc),
         field_vector("v.hittag", &AHCALRawHit::hittag),
         field_vector("v.bcid", &AHCALRawHit::bcid),
-        // field_vector("v.index", &AHCALRawHit::index),
+        field_vector("v.index", &AHCALRawHit::index),
+        field_vector("v.sim_status", &AHCALRawHit::sim_status),
     };
 }
 AHCAL_REGISTER_IO_STRUCT(AHCALRawHit, "AHCALRawHit");

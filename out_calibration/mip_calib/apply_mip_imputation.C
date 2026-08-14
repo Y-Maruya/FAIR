@@ -440,7 +440,7 @@ FullFitValueMap loadFullFitValues(const char *fullFitPath, const char *treeName)
         point.value = value;
         const double error = record.*(parameter.errorMember);
         point.error = validError(error) ? error : -999.0;
-        point.imputed = true;
+        // point.imputed = false;
         point.fullFit = true;
         values[p][key] = point;
       }
@@ -574,7 +574,7 @@ std::vector<std::vector<std::map<ChannelKey, StoredPoint> > > buildStoredValues(
             } else if (hasRunRms) {
               point.error = statIt->second.rms;
             }
-            point.imputed = true;
+            // point.imputed = true;
             point.fullFit = true;
             filledByFullFit = true;
           }
@@ -593,7 +593,7 @@ std::vector<std::vector<std::map<ChannelKey, StoredPoint> > > buildStoredValues(
           if (layerIt != layerSummaries.end() && layerIt->second.n) {
             point.value = layerIt->second.mean;
             point.error = layerIt->second.rms;
-            point.imputed = true;
+            // point.imputed = true;
             point.reference = true;
           }
         }
@@ -859,7 +859,7 @@ void writeJsonOutputs(
 
         output["RunNumber"] = sameRun;
         output["Layer"] = layer;
-        output["CalibrationType"] = "MIPImputed";
+        output["CalibrationType"] = "MIP";
         if (!output.contains("Status")) output["Status"] = 0;
         if (!output.contains("Summary") || !output["Summary"].is_object()) {
           output["Summary"] = json::object();
@@ -917,6 +917,185 @@ void writeJsonOutputs(
           continue;
         }
         out << output.dump(2) << std::endl;
+        std::cout << "Wrote " << outPath << std::endl;
+      }
+    }
+  }
+}
+
+std::vector<int> mergedSameDataRunsForRun(const RunData &run,
+                                          const std::set<int> &layers,
+                                          const std::string &jsonBaseDir,
+                                          const std::string &jsonSubdir) {
+  std::set<int> sameRuns;
+  for (int layer : layers) {
+    const std::string refPath =
+        referenceJsonPath(jsonBaseDir, run.label, jsonSubdir, run.runStart, layer);
+    const json refJson = readJsonFile(refPath);
+    const std::vector<int> layerRuns = mergedSameDataRunsForReference(
+        jsonBaseDir, run.label, jsonSubdir, run.runStart, layer, refJson);
+    sameRuns.insert(layerRuns.begin(), layerRuns.end());
+  }
+  if (sameRuns.empty()) {
+    sameRuns.insert(run.runStart);
+  }
+  return std::vector<int>(sameRuns.begin(), sameRuns.end());
+}
+
+bool writeMIPRootFile(
+    const std::string &outPath,
+    int runNumber,
+    size_t runIndex,
+    const std::set<int> &layers,
+    const std::vector<RunData> &runs,
+    const std::vector<std::vector<std::map<ChannelKey, StoredPoint> > > &stored) {
+  TFile outFile(outPath.c_str(), "RECREATE");
+  if (outFile.IsZombie()) {
+    std::cerr << "Cannot write ROOT: " << outPath << std::endl;
+    return false;
+  }
+
+  TTree tree("mip", "Imputed MIP calibration values");
+  int run_number = runNumber;
+  int run_start = runs[runIndex].runStart;
+  int run_end = runs[runIndex].runEnd;
+  std::string run_label = runs[runIndex].label;
+  int layer_value = 0;
+  int channel_index = 0;
+  int chip = 0;
+  int channel = 0;
+  double mpv = -999.0;
+  double width = -999.0;
+  double gaus_sigma = -999.0;
+  double threshold = -999.0;
+  double threshold_width = -999.0;
+  double mpv_error = -999.0;
+  double width_error = -999.0;
+  double gaus_sigma_error = -999.0;
+  double threshold_error = -999.0;
+  double threshold_width_error = -999.0;
+  int imputed = 0;
+  int ref = 0;
+  int full_fit = 0;
+  int decision = -1;
+  int state = 0;
+  std::string decision_name;
+  int cellid = 0;
+
+  tree.Branch("cellid", &cellid, "cellid/I");
+  tree.Branch("RunNumber", &run_number, "RunNumber/I");
+  tree.Branch("run_start", &run_start, "run_start/I");
+  tree.Branch("run_end", &run_end, "run_end/I");
+  tree.Branch("run_label", &run_label);
+  tree.Branch("Layer", &layer_value, "Layer/I");
+  tree.Branch("ChannelIndex", &channel_index, "ChannelIndex/I");
+  tree.Branch("Chip", &chip, "Chip/I");
+  tree.Branch("Channel", &channel, "Channel/I");
+  tree.Branch("MPV", &mpv, "MPV/D");
+  tree.Branch("Width", &width, "Width/D");
+  tree.Branch("GausSigma", &gaus_sigma, "GausSigma/D");
+  tree.Branch("Threshold", &threshold, "Threshold/D");
+  tree.Branch("ThresholdWidth", &threshold_width, "ThresholdWidth/D");
+  tree.Branch("MPVError", &mpv_error, "MPVError/D");
+  tree.Branch("WidthError", &width_error, "WidthError/D");
+  tree.Branch("GausSigmaError", &gaus_sigma_error, "GausSigmaError/D");
+  tree.Branch("ThresholdError", &threshold_error, "ThresholdError/D");
+  tree.Branch("ThresholdWidthError", &threshold_width_error, "ThresholdWidthError/D");
+  tree.Branch("Imputed", &imputed, "Imputed/I");
+  tree.Branch("Ref", &ref, "Ref/I");
+  tree.Branch("FullFit", &full_fit, "FullFit/I");
+  tree.Branch("Decision", &decision, "Decision/I");
+  tree.Branch("State", &state, "State/I");
+  tree.Branch("DecisionName", &decision_name);
+
+  auto parameterIndex = [](const std::string &jsonName) {
+    for (size_t p = 0; p < parameters().size(); ++p) {
+      if (jsonName == parameters()[p].jsonName) return p;
+    }
+    return parameters().size();
+  };
+  const size_t mpvIndex = parameterIndex("MPV");
+  const size_t widthIndex = parameterIndex("Width");
+  const size_t gausSigmaIndex = parameterIndex("GausSigma");
+  const size_t thresholdIndex = parameterIndex("Threshold");
+  const size_t thresholdWidthIndex = parameterIndex("ThresholdWidth");
+
+  for (int layer : layers) {
+    layer_value = layer;
+    for (int idx = 0; idx < kChannelsPerLayer; ++idx) {
+      ChannelKey key;
+      key.layer = layer;
+      key.index = idx;
+
+      auto readPoint = [&](size_t parameterIndex, double &value, double &error) {
+        value = -999.0;
+        error = -999.0;
+        if (parameterIndex >= stored.size()) return;
+        const auto it = stored[parameterIndex][runIndex].find(key);
+        if (it == stored[parameterIndex][runIndex].end()) return;
+        value = it->second.value;
+        error = it->second.error;
+      };
+
+      readPoint(mpvIndex, mpv, mpv_error);
+      readPoint(widthIndex, width, width_error);
+      readPoint(gausSigmaIndex, gaus_sigma, gaus_sigma_error);
+      readPoint(thresholdIndex, threshold, threshold_error);
+      readPoint(thresholdWidthIndex, threshold_width, threshold_width_error);
+
+      imputed = 0;
+      ref = 0;
+      full_fit = 0;
+      for (size_t p = 0; p < parameters().size(); ++p) {
+        const auto it = stored[p][runIndex].find(key);
+        if (it == stored[p][runIndex].end()) continue;
+        if (it->second.imputed) imputed |= imputedBit(p);
+        if (it->second.reference) ref |= imputedBit(p);
+        if (it->second.fullFit) full_fit |= imputedBit(p);
+      }
+
+      decision = -1;
+      state = 0;
+      decision_name = "";
+      const auto recordIt =
+          runs[runIndex].indexByLayerChannel.find(std::make_pair(layer, idx));
+      if (recordIt != runs[runIndex].indexByLayerChannel.end()) {
+        const Record &record = runs[runIndex].records[recordIt->second];
+        decision = record.decision;
+        state = record.state;
+        decision_name = record.decisionName;
+      }
+
+      cellid = layer*100000 + (idx / 36) * 10000 + (idx % 36);
+      channel_index = idx;
+      chip = idx / 36;
+      channel = idx % 36;
+      tree.Fill();
+    }
+  }
+
+  tree.Write();
+  outFile.Close();
+  return true;
+}
+
+void writeRootOutputs(
+    const std::vector<RunData> &runs,
+    const std::set<int> &layers,
+    const std::vector<std::vector<std::map<ChannelKey, StoredPoint> > > &stored,
+    const std::string &rootOutDir,
+    const std::string &jsonBaseDir,
+    const std::string &jsonSubdir) {
+  gSystem->mkdir(rootOutDir.c_str(), true);
+
+  for (size_t r = 0; r < runs.size(); ++r) {
+    const RunData &run = runs[r];
+    const std::vector<int> sameDataRuns =
+        mergedSameDataRunsForRun(run, layers, jsonBaseDir, jsonSubdir);
+    for (int sameRun : sameDataRuns) {
+      const std::string outPath =
+          joinPath(rootOutDir, Form("run%d_mip_imputed.root", sameRun));
+      if (writeMIPRootFile(outPath, sameRun, r, layers, runs, stored)) {
         std::cout << "Wrote " << outPath << std::endl;
       }
     }
@@ -1123,7 +1302,7 @@ std::set<ChannelKey> imputedChannelKeys(
     for (const auto &item : runMap) {
       if (referenceOnly) {
         if (item.second.reference) result.insert(item.first);
-      } else if (item.second.imputed) {
+      } else if (item.second.imputed || item.second.reference || item.second.fullFit) {
         result.insert(item.first);
       }
     }
@@ -1465,7 +1644,9 @@ void apply_mip_imputation(
     int minEntries = 200,
     double minValidRunFraction = 0.30,
     const char *fullFitFile = "full_fit/FinalMIPCalibration.root",
-    bool storageModeMapsOnly = false) {
+    bool storageModeMapsOnly = false,
+    bool writeRoot = false,
+    const char *rootOutDir = "mip_imputed_root") {
   using namespace mip_imputation;
   gStyle->SetOptStat(0);
 
@@ -1512,8 +1693,17 @@ void apply_mip_imputation(
     drawStoredTrends(runs, layers, stored, outDir);
     std::cout << "JSON and trend outputs written to " << outDir << std::endl;
   } else {
-    std::cout << "JSON output skipped. Pass writeJson=true or --write-json to write files."
-              << std::endl;
+    std::cout << "JSON output skipped. Pass writeJson=true or --write-json to write files.";
+    if (writeRoot) std::cout << " ROOT output will still be written.";
+    std::cout << std::endl;
+  }
+
+  if (writeRoot) {
+    const std::string resolvedRootOutDir =
+        rootOutDir && std::string(rootOutDir).size() ? rootOutDir : "mip_imputed_root";
+    writeRootOutputs(runs, layers, stored, resolvedRootOutDir,
+                     resolvedJsonBaseDir, resolvedJsonSubdir);
+    std::cout << "ROOT outputs written to " << resolvedRootOutDir << std::endl;
   }
 }
 
@@ -1525,7 +1715,9 @@ int main(int argc, char **argv) {
   const char *jsonBaseDir = ".";
   const char *jsonSubdir = "json_neighborcheck_nofit";
   const char *fullFitFile = "full_fit/FinalMIPCalibration.root";
+  const char *rootOutDir = "mip_imputed_root";
   bool writeJson = true;
+  bool writeRoot = false;
   bool storageModeMapsOnly = false;
   int minEntries = 200;
   double minValidRunFraction = 0.30;
@@ -1535,6 +1727,8 @@ int main(int argc, char **argv) {
     const std::string arg = argv[i];
     if (arg == "--write-json" || arg == "-j") {
       writeJson = true;
+    } else if (arg == "--write-root" || arg == "-r") {
+      writeRoot = true;
     } else if (arg == "--no-write-json") {
       writeJson = false;
     } else if (arg == "--storage-mode-maps-only") {
@@ -1548,6 +1742,8 @@ int main(int argc, char **argv) {
       jsonSubdir = argv[++i];
     } else if (arg == "--full-fit-file" && i + 1 < argc) {
       fullFitFile = argv[++i];
+    } else if ((arg == "--root-out-dir" || arg == "--root-dir") && i + 1 < argc) {
+      rootOutDir = argv[++i];
     } else if (arg == "--min-entries" && i + 1 < argc) {
       minEntries = std::atoi(argv[++i]);
     } else if (arg == "--min-valid-run-fraction" && i + 1 < argc) {
@@ -1559,6 +1755,8 @@ int main(int argc, char **argv) {
                 << " [--tree-name mip_calibration]"
                 << " [--json-subdir json_neighborcheck_nofit]"
                 << " [--full-fit-file full_fit/FinalMIPCalibration.root]"
+                << " [--write-root|-r]"
+                << " [--root-out-dir mip_imputed_root]"
                 << " [--min-entries 100]"
                 << " [--min-valid-run-fraction 0.25]"
                 << " [--storage-mode-maps-only]"
@@ -1581,7 +1779,7 @@ int main(int argc, char **argv) {
 
   apply_mip_imputation(inputFile, outDir, treeName, jsonBaseDir, jsonSubdir,
                        writeJson, minEntries, minValidRunFraction, fullFitFile,
-                       storageModeMapsOnly);
+                       storageModeMapsOnly, writeRoot, rootOutDir);
   return 0;
 }
 #endif

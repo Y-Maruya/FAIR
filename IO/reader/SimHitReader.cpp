@@ -271,9 +271,28 @@ bool SimHitReader::next(std::vector<AHCALSimHit>& out_hits, SimData& out_simdata
       out_simdata.Secondary_pz = -999999;
     }
     out_hits.clear();
-    out_hits.reserve(vecHcalCellID->size());
+    // out_hits.reserve(vecHcalCellID->size());
+    out_simdata.veto_energy_0 = 0;
+    out_simdata.veto_time_0 = 999999;
+    out_simdata.veto_energy_1 = 0;
+    out_simdata.veto_time_1 = 999999;
     for (size_t i = 0; i < vecHcalCellID->size(); ++i) {
+        if (vecHcalCellID->at(i) < 10000) {
+            LOG_DEBUG("Veto hit detected: cellID={}, Edep={}, HitTime={}", vecHcalCellID->at(i), vecHcalVisibleEdepCell->at(i), vecHcalHitTimeCell->at(i));
+            if (vecHcalCellID->at(i)==1000){
+                out_simdata.veto_energy_0 += vecHcalVisibleEdepCell->at(i);
+                out_simdata.veto_time_0 = std::min(out_simdata.veto_time_0, vecHcalHitTimeCell->at(i));
+            }else if (vecHcalCellID->at(i)==1001){
+                out_simdata.veto_energy_1 += vecHcalVisibleEdepCell->at(i);
+                out_simdata.veto_time_1 = std::min(out_simdata.veto_time_1, vecHcalHitTimeCell->at(i));
+            }else{
+                LOG_ERROR("Unknown veto cellID detected: cellID={}", vecHcalCellID->at(i));
+                throw std::runtime_error("Unknown veto cellID detected: cellID=" + std::to_string(vecHcalCellID->at(i)));
+            }
+            continue;
+        }
         AHCALSimHit hit;
+        hit.index = i;
         hit.cellID = cellid_conversion(vecHcalCellID->at(i));
         hit.Edep = vecHcalVisibleEdepCell->at(i); // after birks saturation, in MeV
         hit.Nmip = hit.Edep / AHCALGeometry::MIPEnergy; // convert energy deposition to number of MIPs, using the most probable energy deposition of a MIP in AHCAL as the conversion factor

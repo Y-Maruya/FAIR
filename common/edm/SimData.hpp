@@ -28,6 +28,11 @@ class SimData {
     double Secondary_px; // x component of momentum of the particle from neutrino interaction in GeV/c
     double Secondary_py; // y component of momentum of the particle from neutrino interaction in GeV/c
     double Secondary_pz; // z component of momentum of the particle from neutrino
+
+    double veto_energy_0; // energy deposited in the veto detector in MeV
+    double veto_time_0; // time of the energy deposition in the veto detector in ns
+    double veto_energy_1; // energy deposited in the veto detector in MeV
+    double veto_time_1; // time of the energy deposition in the veto detector in ns
 };
 
 inline std::vector<FieldDesc> describe(const SimData*) {
@@ -51,7 +56,11 @@ inline std::vector<FieldDesc> describe(const SimData*) {
         field("Secondarypdgid", &SimData::Secondarypdgid),
         field("Secondary_px", &SimData::Secondary_px),
         field("Secondary_py", &SimData::Secondary_py),
-        field("Secondary_pz", &SimData::Secondary_pz)
+        field("Secondary_pz", &SimData::Secondary_pz),
+        field("veto_energy_0", &SimData::veto_energy_0),
+        field("veto_time_0", &SimData::veto_time_0),
+        field("veto_energy_1", &SimData::veto_energy_1),
+        field("veto_time_1", &SimData::veto_time_1),
     };
 }
 AHCAL_REGISTER_IO_STRUCT(SimData, "SimData");

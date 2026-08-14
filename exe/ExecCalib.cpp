@@ -221,7 +221,7 @@ int run_fair_calib(int argc, char* argv[]) {
     }
     int start_runNumber = parsed_runs[0];
     std::cout << "Parsed start run number: " << start_runNumber << std::endl;
-    if (start_runNumber <= 0) {
+    if (start_runNumber < 0) {
         LOG_ERROR("Invalid start run number: {}", start_runNumber);
         return 1;
     }
