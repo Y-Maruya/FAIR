@@ -69,3 +69,8 @@ target_include_directories(test_mip_crossing_selection
 )
 
 add_test(NAME test_mip_crossing_selection COMMAND test_mip_crossing_selection)
+
+add_executable(test_mip_sim_selection test_mip_sim_selection.cpp)
+target_link_libraries(test_mip_sim_selection PRIVATE MIPSimAlg MIPAlg PedestalReader fair_options)
+target_include_directories(test_mip_sim_selection PRIVATE ${CMAKE_SOURCE_DIR})
+add_test(NAME test_mip_sim_selection COMMAND test_mip_sim_selection)
