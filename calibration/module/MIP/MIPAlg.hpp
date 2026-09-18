@@ -15,6 +15,8 @@ namespace AHCALRecoAlg{
     struct MIPAlgCfg{
         std::string in_rawhit_key = "RawHits";
         std::string in_track_key = "Tracks";
+        // Optional: indices of raw hits actually filled in the MIP histograms.
+        std::string out_selected_rawhit_indices_key;
 
         std::string string_track_struct = "SimpleFittedTrack"; // or "Track"
         std::string track_selection_string = "";

@@ -369,7 +369,7 @@ namespace AHCALRecoAlg{
             run_contexts_.push_back(new_ctx);
         }
     
-        void fill(const AHCALRawHit& h) {
+        bool fill(const AHCALRawHit& h) {
             const int cellid = h.cellID;
 
             double hg_value = static_cast<double>(h.hg_adc);
@@ -377,11 +377,11 @@ namespace AHCALRecoAlg{
                 auto itp = ped_map_->find(cellid);
                 if (itp == ped_map_->end()) {
                     n_missing_ped_++;
-                    return;
+                    return false;
                 }
                 if (!AHCALRefValues::HGPedestalStatus_is_ok(itp->second.HighGainStatus)) {
                     n_missing_ped_++;
-                    return;
+                    return false;
                 }
                 hg_value -= itp->second.HighGainPeak;
             }
@@ -408,6 +408,7 @@ namespace AHCALRecoAlg{
                 LOG_INFO("MIPAlg: {} histograms created, estimated memory ≈ {} MB",
                         hg_hist_.size(), hg_hist_.size() * 45 / 1024);
             }
+            return hg_value >= cfg_.xmin && hg_value <= cfg_.xmax;
         }
 
         void buildFitCache() {
@@ -896,7 +897,17 @@ namespace AHCALRecoAlg{
 
     void MIPAlg::execute(EventStore& evt){
         ensure_impl();
+        std::vector<int> selected_indices;
+        // Create the output before any track cut can return early.
+        if (!cfg_.out_selected_rawhit_indices_key.empty()) {
+            evt.put(cfg_.out_selected_rawhit_indices_key, selected_indices);
+        }
         auto rawhits = evt.get<std::vector<AHCALRawHit>>(cfg_.in_rawhit_key);
+        auto record_hit = [&](const AHCALRawHit& hit, int index) {
+            if (impl_->fill(hit) && !cfg_.out_selected_rawhit_indices_key.empty()) {
+                evt.get<std::vector<int>>(cfg_.out_selected_rawhit_indices_key).push_back(index);
+            }
+        };
         if (cfg_.string_track_struct == "SimpleFittedTrack") {
             auto track = evt.get<SimpleFittedTrack>(cfg_.in_track_key);
             if (!cfg_.track_selection_string.empty()) {
@@ -967,7 +978,7 @@ namespace AHCALRecoAlg{
                            rh.channel() == channel && rh.hittag == 1;
                 });
                 if (hit_it != rawhits.end()) {
-                    impl_->fill(*hit_it);
+                    record_hit(*hit_it, static_cast<int>(std::distance(rawhits.begin(), hit_it)));
                     ++cutflow.target_hit_fill;
                 } else {
                     ++cutflow.no_exact_target_hit;
@@ -1013,7 +1024,7 @@ namespace AHCALRecoAlg{
                     LOG_WARN("MIPAlg: rawhit index {} does not match track hit index {}", rh.index, index);
                     continue;
                 }
-                impl_->fill(rh);
+                record_hit(rh, index);
             }
         } else {
             LOG_ERROR("MIPAlg: unknown track struct string '{}'", cfg_.string_track_struct);
@@ -1023,6 +1034,8 @@ namespace AHCALRecoAlg{
     void MIPAlg::parse_cfg(const YAML::Node& cfg){
         cfg_.in_rawhit_key = get_or<std::string>(cfg, "in_rawhit_key", cfg_.in_rawhit_key);
         cfg_.in_track_key = get_or<std::string>(cfg, "in_track_key", cfg_.in_track_key);
+        cfg_.out_selected_rawhit_indices_key = get_or<std::string>(
+            cfg, "out_selected_rawhit_indices_key", cfg_.out_selected_rawhit_indices_key);
         cfg_.string_track_struct = get_or<std::string>(cfg, "string_track_struct", cfg_.string_track_struct);
         cfg_.track_selection_string = get_or<std::string>(cfg, "track_selection_string", cfg_.track_selection_string);
         cfg_.mip_to_file = get_or<bool>(cfg, "mip_to_file", cfg_.mip_to_file);
